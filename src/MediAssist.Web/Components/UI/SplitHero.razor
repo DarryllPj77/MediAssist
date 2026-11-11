@@ -1,0 +1,58 @@
+@*
+    Split hero (reference + premium hospital-site composition): large serif title, lead and the
+    guided actions on one side; a framed image slot on the other. Sits on the cream ground with one
+    faint, abstract ray motif behind it (twelve even rays: not the flag's sun, no stars).
+    Phones: text first, then the image at 4:3.
+*@
+
+<section class="split @(Compact ? "split--compact" : null) @Class" aria-labelledby="@TitleId">
+    <span class="split__rays" aria-hidden="true"></span>
+    <div class="split__grid">
+        <div class="split__text">
+            @if (Eyebrow is not null)
+            {
+                <p class="split__eyebrow">@Eyebrow</p>
+            }
+            <h1 id="@TitleId" class="split__title serif" tabindex="-1">@Title</h1>
+            @if (TitleFilipino is not null)
+            {
+                <p class="split__title-fil" lang="fil">@TitleFilipino</p>
+            }
+            @if (Lead is not null)
+            {
+                <p class="split__lead">@Lead</p>
+            }
+            @if (LeadFilipino is not null)
+            {
+                <p class="split__lead-fil" lang="fil">@LeadFilipino</p>
+            }
+            @if (Actions is not null)
+            {
+                <div class="split__actions">@Actions</div>
+            }
+        </div>
+
+        <div class="split__media">
+            <ImageSlot Key="@ImageKey" Frame="true" Priority="true" />
+            <svg class="split__leaves" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+                <path d="M8 116 C 18 70, 50 40, 96 26 C 84 72, 56 102, 8 116 Z" />
+                <path d="M30 118 C 44 94, 70 78, 112 72 C 98 98, 72 114, 30 118 Z" />
+            </svg>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string TitleId { get; set; } = "page-title";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? TitleFilipino { get; set; }
+    [Parameter] public RenderFragment? Eyebrow { get; set; }
+    [Parameter] public string? Lead { get; set; }
+    [Parameter] public string? LeadFilipino { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    /// <summary>Image slot key (see Models/ImageSlots.cs), e.g. "hero-patient-home".</summary>
+    [Parameter, EditorRequired] public string ImageKey { get; set; } = "hero-default";
+    /// <summary>A shorter hero for task-heavy staff dashboards.</summary>
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

@@ -11,14 +11,13 @@
 else
 {
     <div class="staff">
-        <HeroBand TitleId="admin-title" Compact="true"
+        <SplitHero ImageKey="hero-admin" TitleId="admin-title" Compact="true"
                   Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
                   Lead="@StatusLine"
                   LeadFilipino="Suriin nang maingat; bawat papel ay isang pamilyang naghihintay.">
             <Eyebrow><time datetime="@DisplayFormat.Machine(_now)">@DisplayFormat.LongDay(_now)</time> · Administrator</Eyebrow>
             <Actions>
-                <GuidedActions OnNavy="true"
-                               PrimaryHref="@(RoleNavigation.Administrator.PrimaryActionHref ?? RoleNavigation.AdminReviews.Href)"
+                <GuidedActions PrimaryHref="@(RoleNavigation.Administrator.PrimaryActionHref ?? RoleNavigation.AdminReviews.Href)"
                                PrimaryLabel="Review next application"
                                PrimaryFilipino="Suriin ang susunod"
                                PrimaryIcon="arrow-right"
@@ -27,7 +26,7 @@ else
                                SecondaryFilipino="Magtalaga ng runner"
                                SecondaryIcon="route" />
             </Actions>
-        </HeroBand>
+        </SplitHero>
 
         <section class="queue" aria-labelledby="queue-title">
             <SectionHeader Id="queue-title" Title="Review queue" Filipino="Mga susuriin" Count="@_queue.Count">

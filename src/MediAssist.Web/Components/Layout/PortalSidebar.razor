@@ -6,6 +6,15 @@
 
 <aside class="sidebar" aria-label="@Set.PortalLabel">
     <div class="sidebar__inner">
+        <a class="sidebar__brand" href="@Set.Home.Href">
+            <BrandMark Size="38" />
+            <span class="sidebar__brand-text">
+                <span class="sidebar__wordmark">MediAssist</span>
+                <span class="sidebar__tagline">Tulong-tulong sa pagpapagamot</span>
+            </span>
+            <span class="visually-hidden">, go to @Set.Home.Label.ToLowerInvariant()</span>
+        </a>
+
         @if (Set.PrimaryActionHref is not null)
         {
             <a class="sidebar__new" href="@Set.PrimaryActionHref" data-label="@Set.PrimaryActionLabel">
@@ -37,6 +46,8 @@
                 </div>
             }
         </nav>
+
+        <p class="sidebar__notice">Independent assistance service. Not a government agency.</p>
 
         <div class="sidebar__footer">
             <button type="button"

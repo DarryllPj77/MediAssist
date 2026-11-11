@@ -1,0 +1,76 @@
+@*
+    Image slot: a fixed-ratio frame that shows the owner's file when it exists in
+    wwwroot/images/ (webp, jpg or png, matched by slot key) and otherwise a finished-looking,
+    wordless stand-in (flat cream, woven edge, a faint bayanihan house). Never captioned.
+    Add ?slots=1 to any page URL to see each slot's key and delivery size (designer view only).
+*@
+@inject IWebHostEnvironment Env
+@inject NavigationManager Nav
+
+<figure class="slot @(Frame ? "slot--framed" : null) @(Spec.Kind == "illustration" ? "slot--illustration" : null) @Class"
+        style="--slot-ratio: @Spec.Ratio; --slot-ratio-mobile: @(Spec.MobileRatio ?? Spec.Ratio); --slot-focal: @Spec.Focal;"
+        data-slot="@Key"
+        data-source="@(_file is null ? "stand-in" : "client")">
+    @* CLIENT FILE: wwwroot/images/{slot key}.webp, sizes and alt text in Models/ImageSlots.cs and wwwroot/images/README.md *@
+    @if (_file is not null)
+    {
+        <img class="slot__img"
+             src="@_file"
+             alt="@Spec.Alt"
+             width="@Spec.Width" height="@Spec.Height"
+             loading="@(Priority ? "eager" : "lazy")"
+             fetchpriority="@(Priority ? "high" : null)"
+             decoding="async" />
+    }
+    else
+    {
+        <div class="slot__standin" aria-hidden="true">
+            <svg class="slot__motif" viewBox="0 0 120 90" focusable="false" preserveAspectRatio="xMidYMid meet">
+                <path class="slot__roof" d="M34 44 60 22l26 22" />
+                <path class="slot__house" d="M40 44h40v20H40z" />
+                <path class="slot__posts" d="M44 64v12M60 64v12M76 64v12" />
+            </svg>
+            <span class="slot__weave"></span>
+        </div>
+    }
+
+    @if (_showSpecs)
+    {
+        <span class="slot__spec" aria-hidden="true">@Key · @Spec.Width×@Spec.Height · @Spec.Ratio@(_file is null ? "" : " · in place")</span>
+    }
+</figure>
+
+@code {
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+    /// <summary>White frame around the image, as in the reference hero.</summary>
+    [Parameter] public bool Frame { get; set; }
+    /// <summary>Above-the-fold image: load eagerly with high priority.</summary>
+    [Parameter] public bool Priority { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private ImageSlotSpec Spec => ImageSlots.Get(Key);
+    private string? _file;
+    private bool _showSpecs;
+
+    private static readonly string[] Extensions = [".webp", ".jpg", ".png", ".svg"];
+
+    protected override void OnParametersSet()
+    {
+        _file = null;
+        foreach (var candidate in ImageSlots.FileCandidates(Key))
+        {
+            foreach (var ext in Extensions)
+            {
+                if (Env.WebRootFileProvider.GetFileInfo($"images/{candidate}{ext}").Exists)
+                {
+                    _file = $"images/{candidate}{ext}";
+                    break;
+                }
+            }
+            if (_file is not null) break;
+        }
+
+        var query = new Uri(Nav.Uri).Query;
+        _showSpecs = query.Contains("slots=1", StringComparison.OrdinalIgnoreCase);
+    }
+}

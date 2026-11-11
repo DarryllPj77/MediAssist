@@ -15,9 +15,7 @@
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
 <div class="portal" data-sidebar="@SidebarAttribute" data-role="@_set.Role.ToString().ToLowerInvariant()" @ref="_portal">
-    @* Full-width civic masthead, then the service index (sidebar) and the page. *@
-    <PortalHeader Set="_set" SectionTitle="@SectionTitle" UnreadCount="_unreadCount" UserName="@_userName" />
-
+    @* Navy sidebar (brand at its top) beside a column of top bar, page and footer. *@
     <div class="portal__frame">
         <PortalSidebar Set="_set"
                        Collapsed="IsSidebarCollapsed"
@@ -26,6 +24,8 @@
                        OnToggle="ToggleSidebarAsync" />
 
         <div class="portal__body">
+            <PortalHeader Set="_set" SectionTitle="@SectionTitle" UnreadCount="_unreadCount" UserName="@_userName" />
+
             <main id="main-content" class="portal__main" tabindex="-1">
                 @Body
             </main>

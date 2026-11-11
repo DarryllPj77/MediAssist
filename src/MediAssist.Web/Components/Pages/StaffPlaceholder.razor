@@ -1,6 +1,7 @@
 @*
-    Stand-in for Administrator and Runner destinations planned in later milestones,
-    so every staff navigation link resolves.
+    Administrator and Runner pages planned for later milestones: split hero with the section's
+    image slot (hero-admin-<section> / hero-runner-<section>, falling back to hero-default), then
+    the notice card.
 *@
 @page "/admin/reviews"
 @page "/admin/reviews/{Item}"
@@ -19,21 +20,19 @@
 
 <PageTitle>@Title · MediAssist</PageTitle>
 
-<div class="page">
-    <header class="page__head">
-        <p class="eyebrow">@Set.PortalLabel</p>
-        <h1 class="page__title serif" tabindex="-1">@Title</h1>
-        @if (Item is not null)
-        {
-            <p class="ref">@Item</p>
-        }
-        <p class="page__intro">This part of the @Set.PortalLabel.ToLowerInvariant() portal is planned for an upcoming milestone of the prototype.</p>
-    </header>
-    <div>
-        <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@Set.Home.Href" IconStart="home">
-            Back to @Set.Home.Label.ToLowerInvariant()
-        </AppButton>
-    </div>
+<div class="page page--wide">
+    <SplitHero TitleId="section-title" ImageKey="@ImageSlots.HeroKeyForPath(Path)" Compact="true"
+               Title="@Title"
+               Lead="@(Item is null ? $"This part of the {Set.PortalLabel.ToLowerInvariant()} portal is being prepared." : $"Details for {Item} are being prepared.")">
+        <Eyebrow>@Set.PortalLabel</Eyebrow>
+    </SplitHero>
+
+    <NoticeCard Title="This page is on its way"
+                TitleFilipino="Kasalukuyang inaayos ang pahina"
+                Message="It is planned for an upcoming milestone of the prototype."
+                MessageFilipino="Salamat sa inyong pag-unawa."
+                ActionHref="@Set.Home.Href"
+                ActionLabel="@($"Back to {Set.Home.Label.ToLowerInvariant()}")" />
 </div>
 
 @code {

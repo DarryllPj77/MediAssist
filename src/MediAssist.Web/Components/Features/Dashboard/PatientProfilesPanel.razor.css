@@ -42,3 +42,14 @@
     justify-self: start;
     min-height: var(--tap-target);
 }
+
+/* Optional household photograph: wide screens only. */
+.household ::deep .household__image {
+    display: none;
+}
+
+@media (min-width: 48em) {
+    .household ::deep .household__image {
+        display: block;
+    }
+}

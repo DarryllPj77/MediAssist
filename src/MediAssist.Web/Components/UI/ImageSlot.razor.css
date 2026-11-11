@@ -1,0 +1,104 @@
+.slot {
+    position: relative;
+    margin: 0;
+    aspect-ratio: var(--slot-ratio);
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    background: var(--color-cream-deep);
+}
+
+@media (max-width: 47.99em) {
+    .slot {
+        aspect-ratio: var(--slot-ratio-mobile);
+    }
+}
+
+/* White frame, as in the reference hero photo. */
+.slot--framed {
+    padding: 8px;
+    background: var(--color-surface);
+    box-shadow: 0 0 0 1px var(--color-border-card);
+}
+
+.slot--framed .slot__img,
+.slot--framed .slot__standin {
+    border-radius: calc(var(--radius-xl) - 6px);
+}
+
+.slot__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: var(--slot-focal);
+    transition: transform 600ms var(--ease-out);
+}
+
+/* Taste: a photograph zooms 1.02 inside its frame on hover (fine pointers, motion allowed). */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .slot:hover .slot__img {
+        transform: scale(1.02);
+    }
+}
+
+/* ---- Stand-in: finished, wordless, never grey ---- */
+.slot__standin {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 80% 16%, color-mix(in srgb, var(--color-gold) 9%, transparent) 0 18%, transparent 19%),
+        var(--color-cream-deep);
+}
+
+.slot__motif {
+    width: min(46%, 14rem);
+    height: auto;
+}
+
+.slot__roof,
+.slot__house,
+.slot__posts {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.slot__roof  { stroke: color-mix(in srgb, var(--color-gold) 75%, transparent); stroke-width: 3.5; }
+.slot__house { stroke: color-mix(in srgb, var(--color-navy) 22%, transparent); stroke-width: 2; }
+.slot__posts { stroke: color-mix(in srgb, var(--color-navy) 30%, transparent); stroke-width: 3; }
+
+.slot__weave {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    height: 10px;
+    background-color: color-mix(in srgb, var(--color-navy) 10%, var(--color-cream-deep));
+    background-image:
+        repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-gold) 55%, transparent) 0 2px, transparent 2px 6px),
+        repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-navy) 30%, transparent) 0 2px, transparent 2px 6px);
+}
+
+.slot--illustration .slot__standin {
+    background: var(--color-gold-subtle);
+}
+
+.slot--illustration .slot__weave {
+    display: none;
+}
+
+/* ---- Designer view (?slots=1) ---- */
+.slot__spec {
+    position: absolute;
+    inset-inline-start: var(--space-3);
+    inset-block-start: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-navy);
+    color: var(--color-on-navy);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}

@@ -1,0 +1,131 @@
+.split {
+    position: relative;
+    container: split / inline-size;
+    isolation: isolate;
+    padding-block: var(--space-4) var(--space-6);
+}
+
+/* One faint, abstract ray motif behind the hero: twelve even rays fading out. Decorative. */
+.split__rays {
+    position: absolute;
+    z-index: -1;
+    inset-block-start: -10%;
+    inset-inline-start: -12%;
+    width: min(56%, 36rem);
+    aspect-ratio: 1;
+    background: repeating-conic-gradient(
+        from 4deg,
+        color-mix(in srgb, var(--color-gold) 7%, transparent) 0deg 10deg,
+        transparent 10deg 30deg);
+    mask-image: radial-gradient(circle, #000 0 20%, transparent 68%);
+    -webkit-mask-image: radial-gradient(circle, #000 0 20%, transparent 68%);
+    pointer-events: none;
+}
+
+.split__grid {
+    display: grid;
+    gap: var(--space-7);
+}
+
+.split__text {
+    display: grid;
+    align-content: center;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.split__eyebrow {
+    color: var(--color-gold-text);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+}
+
+.split__title {
+    color: var(--color-navy);
+    font-size: clamp(2.125rem, 1.4rem + 3vw, var(--text-4xl));
+    font-weight: 600;
+    line-height: 1.04;
+    letter-spacing: var(--tracking-display);
+    text-wrap: balance;
+}
+
+.split__title-fil {
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+}
+
+.split__lead {
+    max-width: 40ch;
+    margin-block-start: var(--space-2);
+    color: var(--color-text);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
+}
+
+.split__lead-fil {
+    max-width: 48ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.split__actions {
+    margin-block-start: var(--space-4);
+}
+
+.split__media {
+    position: relative;
+    min-width: 0;
+}
+
+/* Two leaves tucked behind the frame's lower corner (wide screens only). */
+.split__leaves {
+    display: none;
+}
+
+/* ---- Wide: text beside image ---- */
+@container split (min-width: 40rem) {
+    .split__grid {
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        align-items: center;
+        gap: var(--space-8);
+    }
+
+    .split__leaves {
+        display: block;
+        position: absolute;
+        z-index: -1;
+        inset-inline-start: -2.75rem;
+        inset-block-end: -2.25rem;
+        width: 7.5rem;
+        fill: color-mix(in srgb, var(--color-success) 30%, var(--color-cream-deep));
+    }
+}
+
+@container split (min-width: 60rem) {
+    .split {
+        padding-block: var(--space-7) var(--space-9);
+    }
+
+    .split__grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-9);
+        min-height: 30rem;
+    }
+}
+
+/* Staff dashboards: less height, same composition. */
+.split--compact {
+    padding-block: var(--space-2) var(--space-4);
+}
+
+@container split (min-width: 60rem) {
+    .split--compact .split__grid {
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        min-height: 0;
+    }
+
+    .split--compact .split__title {
+        font-size: var(--text-3xl);
+    }
+}

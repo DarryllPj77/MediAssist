@@ -1,38 +1,38 @@
 @*
-    Stand-in for destinations planned in later milestones, so every navigation link resolves.
+    Patient pages planned for later milestones. Composition from the reference: a split hero with
+    the section's own image slot (hero-patient-<section>, falling back to hero-default), then the
+    centred notice card with its illustration slot and one way back.
 *@
 @page "/patient/applications"
 @page "/patient/applications/{Reference}"
 @page "/patient/patients"
 @page "/patient/hospitals"
 @page "/patient/runner"
-@page "/patient/notifications"
 @page "/patient/settings"
 @inject NavigationManager Nav
 
 <PageTitle>@Title · MediAssist</PageTitle>
 
-<div class="placeholder">
-    <span class="placeholder__icon"><Icon Name="@IconName" Size="24" /></span>
-    <h1 class="placeholder__title" tabindex="-1">@Title</h1>
-    @if (Reference is not null)
-    {
-        <p class="placeholder__ref tabular">Application @Reference</p>
-    }
-    <p class="placeholder__text">
-        This part of the Patient Portal is planned for an upcoming milestone of the prototype.
-    </p>
-    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Dashboard.Href" IconStart="home">
-        Back to dashboard
-    </AppButton>
+<div class="page page--wide">
+    <SplitHero TitleId="section-title" ImageKey="@ImageKey"
+               Title="@Title"
+               Lead="@(Reference is null ? "This part of the patient portal is being prepared." : $"Details for application {Reference} are being prepared.")">
+        <Eyebrow>Patient portal</Eyebrow>
+    </SplitHero>
+
+    <NoticeCard Title="This page is on its way"
+                TitleFilipino="Kasalukuyang inaayos ang pahina"
+                Message="It is planned for an upcoming milestone of the prototype. Your dashboard has everything that works today."
+                MessageFilipino="Salamat sa inyong pag-unawa."
+                ActionHref="@PortalNavigation.Dashboard.Href" />
 </div>
 
 @code {
     [Parameter] public string? Reference { get; set; }
 
-    private NavDestination? Destination => PortalNavigation.Resolve(Nav.ToBaseRelativePath(Nav.Uri));
+    private string Path => Nav.ToBaseRelativePath(Nav.Uri);
+    private NavDestination? Destination => PortalNavigation.Resolve(Path);
 
     private string Title => Reference is not null ? "Application details" : Destination?.Label ?? "Coming soon";
-
-    private string IconName => Reference is not null ? "file-text" : Destination?.Icon ?? "info";
+    private string ImageKey => ImageSlots.HeroKeyForPath(Path);
 }

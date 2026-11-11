@@ -3,16 +3,14 @@
 
 <PageTitle>Document checklist · MediAssist</PageTitle>
 
-<div class="page">
-    <header class="page__head">
-        <p class="eyebrow">Find help</p>
-        <h1 class="page__title serif" tabindex="-1">Document checklist</h1>
-        <p class="fil page__fil" lang="fil">Ihanda ang mga papeles</p>
-        <p class="page__intro">
-            Every open application and the documents it needs. Red rows still need something from you.
-            You can submit an application before every document is ready and add the rest later.
-        </p>
-    </header>
+<div class="page page--wide">
+    <SplitHero TitleId="documents-title" ImageKey="hero-documents"
+               Title="Document checklist"
+               TitleFilipino="Ihanda ang mga papeles"
+               Lead="Every open application and the documents it needs. Red rows still need something from you."
+               LeadFilipino="Maaari kang magsumite kahit hindi pa kumpleto ang papeles, at idagdag ang iba sa susunod.">
+        <Eyebrow>Find help</Eyebrow>
+    </SplitHero>
 
     @if (Upload is not null)
     {

@@ -12,7 +12,7 @@ else
 {
     var next = Open.FirstOrDefault();
     <div class="staff">
-        <HeroBand TitleId="runner-title" Compact="true"
+        <SplitHero ImageKey="hero-runner" TitleId="runner-title" Compact="true"
                   Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
                   Lead="@(Open.Count switch { 0 => "No open tasks right now.", 1 => "You have 1 open task.", _ => $"You have {Open.Count} open tasks." })"
                   LeadFilipino="Salamat sa pagtulong. Ikaw ang kamay ng bayanihan.">
@@ -20,8 +20,7 @@ else
             <Actions>
                 @if (next is not null)
                 {
-                    <GuidedActions OnNavy="true"
-                                   PrimaryHref="@($"{RoleNavigation.RunnerTasks.Href}/{next.Id}")"
+                    <GuidedActions PrimaryHref="@($"{RoleNavigation.RunnerTasks.Href}/{next.Id}")"
                                    PrimaryLabel="Open next task"
                                    PrimaryFilipino="Buksan ang susunod na gawain"
                                    PrimaryIcon="arrow-right"
@@ -30,7 +29,7 @@ else
                                    SecondaryFilipino="Tingnan lahat" />
                 }
             </Actions>
-        </HeroBand>
+        </SplitHero>
 
         <section class="tasks" aria-labelledby="tasks-title">
             <SectionHeader Id="tasks-title" Title="Your tasks" Filipino="Iyong mga gawain" Count="@Open.Count"

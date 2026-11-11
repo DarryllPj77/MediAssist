@@ -64,6 +64,35 @@
     font-weight: var(--weight-semibold);
 }
 
+/* ---- Inside the navy sidebar ---- */
+.sidebar .nav-item {
+    color: var(--color-on-navy-muted);
+}
+
+.sidebar .nav-item:hover {
+    background: var(--color-navy-soft);
+    color: var(--color-on-navy);
+}
+
+/* Current page: a cream pill with navy text, as in the reference. */
+.sidebar .nav-item.is-active {
+    background: var(--color-bg);
+    color: var(--color-navy);
+    box-shadow: none;
+}
+
+.sidebar .nav-item.is-active::before {
+    background: var(--color-gold-action);
+}
+
+.sidebar .nav-item:focus-visible {
+    box-shadow: var(--focus-ring-on-navy);
+}
+
+.sidebar .nav-item__badge {
+    box-shadow: 0 0 0 2px var(--color-navy);
+}
+
 /* ---- Rail: the sidebar container is narrow ---- */
 @container sidebar (max-width: 6rem) {
     .nav-item {

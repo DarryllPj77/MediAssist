@@ -1,3 +1,7 @@
+/*
+  Navy sidebar (reference): brand at the top, gold-outlined primary action, light index,
+  and a woven banig strip running down its right edge.
+*/
 .sidebar {
     display: none;
 }
@@ -6,13 +10,27 @@
     .sidebar {
         display: block;
         position: sticky;
-        inset-block-start: calc(var(--masthead-height) + var(--masthead-weave));
+        inset-block-start: 0;
         width: var(--sidebar-w);
-        height: calc(100dvh - var(--masthead-height) - var(--masthead-weave));
-        background: var(--color-bg);
-        border-inline-end: 1px solid var(--color-border);
+        height: 100dvh;
+        padding-inline-end: var(--sidebar-weave);
+        background: var(--color-navy);
+        color: var(--color-on-navy);
         container: sidebar / inline-size;
         z-index: var(--z-nav);
+    }
+
+    /* Woven strip on the right edge. */
+    .sidebar::after {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        inset-inline-end: 0;
+        width: var(--sidebar-weave);
+        background-color: var(--color-navy-deep);
+        background-image:
+            repeating-linear-gradient(45deg, var(--color-gold) 0 2px, transparent 2px 6px),
+            repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-gold) 55%, transparent) 0 2px, transparent 2px 6px);
     }
 
     .portal[data-ready] .sidebar {
@@ -20,9 +38,8 @@
     }
 }
 
-/* Short windows: let the index scroll (rail tooltips may clip here; labels stay announced). */
-@media (min-width: 48em) and (max-height: 44em) {
-    .sidebar {
+@media (min-width: 48em) and (max-height: 46em) {
+    .sidebar__inner {
         overflow-y: auto;
         overscroll-behavior: contain;
     }
@@ -31,12 +48,52 @@
 .sidebar__inner {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
-    min-height: 100%;
-    padding: var(--space-6) var(--space-4) var(--space-5);
+    gap: var(--space-5);
+    height: 100%;
+    padding: var(--space-4) var(--space-4) var(--space-5);
 }
 
-/* ---- New application (outlined: the page owns the one filled button) ---- */
+/* ---- Brand ---- */
+.sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap-target);
+    padding: var(--space-1) var(--space-1) var(--space-4);
+    border-block-end: 1px solid var(--color-navy-soft);
+    color: var(--color-on-navy);
+    text-decoration: none;
+}
+
+.sidebar__brand:hover {
+    color: var(--color-on-navy);
+}
+
+.sidebar__brand:focus-visible {
+    box-shadow: var(--focus-ring-on-navy);
+    border-radius: var(--radius-md);
+}
+
+.sidebar__brand-text {
+    display: grid;
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.sidebar__wordmark {
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.sidebar__tagline {
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-xs);
+    line-height: 1.3;
+}
+
+/* ---- Primary action: gold outline (the page owns the one filled gold button) ---- */
 .sidebar__new {
     position: relative;
     display: flex;
@@ -45,10 +102,10 @@
     gap: var(--space-2);
     min-height: var(--tap-target);
     padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--color-navy);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    color: var(--color-navy);
+    border: 1.5px solid var(--color-gold-on-navy);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--color-gold-on-navy);
     font-weight: var(--weight-semibold);
     text-decoration: none;
     white-space: nowrap;
@@ -57,8 +114,8 @@
 }
 
 .sidebar__new:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-navy);
+    background: var(--color-navy-soft);
+    color: var(--color-gold-on-navy);
     transition-duration: var(--duration-in);
 }
 
@@ -74,14 +131,15 @@
 }
 
 .sidebar__new:focus-visible {
-    border-radius: var(--radius-md);
+    box-shadow: var(--focus-ring-on-navy);
+    border-radius: var(--radius-pill);
 }
 
 /* ---- Groups ---- */
 .sidebar__nav {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-5);
     flex: 1;
 }
 
@@ -89,7 +147,7 @@
     display: grid;
     padding-inline: var(--space-3);
     margin-block-end: var(--space-2);
-    color: var(--color-navy);
+    color: var(--color-gold-on-navy);
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
     line-height: 1.3;
@@ -97,7 +155,7 @@
 }
 
 .sidebar__group-fil {
-    color: var(--color-text-subtle);
+    color: var(--color-on-navy-muted);
     font-weight: var(--weight-regular);
 }
 
@@ -107,10 +165,17 @@
     margin: 0;
 }
 
-/* ---- Collapse toggle ---- */
+/* ---- Notice and collapse toggle ---- */
+.sidebar__notice {
+    padding: 0 var(--space-3);
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
 .sidebar__footer {
-    padding-block-start: var(--space-4);
-    border-block-start: 1px solid var(--color-border);
+    padding-block-start: var(--space-3);
+    border-block-start: 1px solid var(--color-navy-soft);
 }
 
 .sidebar__toggle {
@@ -124,29 +189,37 @@
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;
-    color: var(--color-text-muted);
+    color: var(--color-on-navy-muted);
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     text-align: start;
 }
 
 .sidebar__toggle:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-text);
+    background: var(--color-navy-soft);
+    color: var(--color-on-navy);
 }
 
 .sidebar__toggle:focus-visible {
+    box-shadow: var(--focus-ring-on-navy);
     border-radius: var(--radius-md);
 }
 
 /* ---- Rail ---- */
 @container sidebar (max-width: 6rem) {
     .sidebar__inner {
-        padding-inline: var(--space-3);
+        padding-inline: var(--space-2);
     }
 
+    .sidebar__brand {
+        justify-content: center;
+        padding-inline: 0;
+    }
+
+    .sidebar__brand-text,
     .sidebar__new-label,
-    .sidebar__toggle-label {
+    .sidebar__toggle-label,
+    .sidebar__notice {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -170,7 +243,7 @@
         margin: 0 var(--space-2) var(--space-2);
         padding: 0;
         overflow: hidden;
-        background: var(--color-border);
+        background: var(--color-navy-soft);
         color: transparent;
     }
 
@@ -180,14 +253,14 @@
     .sidebar__toggle:focus-visible::after {
         content: attr(data-label);
         position: absolute;
-        inset-inline-start: calc(100% + var(--space-3));
+        inset-inline-start: calc(100% + var(--space-4));
         inset-block-start: 50%;
         transform: translateY(-50%);
         z-index: var(--z-overlay);
         padding: var(--space-1) var(--space-3);
         border-radius: var(--radius-md);
-        background: var(--color-navy);
-        color: var(--color-on-navy);
+        background: var(--color-text);
+        color: var(--color-surface);
         font-size: var(--text-sm);
         font-weight: var(--weight-medium);
         white-space: nowrap;

@@ -1,15 +1,14 @@
 /*
   Shell:
-    masthead (full width, sticky)
-    frame: [service index sidebar | page body]
-  Phones: masthead, page, fixed bottom nav.
+    frame: [navy sidebar, full height | body: top bar (sticky), page, footer]
+  Phones: top bar with the brand, page, fixed bottom nav.
 */
 .portal {
     min-height: 100dvh;
 }
 
 .portal__frame {
-    min-height: calc(100dvh - var(--masthead-height) - var(--masthead-weave));
+    min-height: 100dvh;
 }
 
 .portal__body {

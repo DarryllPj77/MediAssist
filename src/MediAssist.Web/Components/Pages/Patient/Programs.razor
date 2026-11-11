@@ -3,17 +3,14 @@
 
 <PageTitle>Assistance programs · MediAssist</PageTitle>
 
-<div class="page">
-    <header class="page__head">
-        <p class="eyebrow">Find help</p>
-        <h1 class="page__title serif" tabindex="-1">Assistance programs</h1>
-        <p class="fil page__fil" lang="fil">Mga programang pantulong</p>
-        <p class="page__intro">
-            Programs are run by hospitals and government offices, not by MediAssist.
-            Each card lists what a program covers and the documents to prepare.
-            Requirements can change, so confirm them with the office before you go.
-        </p>
-    </header>
+<div class="page page--wide">
+    <SplitHero TitleId="programs-title" ImageKey="hero-programs"
+               Title="Assistance programs"
+               TitleFilipino="Mga programang pantulong"
+               Lead="Programs are run by hospitals and government offices, not by MediAssist. Each one lists what it covers and the documents to prepare."
+               LeadFilipino="Maaaring magbago ang mga kailangan, kaya kumpirmahin muna sa opisina bago pumunta.">
+        <Eyebrow>Find help</Eyebrow>
+    </SplitHero>
 
     @if (_selected is not null)
     {

@@ -99,6 +99,7 @@
     --text-xl: 1.625rem;    /* 26 */
     --text-2xl: 2rem;       /* 32 */
     --text-3xl: 2.75rem;    /* 44 */
+    --text-4xl: 3.5rem;     /* 56: split-hero titles on wide screens */
 
     --leading-tight: 1.15;
     --leading-snug: 1.35;
@@ -128,6 +129,7 @@
     --radius-sm: 2px;
     --radius-md: 4px;     /* controls */
     --radius-lg: 12px;    /* cards */
+    --radius-xl: 16px;    /* image frames and hero panels */
     --radius-pill: 999px; /* buttons, as in the reference */
     --radius-full: 999px;
 
@@ -149,6 +151,7 @@
     /* ---- Layout ---- */
     --masthead-height: 4rem;
     --masthead-weave: 6px;
+    --sidebar-weave: 8px;
     --header-height: var(--masthead-height);
     --sidebar-width-expanded: 17rem;
     --sidebar-width-rail: 4.75rem;

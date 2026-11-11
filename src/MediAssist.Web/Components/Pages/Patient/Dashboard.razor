@@ -12,13 +12,14 @@
 else
 {
     @*
-        Reading order (every width): hero → current application (stepper + checklist) →
-        needs your action → programs → your applications → household, runner help, how it works.
+        Reading order (every width): split hero → current application (stepper + checklist) →
+        needs your action → featured program → latest notices → your applications →
+        household, runner help, how it works.
         From 75em the last three sit in an aside beside the main column.
     *@
     <div class="dashboard">
         <div class="dashboard__hero">
-            <HeroBand TitleId="welcome-title"
+            <SplitHero TitleId="welcome-title" ImageKey="hero-patient-home"
                       Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
                       Lead="@StatusLine"
                       LeadFilipino="Nandito kami para gabayan ka, hakbang-hakbang. Kasama mo kami.">
@@ -27,8 +28,7 @@ else
                     @if (_actions.Count > 0)
                     {
                         var first = _actions[0];
-                        <GuidedActions OnNavy="true"
-                                       PrimaryHref="@first.ActionHref"
+                        <GuidedActions PrimaryHref="@first.ActionHref"
                                        PrimaryLabel="@first.ActionLabel"
                                        PrimaryFilipino="Gawin ang susunod na hakbang"
                                        PrimaryIcon="arrow-right"
@@ -39,8 +39,7 @@ else
                     }
                     else
                     {
-                        <GuidedActions OnNavy="true"
-                                       PrimaryHref="@PortalNavigation.NewApplicationHref"
+                        <GuidedActions PrimaryHref="@PortalNavigation.NewApplicationHref"
                                        PrimaryLabel="Start a new application"
                                        PrimaryFilipino="Mag-umpisa ng aplikasyon"
                                        PrimaryIcon="plus"
@@ -49,7 +48,7 @@ else
                                        SecondaryFilipino="I-track ang aking papeles" />
                     }
                 </Actions>
-            </HeroBand>
+            </SplitHero>
         </div>
 
         <div class="dashboard__main">
@@ -86,13 +85,13 @@ else
                         </AppButton>
                     </Actions>
                 </SectionHeader>
-                <ul role="list" class="programs__grid">
-                    @foreach (var program in _programs.Take(4))
-                    {
-                        <li><ProgramCard Program="program" /></li>
-                    }
-                </ul>
+                @if (_programs.Count > 0)
+                {
+                    <FeaturedProgram Featured="FeaturedProgramItem" Others="_programs.Where(p => p != FeaturedProgramItem).ToList()" />
+                }
             </section>
+
+            <LatestNotices Notifications="_notifications" Now="_now" />
 
             <RecentApplicationsList Applications="_applications" Now="_now" />
         </div>
@@ -111,6 +110,11 @@ else
     private IReadOnlyList<ActionItem> _actions = [];
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
+    private IReadOnlyList<PortalNotification> _notifications = [];
+
+    // Feature the program of the application in focus, else the first program.
+    private AssistanceProgram FeaturedProgramItem =>
+        _programs.FirstOrDefault(p => p.Name == _focus?.ProgramName) ?? _programs[0];
     private AssistanceApplication? _focus;
     private ApplicationChecklist? _focusChecklist;
     private DateTimeOffset _now;
@@ -138,6 +142,7 @@ else
         _actions = await Data.GetActionItemsAsync();
         _patients = await Data.GetPatientProfilesAsync();
         _programs = await Data.GetProgramsAsync();
+        _notifications = await Data.GetNotificationsAsync();
         var checklists = await Data.GetDocumentChecklistsAsync();
 
         // The application the user most needs to act on (else the most recently updated open one).

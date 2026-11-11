@@ -1,3 +1,7 @@
+/*
+  Top bar over the content column (the brand lives in the sidebar from 48em).
+  Phones: brand, bell, avatar. Wider: portal label and section name, notice, bell, user.
+*/
 .masthead {
     position: sticky;
     inset-block-start: 0;
@@ -14,7 +18,6 @@
     padding-inline: var(--space-4);
 }
 
-/* Woven rule: two crossing gold diagonals on navy, like the edge of a banig mat. Decorative. */
 .masthead__weave {
     height: var(--masthead-weave);
     background-color: var(--color-navy-deep);
@@ -23,7 +26,7 @@
         repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-gold) 55%, transparent) 0 2px, transparent 2px 6px);
 }
 
-/* ---- Brand ---- */
+/* ---- Brand (phones only) ---- */
 .masthead__brand {
     display: flex;
     align-items: center;
@@ -56,8 +59,30 @@
 
 .masthead__tagline {
     display: none;
-    color: var(--color-on-navy-muted);
-    font-size: var(--text-xs);
+}
+
+/* ---- Portal label and section ---- */
+.masthead__section {
+    display: none;
+    align-items: baseline;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.masthead__portal-label {
+    color: var(--color-gold-on-navy);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    white-space: nowrap;
+}
+
+.masthead__section-title {
+    overflow: hidden;
+    color: var(--color-on-navy);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ---- Independence notice ---- */
@@ -71,6 +96,7 @@
     border-radius: var(--radius-full);
     color: var(--color-on-navy-muted);
     font-size: var(--text-xs);
+    white-space: nowrap;
 }
 
 .masthead__notice ::deep .icon {
@@ -116,27 +142,31 @@
 
 @media (min-width: 48em) {
     .masthead__bar {
-        padding-inline: var(--space-6);
+        padding-inline: var(--space-7);
     }
 
-    .masthead__tagline {
-        display: block;
+    .masthead__brand {
+        display: none;
+    }
+
+    .masthead__section {
+        display: inline-flex;
     }
 }
 
-@media (min-width: 64em) {
+@media (min-width: 70em) {
     .masthead__notice {
         display: inline-flex;
     }
 
     .masthead__actions {
-        margin-inline-start: var(--space-5);
+        margin-inline-start: var(--space-4);
     }
 }
 
 @media (min-width: 75em) {
     .masthead__bar {
-        padding-inline: var(--space-7);
+        padding-inline: var(--space-9);
     }
 
     .masthead__user {
@@ -145,25 +175,5 @@
 
     .masthead__user-name {
         display: inline;
-    }
-}
-
-/* ---- Portal label: which of the three portals this is ---- */
-.masthead__portal {
-    display: none;
-    align-items: center;
-    padding-inline-start: var(--space-4);
-    border-inline-start: 1px solid var(--color-navy-soft);
-}
-
-.masthead__portal-label {
-    color: var(--color-gold-on-navy);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-semibold);
-}
-
-@media (min-width: 48em) {
-    .masthead__portal {
-        display: inline-flex;
     }
 }

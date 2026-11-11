@@ -55,3 +55,8 @@
     color: var(--color-text);
     font-size: var(--text-sm);
 }
+
+/* Pages that open with a split hero use the full content width. */
+.page--wide {
+    max-width: none;
+}

@@ -1,0 +1,55 @@
+@*
+    One featured program with its photograph (4:3) beside the details, then the other programs
+    as a compact list. Only the featured program carries an image, so cards never repeat.
+*@
+
+<div class="featured @Class">
+    <article class="featured__main" aria-labelledby="@($"featured-{Featured.Id}")">
+        <ImageSlot Key="@($"program-feature-{Featured.Id}")" />
+        <div class="featured__text">
+            <p class="featured__runby"><Icon Name="hospital" Size="16" /> Run by @Featured.RunBy.ToLowerInvariant()</p>
+            <h3 id="@($"featured-{Featured.Id}")" class="featured__name">
+                @Featured.Name
+                <span class="visually-hidden">. </span><span class="featured__fil" lang="fil">@Featured.NameFilipino</span>
+            </h3>
+            <p class="featured__summary">@Featured.Summary</p>
+            <p class="featured__covers"><span>Covers:</span> @Featured.Covers</p>
+            <p class="featured__docs-title">Documents to prepare</p>
+            <ul class="featured__docs">
+                @foreach (var doc in Featured.RequiredDocuments)
+                {
+                    <li>@doc</li>
+                }
+            </ul>
+            <div>
+                <AppButton Variant="AppButton.ButtonVariant.Secondary"
+                           Href="@($"{PortalNavigation.Programs.Href}?program={Featured.Id}")"
+                           IconEnd="arrow-right">
+                    See requirements<span class="visually-hidden"> for @Featured.Name</span>
+                </AppButton>
+            </div>
+        </div>
+    </article>
+
+    @if (Others.Count > 0)
+    {
+        <ul role="list" class="featured__others" aria-label="Other programs">
+            @foreach (var p in Others)
+            {
+                <li class="other">
+                    <div class="other__text">
+                        <a class="other__name" href="@($"{PortalNavigation.Programs.Href}?program={p.Id}")">@p.Name</a>
+                        <p class="other__meta">@p.Covers · run by @p.RunBy.ToLowerInvariant()</p>
+                    </div>
+                    <Icon Name="chevron-right" Size="20" Class="other__chev" />
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AssistanceProgram Featured { get; set; } = default!;
+    [Parameter] public IReadOnlyList<AssistanceProgram> Others { get; set; } = [];
+    [Parameter] public string? Class { get; set; }
+}

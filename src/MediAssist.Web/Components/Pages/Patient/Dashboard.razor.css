@@ -1,6 +1,6 @@
 /*
   Phones and tablets: one column in source order.
-  75em+:  hero across the top; main column | 22rem aside.
+  75em+:  split hero across the top; main column | 22rem aside.
 */
 .dashboard {
     display: flex;
@@ -37,23 +37,6 @@
     gap: var(--space-5);
 }
 
-.programs {
-    container: programs / inline-size;
-}
-
-/* Always full rows: one column on phones, a 2 x 2 grid from 34rem (four programs shown). */
-.programs__grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
-    margin: 0;
-}
-
-@container programs (min-width: 34rem) {
-    .programs__grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
 
 @media (min-width: 75em) {
     .dashboard {

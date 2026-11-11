@@ -1,0 +1,77 @@
+@page "/patient/notifications"
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+<PageTitle>Notices · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="notices-title" ImageKey="hero-notifications"
+               Title="Notices for your family"
+               TitleFilipino="Mga abiso para sa inyong pamilya"
+               Lead="@LeadText"
+               LeadFilipino="Narito ang pinakabagong balita tungkol sa inyong mga aplikasyon.">
+        <Eyebrow>Account</Eyebrow>
+    </SplitHero>
+
+    @if (_items.Count == 0)
+    {
+        <Panel>
+            <EmptyState IconName="bell" Title="No notices yet"
+                        Message="When an application changes, you will see it here." />
+        </Panel>
+    }
+    else
+    {
+        <section aria-labelledby="notice-list-title" class="notices">
+            <h2 id="notice-list-title" class="notices__title">All notices</h2>
+            <ol role="list" class="notices__list">
+                @foreach (var n in _items)
+                {
+                    <li class="notice-row @(n.IsRead ? null : "notice-row--new")">
+                        <span class="notice-row__dot" aria-hidden="true"></span>
+                        <div class="notice-row__text">
+                            <p class="notice-row__meta">
+                                @if (!n.IsRead)
+                                {
+                                    <span class="notice-row__new">New</span>
+                                }
+                                <time datetime="@DisplayFormat.Machine(n.CreatedAt)">@DisplayFormat.Relative(n.CreatedAt, _now)</time>
+                            </p>
+                            <h3 class="notice-row__title">@n.Title</h3>
+                            <p class="notice-row__message">@n.Message</p>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </section>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<PortalNotification> _items = [];
+    private DateTimeOffset _now;
+
+    private string LeadText
+    {
+        get
+        {
+            var unread = _items.Count(n => !n.IsRead);
+            return unread switch
+            {
+                0 => "You are up to date.",
+                1 => "1 notice you haven't read yet.",
+                _ => $"{unread} notices you haven't read yet."
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _now = Clock.GetLocalNow();
+        // Unread first, newest first within each group.
+        _items = (await Data.GetNotificationsAsync())
+            .OrderBy(n => n.IsRead)
+            .ThenByDescending(n => n.CreatedAt)
+            .ToList();
+    }
+}
