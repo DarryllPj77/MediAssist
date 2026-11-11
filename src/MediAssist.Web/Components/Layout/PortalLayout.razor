@@ -1,5 +1,5 @@
 @*
-    Shared Patient Portal shell.
+    Shared shell for the Patient, Administrator and Runner portals (role chosen by URL in the prototype).
       < 48em : header + content + fixed bottom nav + bottom-sheet drawer
       >= 48em: sidebar (rail by default on tablet) + header + content
       >= 75em: sidebar expanded by default
@@ -8,17 +8,19 @@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
 @inject IPatientPortalDataService Data
+@inject IStaffPortalDataService Staff
 @inject PortalLayoutInterop Interop
 @inject NavigationManager Nav
 
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
-<div class="portal" data-sidebar="@SidebarAttribute" @ref="_portal">
+<div class="portal" data-sidebar="@SidebarAttribute" data-role="@_set.Role.ToString().ToLowerInvariant()" @ref="_portal">
     @* Full-width civic masthead, then the service index (sidebar) and the page. *@
-    <PortalHeader SectionTitle="@SectionTitle" UnreadCount="_unreadCount" User="_user" />
+    <PortalHeader Set="_set" SectionTitle="@SectionTitle" UnreadCount="_unreadCount" UserName="@_userName" />
 
     <div class="portal__frame">
-        <PortalSidebar Collapsed="IsSidebarCollapsed"
+        <PortalSidebar Set="_set"
+                       Collapsed="IsSidebarCollapsed"
                        CurrentPath="@_path"
                        UnreadCount="_unreadCount"
                        OnToggle="ToggleSidebarAsync" />
@@ -33,19 +35,20 @@
                     MediAssist is an independent assistance service, not a government agency.
                 </p>
                 <p>
-                    We help you prepare, submit and follow up applications. The agencies that run each
-                    program decide on them. This prototype uses fictional patients, hospitals, programs
-                    and reference numbers, and stores no real medical records.
+                    MediAssist helps patients and families prepare, submit and follow up applications.
+                    The agencies that run each program decide on them. This prototype uses fictional people,
+                    hospitals, programs and reference numbers, and stores no real medical records.
                 </p>
             </footer>
         </div>
     </div>
 
-    <MobileBottomNav CurrentPath="@_path" MenuOpen="_drawerOpen" OnOpenMenu="OpenDrawerAsync" />
+    <MobileBottomNav Set="_set" CurrentPath="@_path" MenuOpen="_drawerOpen" OnOpenMenu="OpenDrawerAsync" />
     <MobileNavDrawer @ref="_drawer"
+                     Set="_set"
                      CurrentPath="@_path"
                      UnreadCount="_unreadCount"
-                     User="_user"
+                     UserName="@_userName"
                      OpenChanged="OnDrawerOpenChanged" />
 </div>
 
@@ -58,7 +61,8 @@
 @code {
     private enum SidebarMode { Auto, Expanded, Collapsed }
 
-    private PortalUser? _user;
+    private NavSet _set = RoleNavigation.Patient;
+    private string? _userName;
     private int _unreadCount;
     private string _path = "";
 
@@ -66,7 +70,7 @@
     private bool _isWideViewport = true;
     private ElementReference _portal;
     private int? _viewportWatchId;
-    private DotNetObjectReference<PatientPortalLayout>? _self;
+    private DotNetObjectReference<PortalLayout>? _self;
 
     private MobileNavDrawer? _drawer;
     private bool _drawerOpen;
@@ -80,7 +84,7 @@
         _ => !_isWideViewport
     };
 
-    private string SectionTitle => PortalNavigation.Resolve(_path)?.Label ?? "Patient Portal";
+    private string SectionTitle => _set.Resolve(_path)?.Label ?? _set.PortalLabel;
 
     private string SkipLinkHref => $"{_path.Split('#')[0]}#main-content";
 
@@ -88,10 +92,22 @@
     {
         _path = Nav.ToBaseRelativePath(Nav.Uri);
         Nav.LocationChanged += OnLocationChanged;
+        await LoadRoleAsync(RoleNavigation.ForPath(_path));
+    }
 
-        _user = await Data.GetCurrentUserAsync();
-        var notifications = await Data.GetNotificationsAsync();
-        _unreadCount = notifications.Count(n => !n.IsRead);
+    private async Task LoadRoleAsync(NavSet set)
+    {
+        _set = set;
+        if (set.Role == PortalRole.Patient)
+        {
+            _userName = (await Data.GetCurrentUserAsync()).FullName;
+            _unreadCount = (await Data.GetNotificationsAsync()).Count(n => !n.IsRead);
+        }
+        else
+        {
+            _userName = (await Staff.GetUserAsync(set.Role)).FullName;
+            _unreadCount = await Staff.GetUnreadCountAsync(set.Role);
+        }
     }
 
     private bool _enableTransitionsAfterRender;
@@ -149,7 +165,12 @@
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         _path = Nav.ToBaseRelativePath(e.Location);
-        InvokeAsync(StateHasChanged);
+        var set = RoleNavigation.ForPath(_path);
+        _ = InvokeAsync(async () =>
+        {
+            if (set != _set) await LoadRoleAsync(set);
+            StateHasChanged();
+        });
     }
 
     public async ValueTask DisposeAsync()

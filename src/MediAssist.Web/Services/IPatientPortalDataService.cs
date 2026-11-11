@@ -13,4 +13,6 @@ public interface IPatientPortalDataService
     Task<IReadOnlyList<AssistanceApplication>> GetApplicationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActionItem>> GetActionItemsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ApplicationChecklist>> GetDocumentChecklistsAsync(CancellationToken cancellationToken = default);
 }

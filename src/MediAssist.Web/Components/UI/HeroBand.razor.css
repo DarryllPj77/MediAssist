@@ -1,0 +1,121 @@
+.hero {
+    container: hero / inline-size;
+    overflow: hidden;
+    background: var(--color-navy);
+    color: var(--color-on-navy);
+    border-radius: var(--radius-lg);
+}
+
+.hero__inner {
+    display: grid;
+    padding: var(--space-7) var(--space-5) var(--space-6);
+}
+
+.hero__text {
+    display: grid;
+    align-content: center;
+    gap: var(--space-3);
+    min-width: 0;
+}
+
+.hero__eyebrow {
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-sm);
+}
+
+.hero__title {
+    color: var(--color-on-navy);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    line-height: 1.06;
+    letter-spacing: var(--tracking-display);
+}
+
+.hero__lead {
+    max-width: 46ch;
+    color: var(--color-on-navy);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
+}
+
+.hero__lead-fil {
+    max-width: 52ch;
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-sm);
+}
+
+.hero__actions {
+    margin-block-start: var(--space-3);
+}
+
+/* ---- Art (hidden on narrow bands) ---- */
+.hero__art {
+    display: none;
+}
+
+.hero__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero__motif {
+    width: 100%;
+    max-width: 22rem;
+    margin-inline-start: auto;
+}
+
+.hero__leaf { fill: var(--color-navy-soft); }
+.hero__leaf--b { fill: color-mix(in srgb, var(--color-navy-soft) 80%, var(--color-gold) 20%); }
+
+.hero__leaf-rib,
+.hero__roof,
+.hero__house,
+.hero__posts,
+.hero__ground {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.hero__leaf-rib { stroke: var(--color-navy); stroke-width: 2; opacity: 0.6; }
+.hero__roof     { stroke: var(--color-gold-on-navy); stroke-width: 6; }
+.hero__house    { stroke: var(--color-on-navy-muted); stroke-width: 3; }
+.hero__posts    { stroke: var(--color-on-navy); stroke-width: 5; }
+.hero__ground   { stroke: var(--color-gold); stroke-width: 3; }
+
+@container hero (min-width: 46rem) {
+    .hero__inner {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        gap: var(--space-7);
+        padding: var(--space-9) var(--space-8) var(--space-8);
+    }
+
+    .hero__art {
+        display: block;
+        align-self: end;
+    }
+
+    .hero__title {
+        font-size: var(--text-3xl);
+    }
+}
+
+/* Staff portals: a shorter band, same identity. */
+.hero--compact .hero__inner {
+    padding-block: var(--space-6) var(--space-5);
+}
+
+@container hero (min-width: 46rem) {
+    .hero--compact .hero__inner {
+        padding-block: var(--space-7) var(--space-6);
+    }
+
+    .hero--compact .hero__title {
+        font-size: var(--text-2xl);
+    }
+
+    .hero--compact .hero__motif {
+        max-width: 15rem;
+    }
+}

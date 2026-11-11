@@ -9,6 +9,7 @@ builder.Services.AddRazorComponents()
 // Prototype data: fictional records only. Replace with an EF Core implementation later.
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
+builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
 builder.Services.AddScoped<PortalLayoutInterop>();
 
 var app = builder.Build();

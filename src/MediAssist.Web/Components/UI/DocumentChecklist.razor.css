@@ -1,0 +1,198 @@
+.checklist {
+    container: checklist / inline-size;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.checklist__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-surface-sunken);
+    border-block-end: 1px solid var(--color-border-card);
+}
+
+.checklist__title {
+    display: grid;
+    font-size: var(--text-md);
+}
+
+.checklist__for {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-regular);
+}
+
+.checklist__count {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.checklist__count strong {
+    color: var(--color-navy);
+}
+
+.checklist__rows {
+    margin: 0;
+}
+
+/* ---- Row ---- */
+.row {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    grid-template-areas:
+        "icon text"
+        "icon status"
+        "icon action";
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-block-end: 1px solid var(--color-border);
+}
+
+.row:last-child {
+    border-block-end: 0;
+}
+
+.row--needs {
+    background: var(--color-red-subtle);
+    box-shadow: inset 4px 0 0 var(--color-red);
+}
+
+.row__icon {
+    grid-area: icon;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-md);
+    background: var(--color-gold-subtle);
+    color: var(--color-gold-text);
+}
+
+.row--needs .row__icon {
+    background: var(--color-surface);
+    color: var(--color-red);
+}
+
+.row__text {
+    grid-area: text;
+    min-width: 0;
+}
+
+.row__name {
+    color: var(--color-text);
+    font-weight: var(--weight-semibold);
+}
+
+.row__where {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.row__note {
+    margin-block-start: var(--space-1);
+    color: var(--color-red);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+}
+
+/* Status tag: icon + Filipino + English words. */
+.row__status {
+    grid-area: status;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
+    line-height: 1.25;
+}
+
+.row__status-fil {
+    font-weight: var(--weight-bold);
+}
+
+.row__status-en::before {
+    content: " · ";
+}
+
+.row__status--complete {
+    background: var(--color-success-subtle);
+    color: var(--color-success);
+}
+
+.row__status--pendingreview {
+    background: var(--color-primary-subtle);
+    color: var(--color-primary);
+}
+
+.row__status--missing,
+.row__status--needscorrection {
+    background: var(--color-red);
+    color: var(--color-on-primary);
+}
+
+.row__status--notapplicable {
+    background: var(--color-neutral-subtle);
+    color: var(--color-neutral);
+}
+
+.row__action {
+    grid-area: action;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap-target);
+    padding: 0 var(--space-5);
+    border: 1px solid var(--color-navy);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+    text-decoration: none;
+    transition: background-color var(--duration-out) var(--ease-out),
+                transform var(--duration-out) var(--ease-out);
+}
+
+.row__action:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-navy);
+    transition-duration: var(--duration-in);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .row__action:hover {
+        transform: translateY(-1px);
+    }
+}
+
+.row__action:active {
+    transform: translateY(1px) scale(0.985);
+    transition-duration: var(--duration-press);
+}
+
+.row__action:focus-visible {
+    border-radius: var(--radius-pill);
+}
+
+/* ---- Wide: name | status | action on one line ---- */
+@container checklist (min-width: 48rem) {
+    .row {
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto auto;
+        grid-template-areas: "icon text status action";
+        align-items: center;
+        column-gap: var(--space-4);
+    }
+
+    .row__status,
+    .row__action {
+        justify-self: end;
+    }
+}

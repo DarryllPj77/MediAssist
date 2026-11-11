@@ -1,0 +1,91 @@
+@page "/patient/programs"
+@inject IPatientPortalDataService Data
+
+<PageTitle>Assistance programs · MediAssist</PageTitle>
+
+<div class="page">
+    <header class="page__head">
+        <p class="eyebrow">Find help</p>
+        <h1 class="page__title serif" tabindex="-1">Assistance programs</h1>
+        <p class="fil page__fil" lang="fil">Mga programang pantulong</p>
+        <p class="page__intro">
+            Programs are run by hospitals and government offices, not by MediAssist.
+            Each card lists what a program covers and the documents to prepare.
+            Requirements can change, so confirm them with the office before you go.
+        </p>
+    </header>
+
+    @if (_selected is not null)
+    {
+        <section class="selected" aria-labelledby="selected-title">
+            <p class="eyebrow">Requirements</p>
+            <h2 id="selected-title" class="selected__title">
+                @_selected.Name
+                <span class="visually-hidden">. </span><span class="fil" lang="fil">@_selected.NameFilipino</span>
+            </h2>
+            <p class="selected__runby">Run by: @_selected.RunBy</p>
+            <p>@_selected.Summary</p>
+            <h3 class="selected__docs-title">Documents to prepare</h3>
+            <ol class="selected__docs">
+                @foreach (var doc in _selected.RequiredDocuments)
+                {
+                    <li>@doc</li>
+                }
+            </ol>
+            <AppButton Href="@($"{PortalNavigation.NewApplicationHref}?step=3&program={_selected.Id}")" IconStart="plus">
+                Start an application for this program
+            </AppButton>
+        </section>
+    }
+
+    <div class="page__search">
+        <ProgramSearch Patients="_patients" />
+    </div>
+
+    <section aria-labelledby="results-title" class="results">
+        <h2 id="results-title" class="results__title">
+            @(string.IsNullOrWhiteSpace(Q) ? "All programs" : $"Programs matching “{Q}”")
+            <span class="results__count tabular">@Results.Count</span>
+        </h2>
+
+        @if (Results.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="search" Title="No programs match that search"
+                            Message="Try a shorter word, such as “bill”, “medicine” or “dialysis”." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="results__grid">
+                @foreach (var program in Results)
+                {
+                    <li><ProgramCard Program="program" /></li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "program")] public string? ProgramId { get; set; }
+
+    private IReadOnlyList<AssistanceProgram> _programs = [];
+    private IReadOnlyList<PatientProfile> _patients = [];
+    private AssistanceProgram? _selected;
+
+    private IReadOnlyList<AssistanceProgram> Results =>
+        string.IsNullOrWhiteSpace(Q)
+            ? _programs
+            : _programs.Where(p =>
+                    $"{p.Name} {p.NameFilipino} {p.Summary} {p.Covers}".Contains(Q.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _programs = await Data.GetProgramsAsync();
+        _patients = await Data.GetPatientProfilesAsync();
+        _selected = _programs.FirstOrDefault(p => p.Id == ProgramId);
+    }
+}

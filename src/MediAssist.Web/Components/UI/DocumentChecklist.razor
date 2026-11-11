@@ -1,0 +1,108 @@
+@*
+    Document checklist ("Ihanda ang mga papeles"): one row per document with an icon, the
+    document name, where to get it, and its status in English and Filipino. Required-but-missing
+    and needs-correction rows carry a red side line and a reviewer note; status is always in words.
+*@
+
+<section class="checklist @Class" aria-labelledby="@HeadingId">
+    <header class="checklist__head">
+        <div>
+            @if (HeadingLevel == 2)
+            {
+                <h2 id="@HeadingId" class="checklist__title">@Title</h2>
+            }
+            else
+            {
+                <h3 id="@HeadingId" class="checklist__title">@Title</h3>
+            }
+        </div>
+        <p class="checklist__count tabular">
+            <strong>@Checklist.ReadyCount of @Checklist.Items.Count</strong> ready
+        </p>
+    </header>
+
+    <ul role="list" class="checklist__rows">
+        @foreach (var item in Checklist.Items)
+        {
+            var needs = item.Status is DocumentStatus.Missing or DocumentStatus.NeedsCorrection;
+            <li class="row @(needs ? "row--needs" : null)">
+                <span class="row__icon" aria-hidden="true"><Icon Name="@IconFor(item.Name)" Size="22" /></span>
+
+                <div class="row__text">
+                    <p class="row__name">@item.Name</p>
+                    <p class="row__where">Get it from: @item.WhereToGet</p>
+                    @if (item.ReviewerNote is not null)
+                    {
+                        <p class="row__note"><span class="visually-hidden">Reviewer note: </span>@item.ReviewerNote</p>
+                    }
+                </div>
+
+                <p class="row__status row__status--@item.Status.ToString().ToLowerInvariant()">
+                    <Icon Name="@StatusIcon(item.Status)" Size="16" />
+                    <span>
+                        <span lang="fil" class="row__status-fil">@StatusFilipino(item.Status)</span>
+                        <span class="row__status-en">@StatusEnglish(item.Status)</span>
+                    </span>
+                </p>
+
+                @if (needs && ShowActions)
+                {
+                    <a class="row__action" href="@($"/patient/documents?upload={Uri.EscapeDataString(item.Name)}&application={Checklist.ApplicationReference}")">
+                        <Icon Name="upload" Size="16" />
+                        <span>@(item.Status == DocumentStatus.NeedsCorrection ? "Upload a new copy" : "Upload")</span>
+                        <span class="visually-hidden"> of @item.Name</span>
+                    </a>
+                }
+            </li>
+        }
+    </ul>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ApplicationChecklist Checklist { get; set; } = default!;
+    [Parameter] public bool ShowActions { get; set; } = true;
+    /// <summary>2 when the checklist sits directly under the page h1; 3 under a section h2.</summary>
+    [Parameter] public int HeadingLevel { get; set; } = 3;
+
+    private RenderFragment Title => @<text>
+        @Checklist.ProgramName
+        <span class="visually-hidden">. </span><span class="checklist__for">for @Checklist.PatientName · <span class="ref">@Checklist.ApplicationReference</span></span>
+    </text>;
+    [Parameter] public string? Class { get; set; }
+
+    private string HeadingId => $"checklist-{Checklist.ApplicationReference}";
+
+    private static string IconFor(string name) => name.ToLowerInvariant() switch
+    {
+        var n when n.Contains("certificate") => "shield-check",
+        var n when n.Contains("bill") || n.Contains("quotation") => "receipt",
+        var n when n.Contains("valid id") => "id-card",
+        _ => "folder"
+    };
+
+    private static string StatusIcon(DocumentStatus status) => status switch
+    {
+        DocumentStatus.Complete => "check-circle",
+        DocumentStatus.PendingReview => "clock",
+        DocumentStatus.NotApplicable => "circle",
+        _ => "alert-triangle"
+    };
+
+    private static string StatusFilipino(DocumentStatus status) => status switch
+    {
+        DocumentStatus.Complete => "Ok na",
+        DocumentStatus.PendingReview => "Sinusuri",
+        DocumentStatus.NeedsCorrection => "Ayusin",
+        DocumentStatus.NotApplicable => "Hindi kailangan",
+        _ => "Kailangan pa"
+    };
+
+    private static string StatusEnglish(DocumentStatus status) => status switch
+    {
+        DocumentStatus.Complete => "Ready",
+        DocumentStatus.PendingReview => "Being reviewed",
+        DocumentStatus.NeedsCorrection => "Needs correction",
+        DocumentStatus.NotApplicable => "Not needed",
+        _ => "Required"
+    };
+}

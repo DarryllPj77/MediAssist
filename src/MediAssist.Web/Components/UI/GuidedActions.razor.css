@@ -1,0 +1,102 @@
+.ga {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.ga__btn {
+    display: inline-grid;
+    justify-items: center;
+    align-content: center;
+    gap: 1px;
+    min-height: 3.5rem;
+    min-width: 13rem;
+    padding: var(--space-2) var(--space-7);
+    border: 1.5px solid transparent;
+    border-radius: var(--radius-pill);
+    text-align: center;
+    text-decoration: none;
+    transition: background-color var(--duration-out) var(--ease-out),
+                border-color var(--duration-out) var(--ease-out),
+                transform var(--duration-out) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .ga__btn:hover {
+        transform: translateY(-1px);
+        transition-duration: var(--duration-in);
+    }
+}
+
+.ga__btn:active {
+    transform: translateY(1px) scale(0.985);
+    transition-duration: var(--duration-press);
+}
+
+.ga__btn:focus-visible {
+    border-radius: var(--radius-pill);
+}
+
+.ga__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-base);
+    font-weight: var(--weight-bold);
+    line-height: 1.2;
+}
+
+.ga__fil {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: 1.2;
+}
+
+/* Filled gold: the one main action. */
+.ga__btn--primary {
+    background: var(--color-gold-action);
+    color: var(--color-navy);
+}
+
+.ga__btn--primary:hover {
+    background: var(--color-gold-action-hover);
+    color: var(--color-navy);
+}
+
+/* Outlined: on cream it is navy; on the navy band it is light. */
+.ga__btn--secondary {
+    background: var(--color-surface);
+    border-color: var(--color-navy);
+    color: var(--color-navy);
+}
+
+.ga__btn--secondary:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-navy);
+}
+
+.ga--on-navy .ga__btn--secondary {
+    background: transparent;
+    border-color: var(--color-on-navy-muted);
+    color: var(--color-on-navy);
+}
+
+.ga--on-navy .ga__btn--secondary:hover {
+    background: var(--color-navy-soft);
+    border-color: var(--color-on-navy);
+}
+
+.ga--on-navy .ga__btn:focus-visible {
+    box-shadow: var(--focus-ring-on-navy);
+}
+
+@media (max-width: 47.99em) {
+    .ga {
+        display: grid;
+    }
+
+    .ga__btn {
+        min-width: 0;
+        width: 100%;
+    }
+}

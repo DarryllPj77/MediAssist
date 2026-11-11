@@ -2,7 +2,7 @@
     "Needs your action": each item is a notice slip. A stub on the leading side holds the
     reference number and due date (official-form vernacular, behind a perforated line); the
     body says what is wrong, how the process continues, and gives exactly one action.
-    The first slip carries the view's one filled button.
+    The hero band carries the view's one filled button, so every slip action is outlined.
 *@
 
 <section class="actions" aria-labelledby="actions-title">
@@ -56,7 +56,7 @@
 
                             <div class="slip__action">
                                 <AppButton Href="@item.ActionHref"
-                                           Variant="@(i == 0 ? AppButton.ButtonVariant.Primary : AppButton.ButtonVariant.Secondary)"
+                                           Variant="AppButton.ButtonVariant.Secondary"
                                            IconEnd="arrow-right"
                                            BlockOnMobile="true">
                                     @item.ActionLabel<span class="visually-hidden"> for @item.ApplicationReference</span>

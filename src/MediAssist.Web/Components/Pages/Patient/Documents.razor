@@ -1,0 +1,54 @@
+@page "/patient/documents"
+@inject IPatientPortalDataService Data
+
+<PageTitle>Document checklist · MediAssist</PageTitle>
+
+<div class="page">
+    <header class="page__head">
+        <p class="eyebrow">Find help</p>
+        <h1 class="page__title serif" tabindex="-1">Document checklist</h1>
+        <p class="fil page__fil" lang="fil">Ihanda ang mga papeles</p>
+        <p class="page__intro">
+            Every open application and the documents it needs. Red rows still need something from you.
+            You can submit an application before every document is ready and add the rest later.
+        </p>
+    </header>
+
+    @if (Upload is not null)
+    {
+        <p class="prototype-note" role="status">
+            <Icon Name="info" Size="20" />
+            <span>
+                Uploading “@Upload” isn’t available in this prototype yet. When it is, you will choose a
+                photo or file here, and the reviewer will see it on @(Application ?? "your application").
+            </span>
+        </p>
+    }
+
+    @if (_checklists.Count == 0)
+    {
+        <Panel>
+            <EmptyState IconName="clipboard-check" Title="No open applications"
+                        Message="Start an application and its document list will appear here." />
+        </Panel>
+    }
+    else
+    {
+        <div class="lists">
+            @foreach (var checklist in _checklists)
+            {
+                <DocumentChecklist Checklist="checklist" HeadingLevel="2" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Upload { get; set; }
+    [SupplyParameterFromQuery] public string? Application { get; set; }
+
+    private IReadOnlyList<ApplicationChecklist> _checklists = [];
+
+    protected override async Task OnInitializedAsync() =>
+        _checklists = await Data.GetDocumentChecklistsAsync();
+}

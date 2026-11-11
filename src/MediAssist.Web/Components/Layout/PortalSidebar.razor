@@ -4,15 +4,18 @@
     on .portal; children adapt through a container query.
 *@
 
-<aside class="sidebar" aria-label="Patient portal">
+<aside class="sidebar" aria-label="@Set.PortalLabel">
     <div class="sidebar__inner">
-        <a class="sidebar__new" href="@PortalNavigation.NewApplicationHref" data-label="New application">
-            <Icon Name="plus" Size="20" />
-            <span class="sidebar__new-label">New application</span>
-        </a>
+        @if (Set.PrimaryActionHref is not null)
+        {
+            <a class="sidebar__new" href="@Set.PrimaryActionHref" data-label="@Set.PrimaryActionLabel">
+                <Icon Name="@(Set.Role == PortalRole.Patient ? "plus" : "arrow-right")" Size="20" />
+                <span class="sidebar__new-label">@Set.PrimaryActionLabel</span>
+            </a>
+        }
 
         <nav id="sidebar-nav" class="sidebar__nav" aria-label="Main">
-            @foreach (var group in PortalNavigation.All.GroupBy(d => d.Group))
+            @foreach (var group in Set.All.GroupBy(d => d.Group))
             {
                 var labelId = $"nav-group-{group.Key.ToString().ToLowerInvariant()}";
                 <div class="sidebar__group">
@@ -25,8 +28,9 @@
                         {
                             <li>
                                 <NavItemLink Destination="destination"
+                                             Set="Set"
                                              CurrentPath="@CurrentPath"
-                                             BadgeCount="@(destination == PortalNavigation.Notifications ? UnreadCount : 0)" />
+                                             BadgeCount="@(destination == Set.Notifications ? UnreadCount : 0)" />
                             </li>
                         }
                     </ul>
@@ -50,6 +54,7 @@
 
 @code {
     [Parameter] public bool Collapsed { get; set; }
+    [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;
     [Parameter] public string CurrentPath { get; set; } = "";
     [Parameter] public int UnreadCount { get; set; }
     [Parameter] public EventCallback OnToggle { get; set; }

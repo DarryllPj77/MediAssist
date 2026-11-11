@@ -1,4 +1,4 @@
-<a class="bell" href="@PortalNavigation.Notifications.Href" aria-label="@AccessibleName">
+<a class="bell" href="@Href" aria-label="@AccessibleName">
     <Icon Name="bell" Size="22" />
     @if (UnreadCount > 0)
     {
@@ -8,6 +8,7 @@
 
 @code {
     [Parameter] public int UnreadCount { get; set; }
+    [Parameter] public string Href { get; set; } = PortalNavigation.Notifications.Href;
 
     private string AccessibleName => UnreadCount switch
     {

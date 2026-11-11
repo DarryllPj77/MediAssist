@@ -6,6 +6,8 @@ public enum NavGroup
 {
     Overview,
     FindHelp,
+    Manage,
+    Tasks,
     Account
 }
 
@@ -86,6 +88,8 @@ public static class PortalNavigation
     {
         NavGroup.Overview => "Overview",
         NavGroup.FindHelp => "Find help",
+        NavGroup.Manage => "Manage",
+        NavGroup.Tasks => "Tasks",
         NavGroup.Account => "Account",
         _ => group.ToString()
     };
@@ -95,6 +99,8 @@ public static class PortalNavigation
     {
         NavGroup.Overview => "Pangkalahatan",
         NavGroup.FindHelp => "Humanap ng tulong",
+        NavGroup.Manage => "Pamahalaan",
+        NavGroup.Tasks => "Mga gawain",
         NavGroup.Account => "Iyong account",
         _ => ""
     };

@@ -1,0 +1,70 @@
+@*
+    The page's one brand band (Taste: flat grounds plus one brand band). Navy, closed by a woven
+    rule, with the greeting (the page h1), one line of status and the guided actions.
+
+    Illustration slot: pass IllustrationSrc once MediAssist owns real artwork (commissioned or
+    licensed; Taste allows an illustration only when the client owns it). Until then a quiet,
+    decorative composition of the bayanihan house and leaves stands in. Never captioned.
+*@
+
+<section class="hero @(Compact ? "hero--compact" : null) @Class" aria-labelledby="@TitleId">
+    <div class="hero__inner">
+        <div class="hero__text">
+            @if (Eyebrow is not null)
+            {
+                <p class="hero__eyebrow">@Eyebrow</p>
+            }
+            <h1 id="@TitleId" class="hero__title serif" tabindex="-1">@Title</h1>
+            @if (Lead is not null)
+            {
+                <p class="hero__lead">@Lead</p>
+            }
+            @if (LeadFilipino is not null)
+            {
+                <p class="hero__lead-fil" lang="fil">@LeadFilipino</p>
+            }
+            @if (Actions is not null)
+            {
+                <div class="hero__actions">@Actions</div>
+            }
+        </div>
+
+        <div class="hero__art" aria-hidden="true">
+            @if (IllustrationSrc is not null)
+            {
+                <img class="hero__img" src="@IllustrationSrc" alt="" loading="eager" decoding="async" />
+            }
+            else
+            {
+                <svg class="hero__motif" viewBox="0 0 320 240" focusable="false">
+                    <!-- leaves -->
+                    <path class="hero__leaf" d="M18 236 C 30 160, 90 104, 170 84 C 150 160, 96 212, 18 236 Z" />
+                    <path class="hero__leaf-rib" d="M18 236 Q 92 160 170 84" />
+                    <path class="hero__leaf hero__leaf--b" d="M318 230 C 300 170, 262 132, 206 116 C 214 172, 252 214, 318 230 Z" />
+                    <path class="hero__leaf-rib" d="M318 230 Q 262 170 206 116" />
+                    <!-- house carried on posts (the bayanihan mark, drawn large) -->
+                    <path class="hero__roof" d="M92 112 L160 52 L228 112" />
+                    <path class="hero__house" d="M108 112 H212 V158 H108 Z" />
+                    <path class="hero__house" d="M148 158 V130 H172 V158" />
+                    <path class="hero__posts" d="M116 158 V196 M160 158 V196 M204 158 V196" />
+                    <path class="hero__ground" d="M84 198 H236" />
+                </svg>
+            }
+        </div>
+    </div>
+    <BanigRule Tone="BanigRule.BanigTone.OnNavy" />
+</section>
+
+@code {
+    [Parameter] public string TitleId { get; set; } = "page-title";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? Eyebrow { get; set; }
+    [Parameter] public string? Lead { get; set; }
+    [Parameter] public string? LeadFilipino { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    /// <summary>Owned artwork for the illustration slot (e.g. "images/hero-bayanihan.webp").</summary>
+    [Parameter] public string? IllustrationSrc { get; set; }
+    /// <summary>Shorter band for staff portals.</summary>
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

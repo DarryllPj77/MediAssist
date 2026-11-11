@@ -1,0 +1,18 @@
+.banig {
+    height: var(--masthead-weave);
+    background-image:
+        repeating-linear-gradient(45deg, var(--banig-a) 0 2px, transparent 2px 6px),
+        repeating-linear-gradient(-45deg, var(--banig-b) 0 2px, transparent 2px 6px);
+}
+
+.banig--onnavy {
+    --banig-a: var(--color-gold);
+    --banig-b: color-mix(in srgb, var(--color-gold) 55%, transparent);
+    background-color: var(--color-navy-deep);
+}
+
+.banig--oncream {
+    --banig-a: color-mix(in srgb, var(--color-gold) 70%, transparent);
+    --banig-b: color-mix(in srgb, var(--color-navy) 35%, transparent);
+    background-color: var(--color-cream-deep);
+}

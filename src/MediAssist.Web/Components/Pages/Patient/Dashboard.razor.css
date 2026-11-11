@@ -1,8 +1,6 @@
 /*
   Phones and tablets: one column in source order.
-  75em+: a two-column service desk
-      welcome | find
-      main    | aside
+  75em+:  hero across the top; main column | 22rem aside.
 */
 .dashboard {
     display: flex;
@@ -22,20 +20,53 @@
     gap: var(--space-7);
 }
 
+/* ---- Current application ---- */
+.current {
+    display: grid;
+    gap: var(--space-5);
+}
+
+.current__docs-title {
+    margin-block-start: var(--space-3);
+    font-size: var(--text-lg);
+}
+
+/* ---- Programs ---- */
+.programs {
+    display: grid;
+    gap: var(--space-5);
+}
+
+.programs {
+    container: programs / inline-size;
+}
+
+/* Always full rows: one column on phones, a 2 x 2 grid from 34rem (four programs shown). */
+.programs__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin: 0;
+}
+
+@container programs (min-width: 34rem) {
+    .programs__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (min-width: 75em) {
     .dashboard {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 23rem;
+        grid-template-columns: minmax(0, 1fr) 22rem;
         grid-template-areas:
-            "welcome find"
-            "main    aside";
+            "hero hero"
+            "main aside";
         align-items: start;
-        column-gap: var(--space-9);
-        row-gap: var(--space-9);
+        gap: var(--space-9);
     }
 
-    .dashboard__welcome { grid-area: welcome; align-self: center; }
-    .dashboard__find    { grid-area: find; }
-    .dashboard__main    { grid-area: main; }
-    .dashboard__aside   { grid-area: aside; }
+    .dashboard__hero  { grid-area: hero; }
+    .dashboard__main  { grid-area: main; }
+    .dashboard__aside { grid-area: aside; }
 }

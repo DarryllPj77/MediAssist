@@ -147,3 +147,23 @@
         display: inline;
     }
 }
+
+/* ---- Portal label: which of the three portals this is ---- */
+.masthead__portal {
+    display: none;
+    align-items: center;
+    padding-inline-start: var(--space-4);
+    border-inline-start: 1px solid var(--color-navy-soft);
+}
+
+.masthead__portal-label {
+    color: var(--color-gold-on-navy);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+}
+
+@media (min-width: 48em) {
+    .masthead__portal {
+        display: inline-flex;
+    }
+}

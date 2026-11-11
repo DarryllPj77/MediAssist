@@ -1,0 +1,33 @@
+@*
+    Assistance program card (the reference's "program cards"). The program is run by a third party,
+    named in text only: no agency logos, seals or colours. One outlined action per card;
+    the card itself is not a link, so it does not lift.
+*@
+
+<article class="program" aria-labelledby="@($"program-{Program.Id}")">
+    <p class="program__runby">
+        <Icon Name="hospital" Size="16" />
+        <span><span class="visually-hidden">Run by </span>@Program.RunBy</span>
+    </p>
+    <h3 id="@($"program-{Program.Id}")" class="program__name">
+        @Program.Name
+        <span class="visually-hidden">. </span><span class="program__fil" lang="fil">@Program.NameFilipino</span>
+    </h3>
+    <p class="program__summary">@Program.Summary</p>
+    <p class="program__covers"><span class="program__covers-label">Covers:</span> @Program.Covers</p>
+    <p class="program__docs">
+        <Icon Name="folder" Size="16" />
+        @Program.RequiredDocuments.Count documents to prepare
+    </p>
+    <div class="program__action">
+        <AppButton Variant="AppButton.ButtonVariant.Secondary"
+                   Href="@($"{PortalNavigation.Programs.Href}?program={Program.Id}")"
+                   IconEnd="arrow-right">
+            See requirements<span class="visually-hidden"> for @Program.Name</span>
+        </AppButton>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public AssistanceProgram Program { get; set; } = default!;
+}

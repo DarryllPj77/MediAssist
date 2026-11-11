@@ -6,14 +6,18 @@
 
 <header class="masthead">
     <div class="masthead__bar">
-        <a class="masthead__brand" href="@PortalNavigation.Dashboard.Href">
+        <a class="masthead__brand" href="@Set.Home.Href">
             <BrandMark Size="34" />
             <span class="masthead__name">
                 <span class="masthead__wordmark">MediAssist</span>
-                <span class="masthead__tagline">Medical assistance, step by step</span>
+                <span class="masthead__tagline">Tulong-tulong sa pagpapagamot</span>
             </span>
             <span class="visually-hidden">, go to dashboard</span>
         </a>
+
+        <p class="masthead__portal">
+            <span class="masthead__portal-label">@Set.PortalLabel</span>
+        </p>
 
         <p class="masthead__notice">
             <Icon Name="info" Size="16" />
@@ -21,13 +25,13 @@
         </p>
 
         <div class="masthead__actions">
-            <NotificationBell UnreadCount="UnreadCount" />
+            <NotificationBell UnreadCount="UnreadCount" Href="@Set.Notifications.Href" />
 
-            @if (User is not null)
+            @if (UserName is not null)
             {
-                <a class="masthead__user" href="@PortalNavigation.Settings.Href">
-                    <Avatar Name="@User.FullName" Size="Avatar.AvatarSize.Small" />
-                    <span class="masthead__user-name">@User.FullName</span>
+                <a class="masthead__user" href="@Set.Settings.Href">
+                    <Avatar Name="@UserName" Size="Avatar.AvatarSize.Small" />
+                    <span class="masthead__user-name">@UserName</span>
                     <span class="visually-hidden">, profile and settings</span>
                 </a>
             }
@@ -40,5 +44,6 @@
     /// <summary>Kept for API compatibility; each page names itself with its own h1.</summary>
     [Parameter] public string SectionTitle { get; set; } = "";
     [Parameter] public int UnreadCount { get; set; }
-    [Parameter] public PortalUser? User { get; set; }
+    [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;
+    [Parameter] public string? UserName { get; set; }
 }

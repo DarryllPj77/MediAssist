@@ -1,0 +1,62 @@
+/* The one card style: white, hairline, 12px corners, no shadow; a gold top edge marks it a program. */
+.program {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto auto auto;
+    gap: var(--space-2);
+    height: 100%;
+    padding: var(--space-5) var(--space-5) var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-block-start: 4px solid var(--color-gold-action);
+    border-radius: var(--radius-lg);
+}
+
+.program__runby {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+}
+
+.program__name {
+    display: grid;
+    margin-block-start: var(--space-1);
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+}
+
+.program__fil {
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.program__summary {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+.program__covers,
+.program__docs {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.program__covers-label {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.program__docs {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.program__action {
+    margin-block-start: var(--space-3);
+}

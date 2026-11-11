@@ -1,0 +1,9 @@
+@* Woven rule, after the edge of a banig mat. Decorative only. *@
+<div class="banig banig--@Tone.ToString().ToLowerInvariant() @Class" aria-hidden="true"></div>
+
+@code {
+    public enum BanigTone { OnNavy, OnCream }
+
+    [Parameter] public BanigTone Tone { get; set; } = BanigTone.OnNavy;
+    [Parameter] public string? Class { get; set; }
+}

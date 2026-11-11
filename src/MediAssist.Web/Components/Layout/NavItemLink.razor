@@ -20,8 +20,9 @@
 @code {
     [Parameter, EditorRequired] public NavDestination Destination { get; set; } = default!;
     [Parameter, EditorRequired] public string CurrentPath { get; set; } = "";
+    [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;
     [Parameter] public int BadgeCount { get; set; }
     [Parameter] public EventCallback OnNavigate { get; set; }
 
-    private bool IsActive => PortalNavigation.IsActive(Destination, CurrentPath);
+    private bool IsActive => Set.IsActive(Destination, CurrentPath);
 }

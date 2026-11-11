@@ -12,25 +12,89 @@
 else
 {
     @*
-        Source order is the phone reading order:
-        greeting → needs your action → applications → find assistance → household → runner → how it works.
-        From 75em: greeting | find assistance across the top, then main column | aside.
+        Reading order (every width): hero → current application (stepper + checklist) →
+        needs your action → programs → your applications → household, runner help, how it works.
+        From 75em the last three sit in an aside beside the main column.
     *@
     <div class="dashboard">
-        <div class="dashboard__welcome">
-            <WelcomeSection FirstName="@_user.FirstName"
-                            Now="_now"
-                            ActionCount="_actions.Count"
-                            InProgressCount="InProgressCount" />
+        <div class="dashboard__hero">
+            <HeroBand TitleId="welcome-title"
+                      Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
+                      Lead="@StatusLine"
+                      LeadFilipino="Nandito kami para gabayan ka, hakbang-hakbang. Kasama mo kami.">
+                <Eyebrow><time datetime="@DisplayFormat.Machine(_now)">@DisplayFormat.LongDay(_now)</time></Eyebrow>
+                <Actions>
+                    @if (_actions.Count > 0)
+                    {
+                        var first = _actions[0];
+                        <GuidedActions OnNavy="true"
+                                       PrimaryHref="@first.ActionHref"
+                                       PrimaryLabel="@first.ActionLabel"
+                                       PrimaryFilipino="Gawin ang susunod na hakbang"
+                                       PrimaryIcon="arrow-right"
+                                       SecondaryHref="@PortalNavigation.NewApplicationHref"
+                                       SecondaryLabel="Start a new application"
+                                       SecondaryFilipino="Mag-umpisa ng aplikasyon"
+                                       SecondaryIcon="plus" />
+                    }
+                    else
+                    {
+                        <GuidedActions OnNavy="true"
+                                       PrimaryHref="@PortalNavigation.NewApplicationHref"
+                                       PrimaryLabel="Start a new application"
+                                       PrimaryFilipino="Mag-umpisa ng aplikasyon"
+                                       PrimaryIcon="plus"
+                                       SecondaryHref="@PortalNavigation.Applications.Href"
+                                       SecondaryLabel="Track my papers"
+                                       SecondaryFilipino="I-track ang aking papeles" />
+                    }
+                </Actions>
+            </HeroBand>
         </div>
 
         <div class="dashboard__main">
-            <ActionRequiredList Items="_actions" Applications="_applications" />
-            <RecentApplicationsList Applications="_applications" Now="_now" />
-        </div>
+            @if (_focus is not null)
+            {
+                <section class="current" aria-labelledby="current-title">
+                    <SectionHeader Id="current-title"
+                                   Title="Your current application"
+                                   Filipino="Dadaanang hakbang"
+                                   Description="@($"{_focus.ProgramName} for {_focus.PatientName}. {_focus.NextStep}.")" />
+                    <ChevronStepper Steps="StepperSteps.ForApplication(_focus.Status)"
+                                    AriaLabel="@($"Progress of application {_focus.ReferenceNumber}")" />
+                    @if (_focusChecklist is not null)
+                    {
+                        <h3 class="current__docs-title">
+                            Documents for this application
+                            <span class="visually-hidden">. </span><span class="fil" lang="fil">Ihanda ang mga papeles</span>
+                        </h3>
+                        <DocumentChecklist Checklist="_focusChecklist" />
+                    }
+                </section>
+            }
 
-        <div class="dashboard__find">
-            <ProgramSearch Patients="_patients" />
+            <ActionRequiredList Items="_actions" Applications="_applications" />
+
+            <section class="programs" aria-labelledby="programs-title">
+                <SectionHeader Id="programs-title"
+                               Title="Assistance programs"
+                               Filipino="Mga programang pantulong"
+                               Description="Run by hospitals and government offices, not by MediAssist. Requirements can change, so confirm them with the office before you go.">
+                    <Actions>
+                        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Programs.Href" IconEnd="arrow-right">
+                            All programs
+                        </AppButton>
+                    </Actions>
+                </SectionHeader>
+                <ul role="list" class="programs__grid">
+                    @foreach (var program in _programs.Take(4))
+                    {
+                        <li><ProgramCard Program="program" /></li>
+                    }
+                </ul>
+            </section>
+
+            <RecentApplicationsList Applications="_applications" Now="_now" />
         </div>
 
         <div class="dashboard__aside">
@@ -46,10 +110,26 @@ else
     private IReadOnlyList<AssistanceApplication> _applications = [];
     private IReadOnlyList<ActionItem> _actions = [];
     private IReadOnlyList<PatientProfile> _patients = [];
+    private IReadOnlyList<AssistanceProgram> _programs = [];
+    private AssistanceApplication? _focus;
+    private ApplicationChecklist? _focusChecklist;
     private DateTimeOffset _now;
 
-    private int InProgressCount => _applications.Count(a =>
-        a.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview or ApplicationStatus.ReadyForProcessing);
+    private string StatusLine
+    {
+        get
+        {
+            var waiting = _actions.Count switch
+            {
+                0 => "Nothing needs your action today.",
+                1 => "One application needs something from you.",
+                _ => $"{_actions.Count} applications need something from you."
+            };
+            var moving = _applications.Count(a =>
+                a.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview or ApplicationStatus.ReadyForProcessing);
+            return moving > 0 ? $"{waiting} {moving} more are moving through review." : waiting;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,6 +137,17 @@ else
         _applications = await Data.GetApplicationsAsync();
         _actions = await Data.GetActionItemsAsync();
         _patients = await Data.GetPatientProfilesAsync();
+        _programs = await Data.GetProgramsAsync();
+        var checklists = await Data.GetDocumentChecklistsAsync();
+
+        // The application the user most needs to act on (else the most recently updated open one).
+        var focusRef = _actions.FirstOrDefault()?.ApplicationReference;
+        _focus = _applications.FirstOrDefault(a => a.ReferenceNumber == focusRef)
+                 ?? _applications.Where(a => a.Status is not (ApplicationStatus.Completed or ApplicationStatus.Cancelled))
+                                 .OrderByDescending(a => a.LastUpdated)
+                                 .FirstOrDefault();
+        _focusChecklist = checklists.FirstOrDefault(c => c.ApplicationReference == _focus?.ReferenceNumber);
+
         _user = await Data.GetCurrentUserAsync();
     }
 }

@@ -1,0 +1,51 @@
+@*
+    Chevron step indicator (from the reference): an ordered list of stages, each saying its
+    state in words ("Done", "Current", "Action needed"), with aria-current="step" on the
+    current one. In a narrow container it becomes a vertical list.
+*@
+
+<div class="stepper @Class">
+    <ol class="stepper__list" aria-label="@AriaLabel">
+        @for (var i = 0; i < Steps.Count; i++)
+        {
+            var step = Steps[i];
+            var isCurrent = step.State is StepState.Current or StepState.Attention;
+            <li class="stepper__step stepper__step--@step.State.ToString().ToLowerInvariant()"
+                aria-current="@(isCurrent ? "step" : null)">
+                <span class="stepper__num" aria-hidden="true">
+                    @if (step.State == StepState.Done)
+                    {
+                        <Icon Name="check" Size="14" />
+                    }
+                    else
+                    {
+                        @(i + 1)
+                    }
+                </span>
+                <span class="stepper__text">
+                    <span class="stepper__label">@step.Label</span>
+                    @if (ShowFilipino)
+                    {
+                        <span class="stepper__fil" lang="fil">@step.LabelFilipino</span>
+                    }
+                    <span class="stepper__state">@StateText(step.State)</span>
+                </span>
+            </li>
+        }
+    </ol>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<StepperStep> Steps { get; set; } = [];
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = "Progress";
+    [Parameter] public bool ShowFilipino { get; set; } = true;
+    [Parameter] public string? Class { get; set; }
+
+    private static string StateText(StepState state) => state switch
+    {
+        StepState.Done => "Done",
+        StepState.Current => "Current",
+        StepState.Attention => "Action needed",
+        _ => "Not yet"
+    };
+}

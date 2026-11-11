@@ -1,0 +1,108 @@
+@page "/runner"
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+<PageTitle>Runner · MediAssist</PageTitle>
+
+@if (_user is null)
+{
+    <p class="visually-hidden" role="status">Loading…</p>
+}
+else
+{
+    var next = Open.FirstOrDefault();
+    <div class="staff">
+        <HeroBand TitleId="runner-title" Compact="true"
+                  Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
+                  Lead="@(Open.Count switch { 0 => "No open tasks right now.", 1 => "You have 1 open task.", _ => $"You have {Open.Count} open tasks." })"
+                  LeadFilipino="Salamat sa pagtulong. Ikaw ang kamay ng bayanihan.">
+            <Eyebrow><time datetime="@DisplayFormat.Machine(_now)">@DisplayFormat.LongDay(_now)</time> · Runner</Eyebrow>
+            <Actions>
+                @if (next is not null)
+                {
+                    <GuidedActions OnNavy="true"
+                                   PrimaryHref="@($"{RoleNavigation.RunnerTasks.Href}/{next.Id}")"
+                                   PrimaryLabel="Open next task"
+                                   PrimaryFilipino="Buksan ang susunod na gawain"
+                                   PrimaryIcon="arrow-right"
+                                   SecondaryHref="@RoleNavigation.RunnerTasks.Href"
+                                   SecondaryLabel="See all assignments"
+                                   SecondaryFilipino="Tingnan lahat" />
+                }
+            </Actions>
+        </HeroBand>
+
+        <section class="tasks" aria-labelledby="tasks-title">
+            <SectionHeader Id="tasks-title" Title="Your tasks" Filipino="Iyong mga gawain" Count="@Open.Count"
+                           Description="You see only what each errand needs. Ask the office for the patient’s authorization letter if they request it." />
+
+            <ul role="list" class="tasks__list">
+                @foreach (var task in Open)
+                {
+                    <li>
+                        <article class="task" aria-labelledby="@($"task-{task.Id}")">
+                            <div class="task__head">
+                                <h3 id="@($"task-{task.Id}")" class="task__title">@task.Errand</h3>
+                                <p class="task__due">
+                                    <Icon Name="clock" Size="16" />
+                                    Due <time datetime="@DisplayFormat.Machine(task.Due)">@DisplayFormat.Relative(task.Due, _now)</time>
+                                </p>
+                            </div>
+                            <p class="task__place"><Icon Name="hospital" Size="16" /> @task.Place · @task.District</p>
+                            <p class="task__meta">For @task.ContactFirstName · <span class="ref">@task.ApplicationReference</span></p>
+
+                            <ChevronStepper Steps="StepperSteps.ForRunnerTask(task.Status)"
+                                            AriaLabel="@($"Progress of task {task.Id}")"
+                                            ShowFilipino="false" />
+
+                            <div class="task__action">
+                                <AppButton Variant="AppButton.ButtonVariant.Secondary"
+                                           Href="@($"{RoleNavigation.RunnerTasks.Href}/{task.Id}")"
+                                           IconEnd="arrow-right">
+                                    @(task.Status == RunnerTaskStatus.Assigned ? "Review and accept" : "Update progress")<span class="visually-hidden">: @task.Errand</span>
+                                </AppButton>
+                            </div>
+                        </article>
+                    </li>
+                }
+            </ul>
+        </section>
+
+        @if (Done.Count > 0)
+        {
+            <section class="done" aria-labelledby="done-title">
+                <SectionHeader Id="done-title" Title="Done recently" Filipino="Kamakailang natapos" />
+                <ul role="list" class="done__list">
+                    @foreach (var task in Done)
+                    {
+                        <li class="done__row">
+                            <Icon Name="check-circle" Size="18" />
+                            <span>@task.Errand</span>
+                            <span class="done__when">@DisplayFormat.Relative(task.Due, _now)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private StaffUser? _user;
+    private IReadOnlyList<RunnerTask> _tasks = [];
+    private DateTimeOffset _now;
+
+    private IReadOnlyList<RunnerTask> Open =>
+        _tasks.Where(t => t.Status is RunnerTaskStatus.Assigned or RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress)
+              .OrderBy(t => t.Due).ToList();
+
+    private IReadOnlyList<RunnerTask> Done =>
+        _tasks.Where(t => t.Status == RunnerTaskStatus.Completed).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _tasks = await Staff.GetRunnerTasksAsync();
+        _user = await Staff.GetUserAsync(PortalRole.Runner);
+    }
+}

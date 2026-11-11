@@ -1,21 +1,22 @@
 @*
-    Mobile primary navigation (< 48em). Home, Applications, New application, Patients, Menu.
+    Mobile primary navigation (< 48em): the role's bottom-bar destinations, its primary action
+    in the middle (when it has one) and Menu.
 *@
 
 <nav class="bottom-nav" aria-label="Primary">
     <ul role="list" class="bottom-nav__list">
-        @for (var i = 0; i < PortalNavigation.BottomBar.Count; i++)
+        @for (var i = 0; i < Set.BottomBar.Count; i++)
         {
-            var destination = PortalNavigation.BottomBar[i];
-            var isActive = PortalNavigation.IsActive(destination, CurrentPath);
+            var destination = Set.BottomBar[i];
+            var isActive = Set.IsActive(destination, CurrentPath);
 
-            @if (i == 2)
+            @if (i == 2 && Set.PrimaryActionHref is not null)
             {
                 <li>
-                    <a class="bottom-nav__item bottom-nav__item--new" href="@PortalNavigation.NewApplicationHref">
-                        <span class="bottom-nav__new-icon"><Icon Name="plus" Size="22" /></span>
-                        <span class="bottom-nav__label">New</span>
-                        <span class="visually-hidden"> application</span>
+                    <a class="bottom-nav__item bottom-nav__item--new" href="@Set.PrimaryActionHref">
+                        <span class="bottom-nav__new-icon"><Icon Name="@(Set.Role == PortalRole.Patient ? "plus" : "arrow-right")" Size="22" /></span>
+                        <span class="bottom-nav__label" aria-hidden="true">@Set.PrimaryActionShortLabel</span>
+                        <span class="visually-hidden">@Set.PrimaryActionLabel</span>
                     </a>
                 </li>
             }
@@ -44,6 +45,7 @@
 
 @code {
     [Parameter] public string CurrentPath { get; set; } = "";
+    [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;
     [Parameter] public bool MenuOpen { get; set; }
     [Parameter] public EventCallback OnOpenMenu { get; set; }
 }

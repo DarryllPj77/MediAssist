@@ -1,13 +1,14 @@
 /*
-  MediAssist design tokens: Modern Philippine Civic Identity + Digital Bayanihan
+  MediAssist design tokens: Digital Bayanihan (reference-led civic design)
   -----------------------------------------------------------------------------
   Single source of truth for colour, type, spacing, radius, elevation and motion.
   Components reference these variables only; no raw hex values outside this file.
 
   Colour roles (90-95% of every screen stays neutral ivory, white and ink):
     Civic Navy      structure: the masthead, headings' ink, completed steps
-    Philippine Blue the one action colour: filled button, links, focus ring
-    Muted Gold      marks on navy only (masthead weave, brand roof); dark gold for text
+    Bayanihan Gold  the one filled action (light gold with navy text, 7.0:1)
+    Philippine Blue links and the focus ring
+    Muted Gold      marks on navy (weave, brand roof); dark gold for gold text
     Philippine Red  "needs your action" and errors, nothing else
 
   Every text pairing below was measured against WCAG 2.2 (ratios noted).
@@ -28,6 +29,9 @@
     --color-gold-on-navy: #D9B36C;      /* 6.6:1 on navy */
     --color-gold-text: #8A6626;         /* gold as text on ivory: 4.9:1 */
     --color-gold-subtle: #F6EFE2;
+    --color-gold-action: #E2B864;       /* filled action; navy text on it 7.0:1 */
+    --color-gold-action-hover: #D6A94F; /* navy text 5.9:1 */
+    --color-gold-action-active: #C99A3E;
 
     /* ---- Action ---- */
     --color-primary: #2455A4;           /* Philippine Blue, 7.2:1 on white */
@@ -42,17 +46,18 @@
     --color-secondary-subtle: var(--color-primary-subtle);
 
     /* ---- Grounds and ink ---- */
-    --color-bg: #FAF8F3;                /* Warm Ivory */
+    --color-bg: #F6EFE1;                /* Warm cream (reference ground) */
     --color-surface: #FFFFFF;
-    --color-surface-sunken: #F2EEE5;
-    --color-text: #202C39;              /* Deep Text, 13.4:1 on ivory */
-    --color-text-muted: #4E5965;        /* 6.7:1 on ivory */
-    --color-text-subtle: #5F6873;       /* 5.3:1 on ivory; labels and meta only */
+    --color-surface-sunken: #EFE6D3;
+    --color-cream-deep: #EADFC8;
+    --color-text: #202C39;              /* Deep Text, 12.4:1 on cream */
+    --color-text-muted: #4E5965;        /* 6.2:1 on cream */
+    --color-text-subtle: #5A636E;       /* labels and meta only, >= 4.5:1 on cream */
 
     /* ---- Lines ---- */
     --color-border: #E4E6E8;            /* dividers and card edges only */
-    --color-border-card: #D9DCE0;       /* card hairline: one step off the page */
-    --color-border-strong: #848B94;     /* form controls, >= 3:1 */
+    --color-border-card: #DDD3BF;       /* card hairline on cream */
+    --color-border-strong: #7D848D;     /* form controls, >= 3:1 on cream and white */
 
     /* ---- Status ---- */
     --color-red: #B53B45;               /* Philippine Red, 5.4:1 on ivory */
@@ -71,7 +76,7 @@
 
     /* ---- Steps ---- */
     --step-done: var(--color-navy);
-    --step-current: var(--color-primary);
+    --step-current: var(--color-gold-action);
     --step-attention: var(--color-red);
     --step-todo: #D3D7DC;               /* track only, not text */
 
@@ -122,7 +127,8 @@
     /* ---- Radius: crisp, document-like ---- */
     --radius-sm: 2px;
     --radius-md: 4px;     /* controls */
-    --radius-lg: 8px;     /* cards */
+    --radius-lg: 12px;    /* cards */
+    --radius-pill: 999px; /* buttons, as in the reference */
     --radius-full: 999px;
 
     /* ---- Elevation: none at rest ---- */

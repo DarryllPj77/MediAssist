@@ -1,0 +1,51 @@
+@*
+    Guided action pair from the reference: one filled gold pill (the view's main action) and one
+    outlined pill, each with an English label and a Filipino helper line. Verb + object labels.
+*@
+
+<div class="ga @(OnNavy ? "ga--on-navy" : null) @Class">
+    <a class="ga__btn ga__btn--primary" href="@PrimaryHref">
+        <span class="ga__label">
+            @if (PrimaryIcon is not null)
+            {
+                <Icon Name="@PrimaryIcon" Size="18" />
+            }
+            @PrimaryLabel
+        </span>
+        @if (PrimaryFilipino is not null)
+        {
+            <span class="visually-hidden">, </span><span class="ga__fil" lang="fil">@PrimaryFilipino</span>
+        }
+    </a>
+
+    @if (SecondaryHref is not null)
+    {
+        <a class="ga__btn ga__btn--secondary" href="@SecondaryHref">
+            <span class="ga__label">
+                @if (SecondaryIcon is not null)
+                {
+                    <Icon Name="@SecondaryIcon" Size="18" />
+                }
+                @SecondaryLabel
+            </span>
+            @if (SecondaryFilipino is not null)
+            {
+                <span class="visually-hidden">, </span><span class="ga__fil" lang="fil">@SecondaryFilipino</span>
+            }
+        </a>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string PrimaryHref { get; set; } = "";
+    [Parameter, EditorRequired] public string PrimaryLabel { get; set; } = "";
+    [Parameter] public string? PrimaryFilipino { get; set; }
+    [Parameter] public string? PrimaryIcon { get; set; }
+    [Parameter] public string? SecondaryHref { get; set; }
+    [Parameter] public string? SecondaryLabel { get; set; }
+    [Parameter] public string? SecondaryFilipino { get; set; }
+    [Parameter] public string? SecondaryIcon { get; set; }
+    /// <summary>Use inside the navy hero band.</summary>
+    [Parameter] public bool OnNavy { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

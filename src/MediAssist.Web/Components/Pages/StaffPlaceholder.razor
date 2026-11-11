@@ -1,0 +1,48 @@
+@*
+    Stand-in for Administrator and Runner destinations planned in later milestones,
+    so every staff navigation link resolves.
+*@
+@page "/admin/reviews"
+@page "/admin/reviews/{Item}"
+@page "/admin/authorizations"
+@page "/admin/programs"
+@page "/admin/runners"
+@page "/admin/users"
+@page "/admin/notifications"
+@page "/admin/settings"
+@page "/runner/tasks"
+@page "/runner/tasks/{Item}"
+@page "/runner/history"
+@page "/runner/notifications"
+@page "/runner/settings"
+@inject NavigationManager Nav
+
+<PageTitle>@Title · MediAssist</PageTitle>
+
+<div class="page">
+    <header class="page__head">
+        <p class="eyebrow">@Set.PortalLabel</p>
+        <h1 class="page__title serif" tabindex="-1">@Title</h1>
+        @if (Item is not null)
+        {
+            <p class="ref">@Item</p>
+        }
+        <p class="page__intro">This part of the @Set.PortalLabel.ToLowerInvariant() portal is planned for an upcoming milestone of the prototype.</p>
+    </header>
+    <div>
+        <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@Set.Home.Href" IconStart="home">
+            Back to @Set.Home.Label.ToLowerInvariant()
+        </AppButton>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Item { get; set; }
+
+    private string Path => Nav.ToBaseRelativePath(Nav.Uri);
+    private NavSet Set => RoleNavigation.ForPath(Path);
+
+    private string Title => Set.Resolve(Path)?.Label is { } label
+        ? (Item is null ? label : $"{label}: details")
+        : Set.PortalLabel;
+}

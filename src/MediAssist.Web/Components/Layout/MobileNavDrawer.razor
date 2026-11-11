@@ -15,19 +15,19 @@
             </button>
         </div>
 
-        @if (User is not null)
+        @if (UserName is not null)
         {
             <div class="nav-drawer__user">
-                <Avatar Name="@User.FullName" />
+                <Avatar Name="@UserName" />
                 <div>
-                    <p class="nav-drawer__user-name">@User.FullName</p>
-                    <p class="nav-drawer__user-meta">Patient portal</p>
+                    <p class="nav-drawer__user-name">@UserName</p>
+                    <p class="nav-drawer__user-meta">@Set.PortalLabel</p>
                 </div>
             </div>
         }
 
         <nav aria-label="More destinations">
-            @foreach (var group in PortalNavigation.Secondary.GroupBy(d => d.Group))
+            @foreach (var group in Set.Secondary.GroupBy(d => d.Group))
             {
                 var labelId = $"drawer-group-{group.Key.ToString().ToLowerInvariant()}";
                 <p class="nav-drawer__group-label" id="@labelId">@PortalNavigation.GroupLabel(group.Key) <span class="nav-drawer__group-fil" lang="fil">@PortalNavigation.GroupLabelFilipino(group.Key)</span></p>
@@ -36,8 +36,9 @@
                     {
                         <li>
                             <NavItemLink Destination="destination"
+                                         Set="Set"
                                          CurrentPath="@CurrentPath"
-                                         BadgeCount="@(destination == PortalNavigation.Notifications ? UnreadCount : 0)" />
+                                         BadgeCount="@(destination == Set.Notifications ? UnreadCount : 0)" />
                         </li>
                     }
                 </ul>
@@ -48,8 +49,9 @@
 
 @code {
     [Parameter] public string CurrentPath { get; set; } = "";
+    [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;
     [Parameter] public int UnreadCount { get; set; }
-    [Parameter] public PortalUser? User { get; set; }
+    [Parameter] public string? UserName { get; set; }
     /// <summary>Raised whenever the drawer opens or closes (including Esc and backdrop clicks).</summary>
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
 

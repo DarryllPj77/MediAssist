@@ -1,0 +1,133 @@
+@page "/admin"
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+<PageTitle>Administrator · MediAssist</PageTitle>
+
+@if (_user is null)
+{
+    <p class="visually-hidden" role="status">Loading…</p>
+}
+else
+{
+    <div class="staff">
+        <HeroBand TitleId="admin-title" Compact="true"
+                  Title="@($"{DisplayFormat.Greeting(_now)}, {_user.FirstName}.")"
+                  Lead="@StatusLine"
+                  LeadFilipino="Suriin nang maingat; bawat papel ay isang pamilyang naghihintay.">
+            <Eyebrow><time datetime="@DisplayFormat.Machine(_now)">@DisplayFormat.LongDay(_now)</time> · Administrator</Eyebrow>
+            <Actions>
+                <GuidedActions OnNavy="true"
+                               PrimaryHref="@(RoleNavigation.Administrator.PrimaryActionHref ?? RoleNavigation.AdminReviews.Href)"
+                               PrimaryLabel="Review next application"
+                               PrimaryFilipino="Suriin ang susunod"
+                               PrimaryIcon="arrow-right"
+                               SecondaryHref="@RoleNavigation.AdminRunners.Href"
+                               SecondaryLabel="Assign a runner"
+                               SecondaryFilipino="Magtalaga ng runner"
+                               SecondaryIcon="route" />
+            </Actions>
+        </HeroBand>
+
+        <section class="queue" aria-labelledby="queue-title">
+            <SectionHeader Id="queue-title" Title="Review queue" Filipino="Mga susuriin" Count="@_queue.Count">
+                <Actions>
+                    <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@RoleNavigation.AdminReviews.Href" IconEnd="arrow-right">
+                        Open queue
+                    </AppButton>
+                </Actions>
+            </SectionHeader>
+
+            <div class="queue__table">
+                <div class="queue__columns" aria-hidden="true">
+                    <span>Application</span>
+                    <span>Stage</span>
+                    <span>Documents</span>
+                    <span>Waiting</span>
+                </div>
+                <ul role="list" class="queue__rows">
+                    @foreach (var item in _queue.OrderBy(q => q.WaitingSince))
+                    {
+                        <li class="qrow @(item.Status == ApplicationStatus.NeedsCorrection ? "qrow--attention" : null)">
+                            <div class="qrow__main">
+                                <a class="qrow__title" href="@($"{RoleNavigation.AdminReviews.Href}/{item.ReferenceNumber}")">@item.PatientName</a>
+                                <p class="qrow__meta">@item.ProgramName · @item.HospitalName <span class="ref">@item.ReferenceNumber</span></p>
+                                @if (item.AuthorizationPending)
+                                {
+                                    <p class="qrow__flag"><Icon Name="shield-check" Size="16" /> Patient authorization also needs review</p>
+                                }
+                            </div>
+                            <p class="qrow__stage">
+                                <span class="visually-hidden">Stage: </span>
+                                <StatusBadge Status="item.Status" />
+                            </p>
+                            <p class="qrow__docs tabular @(item.DocumentsReady < item.DocumentsRequired ? "qrow__docs--missing" : null)">
+                                <span class="visually-hidden">Documents: </span>@item.DocumentsReady of @item.DocumentsRequired ready
+                            </p>
+                            <p class="qrow__waiting">
+                                <span class="visually-hidden">Waiting since </span>
+                                <time datetime="@DisplayFormat.Machine(item.WaitingSince)">@DisplayFormat.Relative(item.WaitingSince, _now)</time>
+                            </p>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </section>
+
+        <section class="requests" aria-labelledby="requests-title">
+            <SectionHeader Id="requests-title" Title="Runner requests" Filipino="Mga kahilingan sa runner"
+                           Description="Runner help is optional. Assign one runner per request; a declined request goes back to you." />
+            <ul role="list" class="requests__list">
+                @foreach (var r in _requests)
+                {
+                    var needsRunner = r.Status is RunnerTaskStatus.PendingAssignment or RunnerTaskStatus.Declined;
+                    <li class="req @(needsRunner ? "req--open" : null)">
+                        <div class="req__text">
+                            <p class="req__errand">@r.Errand</p>
+                            <p class="req__meta">@r.Place · needed by @DisplayFormat.ShortDate(r.NeededBy) · <span class="ref">@r.ApplicationReference</span></p>
+                        </div>
+                        <p class="req__status">
+                            @StepperSteps.RunnerStatusLabel(r.Status)@(r.RunnerName is null ? "" : $" · {r.RunnerName}")
+                        </p>
+                        @if (needsRunner)
+                        {
+                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@($"{RoleNavigation.AdminRunners.Href}?request={r.Id}")">
+                                Assign runner<span class="visually-hidden"> for @r.ApplicationReference</span>
+                            </AppButton>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    </div>
+}
+
+@code {
+    private StaffUser? _user;
+    private IReadOnlyList<ReviewQueueItem> _queue = [];
+    private IReadOnlyList<RunnerRequestItem> _requests = [];
+    private DateTimeOffset _now;
+
+    private string StatusLine
+    {
+        get
+        {
+            var open = _requests.Count(r => r.Status is RunnerTaskStatus.PendingAssignment or RunnerTaskStatus.Declined);
+            var reviews = _queue.Count == 1 ? "1 application is waiting for review." : $"{_queue.Count} applications are waiting for review.";
+            return open switch
+            {
+                0 => reviews,
+                1 => $"{reviews} 1 runner request needs a runner.",
+                _ => $"{reviews} {open} runner requests need a runner."
+            };
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _queue = await Staff.GetReviewQueueAsync();
+        _requests = await Staff.GetRunnerRequestsAsync();
+        _user = await Staff.GetUserAsync(PortalRole.Administrator);
+    }
+}
