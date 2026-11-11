@@ -1,0 +1,88 @@
+.summary__head {
+    padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+/* Segments share hairline dividers inside one band; 2x2 when narrow, 4-up when wide. */
+.summary__body {
+    container: summary / inline-size;
+}
+
+.summary__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    margin: 0;
+    background: var(--color-border);
+    border-block-start: 1px solid var(--color-border);
+}
+
+.summary__cell {
+    display: flex;
+    background: var(--color-surface);
+}
+
+.summary__segment {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: var(--space-1);
+    width: 100%;
+    min-height: 5.5rem;
+    padding: var(--space-4) var(--space-5);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.summary__segment:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.summary__segment:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--focus-ring-color);
+    border-radius: 0;
+}
+
+.summary__count {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-semibold);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.summary__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+}
+
+.summary__segment--attention .summary__count,
+.summary__segment--attention .summary__label {
+    color: var(--color-warning);
+}
+
+.summary__segment--attention::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    height: 3px;
+    background: var(--color-warning);
+}
+
+@container summary (min-width: 36rem) {
+    .summary__grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 48em) {
+    .summary__head {
+        padding: var(--space-6) var(--space-6) var(--space-4);
+    }
+}

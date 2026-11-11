@@ -1,0 +1,42 @@
+@*
+    The people this account applies for, with their authorization state (Phase 1: separate
+    user and patient records; administrator-reviewed authorization for others).
+*@
+
+<Panel LabelledBy="patients-title" Flush="true">
+    <div class="patients__head">
+        <SectionHeader Id="patients-title" Title="Patient profiles" Count="@Patients.Count" />
+    </div>
+
+    <ul role="list" class="patients__list">
+        @foreach (var patient in Patients)
+        {
+            <li class="patients__item">
+                <Avatar Name="@patient.FullName" />
+                <div class="patients__text">
+                    <p class="patients__name">@patient.FullName</p>
+                    <p class="patients__relation">@patient.Relationship</p>
+                </div>
+                @switch (patient.Authorization)
+                {
+                    case AuthorizationStatus.Authorized:
+                        <Badge Text="Authorized" Tone="Badge.BadgeTone.Success" IconName="shield-check" />
+                        break;
+                    case AuthorizationStatus.PendingReview:
+                        <Badge Text="Pending review" Tone="Badge.BadgeTone.Warning" IconName="clock" />
+                        break;
+                }
+            </li>
+        }
+    </ul>
+
+    <div class="patients__foot">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Patients.Href" IconEnd="arrow-right">
+            Manage patient profiles
+        </AppButton>
+    </div>
+</Panel>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<PatientProfile> Patients { get; set; } = [];
+}

@@ -1,0 +1,25 @@
+@*
+    Bordered surface for a dashboard region. Renders a <section> labelled by its header
+    when LabelledBy is supplied, otherwise a plain <div>.
+*@
+
+@if (LabelledBy is not null)
+{
+    <section class="panel @(Flush ? "panel--flush" : null) @Class" aria-labelledby="@LabelledBy">
+        @ChildContent
+    </section>
+}
+else
+{
+    <div class="panel @(Flush ? "panel--flush" : null) @Class">
+        @ChildContent
+    </div>
+}
+
+@code {
+    [Parameter] public string? LabelledBy { get; set; }
+    /// <summary>Remove inner padding (for lists that run edge to edge).</summary>
+    [Parameter] public bool Flush { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

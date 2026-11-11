@@ -1,0 +1,41 @@
+@*
+    Stand-in for destinations planned in later milestones, so every navigation link resolves.
+*@
+@page "/patient/applications"
+@page "/patient/applications/new"
+@page "/patient/applications/{Reference}"
+@page "/patient/patients"
+@page "/patient/hospitals"
+@page "/patient/programs"
+@page "/patient/documents"
+@page "/patient/runner"
+@page "/patient/notifications"
+@page "/patient/settings"
+@inject NavigationManager Nav
+
+<PageTitle>@Title · MediAssist</PageTitle>
+
+<div class="placeholder">
+    <span class="placeholder__icon"><Icon Name="@IconName" Size="24" /></span>
+    <h1 class="placeholder__title" tabindex="-1">@Title</h1>
+    @if (Reference is not null)
+    {
+        <p class="placeholder__ref tabular">Application @Reference</p>
+    }
+    <p class="placeholder__text">
+        This part of the Patient Portal is planned for an upcoming milestone of the prototype.
+    </p>
+    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Dashboard.Href" IconStart="home">
+        Back to dashboard
+    </AppButton>
+</div>
+
+@code {
+    [Parameter] public string? Reference { get; set; }
+
+    private NavDestination? Destination => PortalNavigation.Resolve(Nav.ToBaseRelativePath(Nav.Uri));
+
+    private string Title => Reference is not null ? "Application details" : Destination?.Label ?? "Coming soon";
+
+    private string IconName => Reference is not null ? "file-text" : Destination?.Icon ?? "info";
+}

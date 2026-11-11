@@ -1,0 +1,177 @@
+/* MediAssist base: reset, typography, focus, accessibility helpers. */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    color-scheme: light;
+}
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    font-feature-settings: "tnum" 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure {
+    margin: 0;
+}
+
+h1, h2, h3, h4 {
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-tight);
+    text-wrap: balance;
+}
+
+p {
+    text-wrap: pretty;
+}
+
+ul[role="list"],
+ol[role="list"] {
+    list-style: none;
+    padding: 0;
+}
+
+img,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+a {
+    color: var(--color-secondary);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+}
+
+a:hover {
+    color: var(--color-secondary-hover);
+    text-decoration-thickness: 2px;
+}
+
+/* Visible, consistent keyboard focus; never on mouse click. */
+:focus {
+    outline: none;
+}
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+}
+
+/* Headings receive programmatic focus on navigation (FocusOnNavigate). */
+h1:focus,
+h1:focus-visible {
+    box-shadow: none;
+}
+
+.tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.skip-link {
+    position: absolute;
+    inset-inline-start: var(--space-4);
+    inset-block-start: var(--space-3);
+    z-index: calc(var(--z-overlay) + 1);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-text);
+    color: var(--color-surface);
+    border-radius: var(--radius-md);
+    font-weight: var(--weight-semibold);
+    text-decoration: none;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+    transform: none;
+    color: var(--color-surface);
+}
+
+/* Global reduced motion safety net. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Lock page scroll while the mobile navigation drawer is open (no JS needed). */
+html:has(dialog.nav-drawer[open]) {
+    overflow: hidden;
+}
+
+/* ---- Blazor framework UI ---- */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: calc(var(--z-overlay) + 2);
+    padding: var(--space-3) var(--space-7) var(--space-3) var(--space-5);
+    background: var(--color-warning-subtle);
+    color: var(--color-text);
+    border-block-start: 1px solid var(--color-warning);
+    box-shadow: var(--shadow-md);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    inset-inline-end: var(--space-4);
+    inset-block-start: var(--space-3);
+    cursor: pointer;
+}
+
+.blazor-error-boundary {
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-danger-subtle);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
+    border-radius: var(--radius-lg);
+}
+
+.blazor-error-boundary::after {
+    content: "Something went wrong while showing this section.";
+}

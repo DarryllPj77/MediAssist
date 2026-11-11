@@ -1,0 +1,20 @@
+<div class="empty-state @Class" role="status">
+    <span class="empty-state__icon"><Icon Name="@IconName" Size="22" /></span>
+    <p class="empty-state__title">@Title</p>
+    @if (Message is not null)
+    {
+        <p class="empty-state__message">@Message</p>
+    }
+    @if (Action is not null)
+    {
+        <div class="empty-state__action">@Action</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string IconName { get; set; } = "check-circle";
+    [Parameter] public RenderFragment? Action { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

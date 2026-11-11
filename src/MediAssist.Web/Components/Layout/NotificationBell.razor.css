@@ -1,0 +1,38 @@
+.bell {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: var(--tap-target);
+    height: var(--tap-target);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    transition: background-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.bell:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+}
+
+.bell:focus-visible {
+    border-radius: var(--radius-full);
+}
+
+.bell__badge {
+    position: absolute;
+    inset-block-start: 5px;
+    inset-inline-end: 3px;
+    display: grid;
+    place-items: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding-inline: 0.25rem;
+    border-radius: var(--radius-full);
+    background: var(--color-danger);
+    color: var(--color-on-primary);
+    font-size: 0.6875rem;
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    box-shadow: 0 0 0 2px var(--color-surface);
+}

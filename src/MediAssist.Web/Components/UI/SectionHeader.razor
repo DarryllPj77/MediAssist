@@ -1,0 +1,32 @@
+@*
+    Heading row for a dashboard region: title, optional count, description and trailing action.
+*@
+
+<div class="section-header @Class">
+    <div class="section-header__text">
+        <h2 id="@Id" class="section-header__title">
+            @Title
+            @if (Count is not null)
+            {
+                <span class="section-header__count tabular" aria-label="@($"{Count} items")">@Count</span>
+            }
+        </h2>
+        @if (Description is not null)
+        {
+            <p class="section-header__description">@Description</p>
+        }
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="section-header__actions">@Actions</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public int? Count { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

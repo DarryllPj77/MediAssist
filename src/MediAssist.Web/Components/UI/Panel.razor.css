@@ -1,0 +1,23 @@
+.panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-5);
+    min-width: 0;
+}
+
+.panel--flush {
+    padding: 0;
+    overflow: hidden;
+}
+
+@media (min-width: 48em) {
+    .panel {
+        padding: var(--space-6);
+    }
+
+    .panel--flush {
+        padding: 0;
+    }
+}

@@ -1,0 +1,27 @@
+@*
+    One navigation row (icon + label). Used by the desktop sidebar and the mobile drawer.
+    When rendered inside the sidebar container at rail width, the label is visually hidden
+    (still announced) and shown as a tooltip on hover/focus — see NavItemLink.razor.css.
+*@
+
+<a href="@Destination.Href"
+   class="nav-item @(IsActive ? "is-active" : null)"
+   aria-current="@(IsActive ? "page" : null)"
+   data-label="@Destination.Label"
+   @onclick="OnNavigate">
+    <Icon Name="@Destination.Icon" Size="20" />
+    <span class="nav-item__label">@Destination.Label</span>
+    @if (BadgeCount > 0)
+    {
+        <span class="nav-item__badge tabular" aria-label="@($"{BadgeCount} unread")">@BadgeCount</span>
+    }
+</a>
+
+@code {
+    [Parameter, EditorRequired] public NavDestination Destination { get; set; } = default!;
+    [Parameter, EditorRequired] public string CurrentPath { get; set; } = "";
+    [Parameter] public int BadgeCount { get; set; }
+    [Parameter] public EventCallback OnNavigate { get; set; }
+
+    private bool IsActive => PortalNavigation.IsActive(Destination, CurrentPath);
+}

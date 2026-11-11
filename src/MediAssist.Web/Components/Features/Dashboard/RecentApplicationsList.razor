@@ -1,0 +1,77 @@
+@*
+    Most recently updated applications. A list (not a table) so rows can restack on narrow
+    containers without losing semantics; each cell carries a visually hidden label, and the
+    whole row is one link target via the program-name link.
+*@
+
+<Panel LabelledBy="recent-title" Flush="true">
+    <div class="recent__head">
+        <SectionHeader Id="recent-title" Title="Recent applications">
+            <Actions>
+                <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Applications.Href" IconEnd="arrow-right">
+                    View all<span class="visually-hidden"> applications</span>
+                </AppButton>
+            </Actions>
+        </SectionHeader>
+    </div>
+
+    @if (Rows.Count == 0)
+    {
+        <EmptyState IconName="file-text"
+                    Title="No applications yet"
+                    Message="Start an application to see its progress here." />
+    }
+    else
+    {
+        <div class="recent">
+            <div class="recent__columns" aria-hidden="true">
+                <span>Application</span>
+                <span>Status</span>
+                <span>Documents</span>
+                <span>Updated</span>
+            </div>
+
+            <ul role="list" class="recent__list">
+                @foreach (var app in Rows)
+                {
+                    <li class="recent__row">
+                        <div class="recent__primary">
+                            <p class="recent__patient"><span class="visually-hidden">Patient: </span>@app.PatientName</p>
+                            <a class="recent__link" href="@($"{PortalNavigation.Applications.Href}/{app.ReferenceNumber}")">
+                                @app.ProgramName
+                            </a>
+                            <p class="recent__sub">
+                                @app.HospitalName
+                                <span aria-hidden="true">·</span>
+                                <span class="recent__ref tabular">@app.ReferenceNumber</span>
+                            </p>
+                            <p class="recent__next"><span class="recent__next-label">Next:</span> @app.NextStep</p>
+                        </div>
+
+                        <div class="recent__cell recent__status">
+                            <span class="visually-hidden">Status: </span><StatusBadge Status="app.Status" />
+                        </div>
+
+                        <div class="recent__cell recent__docs tabular @(app.DocumentsReady < app.DocumentsRequired ? "recent__docs--missing" : null)">
+                            <span class="visually-hidden">Documents: </span>@app.DocumentsReady of @app.DocumentsRequired ready
+                        </div>
+
+                        <div class="recent__cell recent__updated">
+                            <span class="visually-hidden">Updated </span>
+                            <time datetime="@DisplayFormat.Machine(app.LastUpdated)">@DisplayFormat.Relative(app.LastUpdated, Now)</time>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</Panel>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+    [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+    [Parameter] public int MaxRows { get; set; } = 5;
+
+    private IReadOnlyList<AssistanceApplication> Rows =>
+        Applications.OrderByDescending(a => a.LastUpdated).Take(MaxRows).ToList();
+}

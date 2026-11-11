@@ -1,0 +1,100 @@
+@*
+    Mobile secondary navigation as a bottom sheet built on the native <dialog> element:
+    showModal() supplies focus containment, Esc to close, an inert background and focus return.
+*@
+@implements IAsyncDisposable
+@inject PortalLayoutInterop Interop
+@inject NavigationManager Nav
+
+<dialog class="nav-drawer" @ref="_dialog" aria-labelledby="nav-drawer-title">
+    <div class="nav-drawer__panel">
+        <div class="nav-drawer__header">
+            <p class="nav-drawer__title" id="nav-drawer-title">Menu</p>
+            <button type="button" class="nav-drawer__close" @onclick="CloseAsync">
+                <Icon Name="x" Size="22" Label="Close menu" />
+            </button>
+        </div>
+
+        @if (User is not null)
+        {
+            <div class="nav-drawer__user">
+                <Avatar Name="@User.FullName" />
+                <div>
+                    <p class="nav-drawer__user-name">@User.FullName</p>
+                    <p class="nav-drawer__user-meta">Patient portal</p>
+                </div>
+            </div>
+        }
+
+        <nav aria-label="More destinations">
+            @foreach (var group in PortalNavigation.Secondary.GroupBy(d => d.Group))
+            {
+                var labelId = $"drawer-group-{group.Key.ToString().ToLowerInvariant()}";
+                <p class="nav-drawer__group-label" id="@labelId">@PortalNavigation.GroupLabel(group.Key)</p>
+                <ul role="list" class="nav-drawer__list" aria-labelledby="@labelId">
+                    @foreach (var destination in group)
+                    {
+                        <li>
+                            <NavItemLink Destination="destination"
+                                         CurrentPath="@CurrentPath"
+                                         BadgeCount="@(destination == PortalNavigation.Notifications ? UnreadCount : 0)" />
+                        </li>
+                    }
+                </ul>
+            }
+        </nav>
+    </div>
+</dialog>
+
+@code {
+    [Parameter] public string CurrentPath { get; set; } = "";
+    [Parameter] public int UnreadCount { get; set; }
+    [Parameter] public PortalUser? User { get; set; }
+    /// <summary>Raised whenever the drawer opens or closes (including Esc and backdrop clicks).</summary>
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    private ElementReference _dialog;
+    private DotNetObjectReference<MobileNavDrawer>? _self;
+    private bool _isOpen;
+
+    protected override void OnInitialized() => Nav.LocationChanged += OnLocationChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _self = DotNetObjectReference.Create(this);
+        await Interop.InitDrawerAsync(_dialog, _self);
+    }
+
+    public async Task OpenAsync()
+    {
+        await Interop.OpenDrawerAsync(_dialog);
+        _isOpen = true;
+        await OpenChanged.InvokeAsync(true);
+    }
+
+    public async Task CloseAsync()
+    {
+        if (!_isOpen) return;
+        await Interop.CloseDrawerAsync(_dialog); // the dialog's "close" event calls OnDrawerClosed
+    }
+
+    [JSInvokable]
+    public async Task OnDrawerClosed()
+    {
+        _isOpen = false;
+        await OpenChanged.InvokeAsync(false);
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_isOpen) _ = InvokeAsync(CloseAsync);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        _self?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

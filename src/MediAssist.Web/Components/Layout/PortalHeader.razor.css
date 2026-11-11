@@ -1,0 +1,103 @@
+.header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: var(--header-height);
+    padding-inline: var(--space-4);
+    background: var(--color-surface);
+    border-block-end: 1px solid var(--color-border);
+}
+
+.header__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap-target);
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+}
+
+.header__brand:hover {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.header__brand-name {
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.header__section {
+    display: none;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+}
+
+.header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-inline-start: auto;
+}
+
+.header__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap-target);
+    padding: var(--space-1);
+    border-radius: var(--radius-full);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+    transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.header__user:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.header__user:focus-visible {
+    border-radius: var(--radius-full);
+}
+
+.header__user-name {
+    display: none;
+}
+
+@media (min-width: 48em) {
+    .header {
+        padding-inline: var(--space-7);
+    }
+
+    .header__brand {
+        display: none;
+    }
+
+    .header__section {
+        display: block;
+    }
+}
+
+@media (min-width: 75em) {
+    .header {
+        padding-inline: var(--space-8);
+    }
+
+    .header__user {
+        padding-inline-end: var(--space-4);
+    }
+
+    .header__user-name {
+        display: inline;
+    }
+}

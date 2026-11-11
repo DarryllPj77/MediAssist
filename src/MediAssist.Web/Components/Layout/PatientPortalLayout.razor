@@ -1,0 +1,159 @@
+@*
+    Shared Patient Portal shell.
+      < 48em : header + content + fixed bottom nav + bottom-sheet drawer
+      >= 48em: sidebar (rail by default on tablet) + header + content
+      >= 75em: sidebar expanded by default
+    Sidebar mode: "auto" follows the breakpoints above; an explicit user choice is saved locally.
+*@
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject IPatientPortalDataService Data
+@inject PortalLayoutInterop Interop
+@inject NavigationManager Nav
+
+<a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
+
+<div class="portal" data-sidebar="@SidebarAttribute" @ref="_portal">
+    <PortalSidebar Collapsed="IsSidebarCollapsed"
+                   CurrentPath="@_path"
+                   UnreadCount="_unreadCount"
+                   OnToggle="ToggleSidebarAsync" />
+
+    <div class="portal__body">
+        <PortalHeader SectionTitle="@SectionTitle" UnreadCount="_unreadCount" User="_user" />
+
+        <main id="main-content" class="portal__main" tabindex="-1">
+            @Body
+        </main>
+
+        <footer class="portal__footer">
+            <p>
+                <strong>MediAssist prototype.</strong>
+                All patients, hospitals, programs and reference numbers shown are fictional.
+                No real medical records are stored.
+            </p>
+        </footer>
+    </div>
+
+    <MobileBottomNav CurrentPath="@_path" MenuOpen="_drawerOpen" OnOpenMenu="OpenDrawerAsync" />
+    <MobileNavDrawer @ref="_drawer"
+                     CurrentPath="@_path"
+                     UnreadCount="_unreadCount"
+                     User="_user"
+                     OpenChanged="OnDrawerOpenChanged" />
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Something went wrong. Reload the page to continue.
+    <a href="" class="reload">Reload</a>
+    <span class="dismiss" role="button" aria-label="Dismiss">✕</span>
+</div>
+
+@code {
+    private enum SidebarMode { Auto, Expanded, Collapsed }
+
+    private PortalUser? _user;
+    private int _unreadCount;
+    private string _path = "";
+
+    private SidebarMode _sidebarMode = SidebarMode.Auto;
+    private bool _isWideViewport = true;
+    private ElementReference _portal;
+    private int? _viewportWatchId;
+    private DotNetObjectReference<PatientPortalLayout>? _self;
+
+    private MobileNavDrawer? _drawer;
+    private bool _drawerOpen;
+
+    private string SidebarAttribute => _sidebarMode.ToString().ToLowerInvariant();
+
+    private bool IsSidebarCollapsed => _sidebarMode switch
+    {
+        SidebarMode.Expanded => false,
+        SidebarMode.Collapsed => true,
+        _ => !_isWideViewport
+    };
+
+    private string SectionTitle => PortalNavigation.Resolve(_path)?.Label ?? "Patient Portal";
+
+    private string SkipLinkHref => $"{_path.Split('#')[0]}#main-content";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _path = Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.LocationChanged += OnLocationChanged;
+
+        _user = await Data.GetCurrentUserAsync();
+        var notifications = await Data.GetNotificationsAsync();
+        _unreadCount = notifications.Count(n => !n.IsRead);
+    }
+
+    private bool _enableTransitionsAfterRender;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            if (_enableTransitionsAfterRender)
+            {
+                // The saved sidebar state is in the DOM; JS sets data-ready after it paints,
+                // so only user-initiated changes animate.
+                _enableTransitionsAfterRender = false;
+                await Interop.EnableTransitionsAfterPaintAsync(_portal);
+            }
+            return;
+        }
+
+        _self = DotNetObjectReference.Create(this);
+        var watch = await Interop.WatchWideViewportAsync(_self);
+        _viewportWatchId = watch.Id;
+        _isWideViewport = watch.IsWide;
+
+        _sidebarMode = await Interop.GetSidebarPreferenceAsync() switch
+        {
+            "expanded" => SidebarMode.Expanded,
+            "collapsed" => SidebarMode.Collapsed,
+            _ => SidebarMode.Auto
+        };
+
+        _enableTransitionsAfterRender = true;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public Task OnWideViewportChanged(bool isWide)
+    {
+        _isWideViewport = isWide;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleSidebarAsync()
+    {
+        _sidebarMode = IsSidebarCollapsed ? SidebarMode.Expanded : SidebarMode.Collapsed;
+        await Interop.SetSidebarPreferenceAsync(SidebarAttribute);
+    }
+
+    private async Task OpenDrawerAsync()
+    {
+        if (_drawer is not null) await _drawer.OpenAsync();
+    }
+
+    private void OnDrawerOpenChanged(bool isOpen) => _drawerOpen = isOpen;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        _path = Nav.ToBaseRelativePath(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        if (_viewportWatchId is int id)
+        {
+            try { await Interop.UnwatchWideViewportAsync(id); }
+            catch (JSDisconnectedException) { }
+        }
+        _self?.Dispose();
+    }
+}

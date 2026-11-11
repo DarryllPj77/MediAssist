@@ -1,0 +1,11 @@
+@* MediAssist logo mark: a care cross whose lower arm opens into a guiding path. Decorative. *@
+
+<svg class="brand-mark" width="@Size" height="@Size" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <rect width="32" height="32" rx="8" class="brand-mark__tile" />
+    <path d="M16 7.5v9.5c0 3 2 5 5 5h3.5M7.5 16h17" class="brand-mark__glyph" />
+    <circle cx="16" cy="25" r="1.6" class="brand-mark__dot" />
+</svg>
+
+@code {
+    [Parameter] public int Size { get; set; } = 32;
+}

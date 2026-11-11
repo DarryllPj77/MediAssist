@@ -1,0 +1,9 @@
+<Badge Text="@ApplicationStatusDisplay.Label(Status)"
+       Tone="@ApplicationStatusDisplay.Tone(Status)"
+       IconName="@ApplicationStatusDisplay.Icon(Status)"
+       Class="@Class" />
+
+@code {
+    [Parameter, EditorRequired] public ApplicationStatus Status { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

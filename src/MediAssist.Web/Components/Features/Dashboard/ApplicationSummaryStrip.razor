@@ -1,0 +1,52 @@
+@*
+    One segmented band of application counts by stage (not four separate stat cards).
+    Each segment links to the filtered applications list. Cancelled applications are excluded.
+*@
+
+<Panel LabelledBy="summary-title" Flush="true">
+    <div class="summary__head">
+        <SectionHeader Id="summary-title"
+                       Title="Applications at a glance"
+                       Description="@($"{Total} active or finished {(Total == 1 ? "application" : "applications")}")" />
+    </div>
+
+    <div class="summary__body">
+    <ul role="list" class="summary__grid">
+        @foreach (var segment in Segments)
+        {
+            <li class="summary__cell">
+                <a class="summary__segment @(segment.Attention && segment.Count > 0 ? "summary__segment--attention" : null)"
+                   href="@($"{PortalNavigation.Applications.Href}?stage={segment.Key}")">
+                    <span class="summary__count tabular">@segment.Count</span>
+                    <span class="summary__label">
+                        <Icon Name="@segment.Icon" Size="16" />
+                        @segment.Label
+                    </span>
+                    <span class="visually-hidden">@(segment.Count == 1 ? "application" : "applications")</span>
+                </a>
+            </li>
+        }
+    </ul>
+    </div>
+</Panel>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+
+    private sealed record Segment(string Key, string Label, string Icon, int Count, bool Attention = false);
+
+    private int Total => Applications.Count(a => a.Status != ApplicationStatus.Cancelled);
+
+    private IEnumerable<Segment> Segments
+    {
+        get
+        {
+            int Count(params ApplicationStatus[] statuses) => Applications.Count(a => statuses.Contains(a.Status));
+
+            yield return new("draft", "Drafts", "pencil", Count(ApplicationStatus.Draft));
+            yield return new("in-review", "In review", "search", Count(ApplicationStatus.Submitted, ApplicationStatus.UnderReview));
+            yield return new("needs-correction", "Needs correction", "alert-triangle", Count(ApplicationStatus.NeedsCorrection), Attention: true);
+            yield return new("ready", "Ready or completed", "check-circle", Count(ApplicationStatus.ReadyForProcessing, ApplicationStatus.Completed));
+        }
+    }
+}

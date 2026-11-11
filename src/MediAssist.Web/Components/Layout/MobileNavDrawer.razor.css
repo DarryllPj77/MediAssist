@@ -1,0 +1,118 @@
+/* Bottom sheet. The <dialog> element is the full-screen hit area; .nav-drawer__panel is the sheet. */
+.nav-drawer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+}
+
+.nav-drawer[open] {
+    display: flex;
+    align-items: flex-end;
+}
+
+.nav-drawer::backdrop {
+    background: rgb(23 43 53 / 0.45);
+}
+
+.nav-drawer__panel {
+    width: 100%;
+    max-height: 85dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-3) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+    background: var(--color-surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
+    animation: drawer-up var(--duration-slow) var(--ease-out);
+}
+
+/* Grab handle (visual only). */
+.nav-drawer__panel::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    margin: 0 auto var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--color-border);
+}
+
+@keyframes drawer-up {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+
+.nav-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: var(--space-3);
+}
+
+.nav-drawer__title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+}
+
+.nav-drawer__close {
+    display: grid;
+    place-items: center;
+    width: var(--tap-target);
+    height: var(--tap-target);
+    margin-inline-end: calc(var(--space-2) * -1);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-text-muted);
+}
+
+.nav-drawer__close:hover {
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+}
+
+.nav-drawer__close:focus-visible {
+    border-radius: var(--radius-full);
+}
+
+.nav-drawer__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    margin-block-end: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+}
+
+.nav-drawer__user-name {
+    font-weight: var(--weight-semibold);
+}
+
+.nav-drawer__user-meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.nav-drawer__group-label {
+    margin: var(--space-4) var(--space-3) var(--space-2);
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+}
+
+.nav-drawer__list {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+}

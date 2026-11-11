@@ -1,0 +1,33 @@
+@*
+    Top header. Mobile: brand + bell + avatar. Tablet/desktop: section name + bell + user.
+    The section name is not an <h1>; each page owns its own h1.
+*@
+
+<header class="header">
+    <a class="header__brand" href="@PortalNavigation.Dashboard.Href">
+        <BrandMark Size="28" />
+        <span class="header__brand-name">MediAssist</span>
+        <span class="visually-hidden">, go to dashboard</span>
+    </a>
+
+    <p class="header__section">@SectionTitle</p>
+
+    <div class="header__actions">
+        <NotificationBell UnreadCount="UnreadCount" />
+
+        @if (User is not null)
+        {
+            <a class="header__user" href="@PortalNavigation.Settings.Href">
+                <Avatar Name="@User.FullName" Size="Avatar.AvatarSize.Small" />
+                <span class="header__user-name">@User.FullName</span>
+                <span class="visually-hidden">, profile and settings</span>
+            </a>
+        }
+    </div>
+</header>
+
+@code {
+    [Parameter] public string SectionTitle { get; set; } = "";
+    [Parameter] public int UnreadCount { get; set; }
+    [Parameter] public PortalUser? User { get; set; }
+}

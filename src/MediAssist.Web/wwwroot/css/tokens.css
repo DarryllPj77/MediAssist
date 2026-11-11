@@ -1,0 +1,127 @@
+/*
+  MediAssist design tokens
+  ------------------------
+  Single source of truth for colour, type, spacing, radius, elevation and motion.
+  Components reference these variables only; no raw hex values outside this file.
+
+  Breakpoints (CSS custom properties cannot be used inside media queries,
+  so these are documented here and repeated literally):
+    --bp-tablet:  48em  (768px)   sidebar appears as a rail, bottom nav hidden
+    --bp-desktop: 75em  (1200px)  sidebar expanded by default, two-column dashboard
+*/
+
+:root {
+    /* ---- Brand palette (approved) ---- */
+    --color-primary: #0F766E;
+    --color-primary-hover: #0B5F59;
+    --color-primary-active: #094E49;
+    --color-primary-subtle: #E6F2F1;
+    --color-primary-subtle-hover: #D5EAE8;
+    --color-on-primary: #FFFFFF;
+
+    --color-secondary: #2563EB;
+    --color-secondary-hover: #1D4FD0;
+    --color-secondary-subtle: #EAF1FE;
+
+    /* ---- Surfaces & text ---- */
+    --color-bg: #F7FAF9;
+    --color-surface: #FFFFFF;
+    --color-surface-sunken: #F0F5F4;
+    --color-text: #172B35;
+    --color-text-muted: #4A5F69;      /* 6.4:1 on --color-bg */
+    --color-text-subtle: #5F727B;     /* 5.0:1 on white, labels only */
+
+    /* ---- Borders ---- */
+    --color-border: #DCE7E5;          /* decorative dividers and panel edges only */
+    --color-border-strong: #7F9693;   /* form controls & interactive boundaries (>= 3:1) */
+
+    /* ---- Feedback ---- */
+    --color-success: #166534;  /* 6.4:1 on its subtle tint */
+    --color-success-subtle: #E8F5EC;
+    --color-warning: #A1460A;
+    --color-warning-subtle: #FDF1E4;
+    --color-danger: #B42318;
+    --color-danger-subtle: #FDECEA;
+    --color-info: var(--color-secondary);
+    --color-info-subtle: var(--color-secondary-subtle);
+    --color-neutral: #4A5F69;
+    --color-neutral-subtle: #EEF2F2;
+
+    /* ---- Focus ---- */
+    --focus-ring-color: var(--color-secondary);
+    --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--focus-ring-color);
+
+    /* ---- Typography ---- */
+    --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+    --text-xs: 0.75rem;    /* 12 */
+    --text-sm: 0.875rem;   /* 14 */
+    --text-base: 1rem;     /* 16 */
+    --text-md: 1.125rem;   /* 18 */
+    --text-lg: 1.25rem;    /* 20 */
+    --text-xl: 1.5rem;     /* 24 */
+    --text-2xl: 1.875rem;  /* 30 */
+    --text-3xl: 2.25rem;   /* 36 */
+
+    --leading-tight: 1.2;
+    --leading-snug: 1.35;
+    --leading-normal: 1.5;
+
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    --tracking-caps: 0.06em;
+
+    /* ---- Spacing (4px base) ---- */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-7: 2rem;
+    --space-8: 2.5rem;
+    --space-9: 3rem;
+    --space-10: 4rem;
+
+    /* ---- Radius ---- */
+    --radius-sm: 4px;
+    --radius-md: 6px;     /* controls */
+    --radius-lg: 10px;    /* panels */
+    --radius-full: 999px; /* badges, avatars */
+
+    /* ---- Elevation (restrained) ---- */
+    --shadow-sm: 0 1px 2px rgb(23 43 53 / 0.05);
+    --shadow-md: 0 8px 24px rgb(23 43 53 / 0.12), 0 2px 6px rgb(23 43 53 / 0.06);
+
+    /* ---- Motion ---- */
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 240ms;
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+    /* ---- Layout ---- */
+    --sidebar-width-expanded: 16.5rem;
+    --sidebar-width-rail: 4.5rem;
+    --header-height: 4rem;
+    --bottom-nav-height: 4rem;
+    --content-max-width: 76rem;
+    --tap-target: 2.75rem; /* 44px */
+
+    /* ---- Z-index ---- */
+    --z-sticky: 10;
+    --z-nav: 20;
+    --z-overlay: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 0ms;
+        --duration-base: 0ms;
+        --duration-slow: 0ms;
+    }
+}

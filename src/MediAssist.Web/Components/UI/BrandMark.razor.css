@@ -1,0 +1,19 @@
+.brand-mark {
+    flex-shrink: 0;
+}
+
+.brand-mark__tile {
+    fill: var(--color-primary);
+}
+
+.brand-mark__glyph {
+    fill: none;
+    stroke: var(--color-on-primary);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.brand-mark__dot {
+    fill: var(--color-on-primary);
+}

@@ -1,0 +1,49 @@
+@*
+    Mobile primary navigation (< 48em). Home, Applications, New application, Patients, Menu.
+*@
+
+<nav class="bottom-nav" aria-label="Primary">
+    <ul role="list" class="bottom-nav__list">
+        @for (var i = 0; i < PortalNavigation.BottomBar.Count; i++)
+        {
+            var destination = PortalNavigation.BottomBar[i];
+            var isActive = PortalNavigation.IsActive(destination, CurrentPath);
+
+            @if (i == 2)
+            {
+                <li>
+                    <a class="bottom-nav__item bottom-nav__item--new" href="@PortalNavigation.NewApplicationHref">
+                        <span class="bottom-nav__new-icon"><Icon Name="plus" Size="22" /></span>
+                        <span class="bottom-nav__label">New</span>
+                        <span class="visually-hidden"> application</span>
+                    </a>
+                </li>
+            }
+
+            <li>
+                <a class="bottom-nav__item @(isActive ? "is-active" : null)"
+                   href="@destination.Href"
+                   aria-current="@(isActive ? "page" : null)">
+                    <Icon Name="@destination.Icon" Size="22" />
+                    <span class="bottom-nav__label">@(destination.ShortLabel ?? destination.Label)</span>
+                </a>
+            </li>
+        }
+        <li>
+            <button type="button"
+                    class="bottom-nav__item"
+                    aria-haspopup="dialog"
+                    aria-expanded="@(MenuOpen ? "true" : "false")"
+                    @onclick="OnOpenMenu">
+                <Icon Name="menu" Size="22" />
+                <span class="bottom-nav__label">Menu</span>
+            </button>
+        </li>
+    </ul>
+</nav>
+
+@code {
+    [Parameter] public string CurrentPath { get; set; } = "";
+    [Parameter] public bool MenuOpen { get; set; }
+    [Parameter] public EventCallback OnOpenMenu { get; set; }
+}

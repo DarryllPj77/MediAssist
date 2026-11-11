@@ -1,0 +1,20 @@
+@*
+    Status pill. Meaning is always carried by text plus icon, never colour alone.
+*@
+
+<span class="badge badge--@Tone.ToString().ToLowerInvariant() @Class">
+    @if (IconName is not null)
+    {
+        <Icon Name="@IconName" Size="14" />
+    }
+    <span>@Text</span>
+</span>
+
+@code {
+    public enum BadgeTone { Neutral, Info, Warning, Danger, Success, Brand }
+
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+    [Parameter] public BadgeTone Tone { get; set; } = BadgeTone.Neutral;
+    [Parameter] public string? IconName { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

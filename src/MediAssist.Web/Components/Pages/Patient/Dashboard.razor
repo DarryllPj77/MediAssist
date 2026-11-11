@@ -1,0 +1,64 @@
+@page "/"
+@page "/patient"
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+<PageTitle>Dashboard · MediAssist</PageTitle>
+
+@if (_user is null)
+{
+    <p class="visually-hidden" role="status">Loading your dashboard…</p>
+}
+else
+{
+    @*
+        On wide screens the main/aside wrappers become
+        real columns; below that they are display:contents and `order` interleaves the regions.
+    *@
+    <div class="dashboard">
+        <div class="dashboard__welcome">
+            <WelcomeSection FirstName="@_user.FirstName"
+                            Now="_now"
+                            ActionCount="_actions.Count"
+                            InProgressCount="InProgressCount" />
+        </div>
+
+        <div class="dashboard__main">
+            <div class="dashboard__actions">
+                <ActionRequiredList Items="_actions" />
+            </div>
+            <div class="dashboard__recent">
+                <RecentApplicationsList Applications="_applications" Now="_now" />
+            </div>
+        </div>
+
+        <div class="dashboard__aside">
+            <div class="dashboard__summary">
+                <ApplicationSummaryStrip Applications="_applications" />
+            </div>
+            <div class="dashboard__patients">
+                <PatientProfilesPanel Patients="_patients" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PortalUser? _user;
+    private IReadOnlyList<AssistanceApplication> _applications = [];
+    private IReadOnlyList<ActionItem> _actions = [];
+    private IReadOnlyList<PatientProfile> _patients = [];
+    private DateTimeOffset _now;
+
+    private int InProgressCount => _applications.Count(a =>
+        a.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview or ApplicationStatus.ReadyForProcessing);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _applications = await Data.GetApplicationsAsync();
+        _actions = await Data.GetActionItemsAsync();
+        _patients = await Data.GetPatientProfilesAsync();
+        _user = await Data.GetCurrentUserAsync();
+    }
+}
