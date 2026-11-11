@@ -30,7 +30,7 @@
             @foreach (var group in PortalNavigation.Secondary.GroupBy(d => d.Group))
             {
                 var labelId = $"drawer-group-{group.Key.ToString().ToLowerInvariant()}";
-                <p class="nav-drawer__group-label" id="@labelId">@PortalNavigation.GroupLabel(group.Key)</p>
+                <p class="nav-drawer__group-label" id="@labelId">@PortalNavigation.GroupLabel(group.Key) <span class="nav-drawer__group-fil" lang="fil">@PortalNavigation.GroupLabelFilipino(group.Key)</span></p>
                 <ul role="list" class="nav-drawer__list" aria-labelledby="@labelId">
                     @foreach (var destination in group)
                     {

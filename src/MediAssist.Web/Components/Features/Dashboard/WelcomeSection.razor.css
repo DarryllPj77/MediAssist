@@ -1,138 +1,44 @@
-/* The welcome sits directly on the page background (not a card) to set it apart from data panels. */
-.welcome {
+/* Sits directly on the ivory ground: a page opening, not a card. */
+.desk {
     display: grid;
-    gap: var(--space-5);
-    padding-block-end: var(--space-6);
-    border-block-end: 1px solid var(--color-border);
-    grid-template-areas:
-        "intro"
-        "primary"
-        "quick";
+    align-content: start;
+    gap: var(--space-3);
 }
 
-.welcome__intro   { grid-area: intro; }
-.welcome__primary { grid-area: primary; }
-.welcome__quick   { grid-area: quick; }
-
-.welcome__date {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-}
-
-.welcome__title {
-    margin-block: var(--space-1) var(--space-2);
-    font-family: var(--font-display);
+.desk__title {
+    color: var(--color-navy);
     font-size: var(--text-2xl);
-    font-weight: var(--weight-semibold);
-    letter-spacing: -0.015em;
-    line-height: var(--leading-tight);
+    line-height: 1.08;
+    letter-spacing: var(--tracking-display);
 }
 
-.welcome__summary {
-    max-width: 52ch;
-    color: var(--color-text-muted);
-    font-size: var(--text-md);
-}
-
-.welcome__primary {
-    display: grid;
-    gap: var(--space-2);
-    justify-items: start;
-}
-
-.welcome__hint {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-}
-
-/* ---- Quick actions ---- */
-.quick-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin: 0;
-}
-
-.quick-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: var(--tap-target);
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-full);
-    background: var(--color-surface);
+.desk__status {
+    max-width: 44ch;
     color: var(--color-text);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
+}
+
+.desk__start {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2);
+    margin-block-start: var(--space-3);
+}
+
+.desk__hint {
+    color: var(--color-text-muted);
     font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    text-decoration: none;
-    transition: border-color var(--duration-fast) var(--ease-out),
-                background-color var(--duration-fast) var(--ease-out),
-                color var(--duration-fast) var(--ease-out);
-}
-
-.quick-link:hover {
-    border-color: var(--color-primary);
-    background: var(--color-primary-subtle);
-    color: var(--color-primary-hover);
-    text-decoration: none;
-}
-
-.quick-link:focus-visible {
-    border-radius: var(--radius-full);
-}
-
-.quick-link ::deep .icon {
-    color: var(--color-primary);
 }
 
 @media (max-width: 47.99em) {
-    .welcome__primary {
+    .desk__start {
         justify-items: stretch;
-    }
-
-    /* Two-column grid of quick actions on phones: easier to scan and tap than a ragged wrap. */
-    .quick-list {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .quick-list li {
-        display: flex;
-    }
-
-    .quick-link {
-        width: 100%;
-        border-radius: var(--radius-md);
-        padding-inline: var(--space-3);
-        line-height: var(--leading-snug);
-    }
-
-    .quick-link:focus-visible {
-        border-radius: var(--radius-md);
     }
 }
 
 @media (min-width: 48em) {
-    .welcome__title {
+    .desk__title {
         font-size: var(--text-3xl);
-    }
-}
-
-/* Side-by-side only when the welcome's own container is wide (sidebar state changes the width). */
-@container (min-width: 50rem) {
-    .welcome {
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas:
-            "intro primary"
-            "quick quick";
-        align-items: end;
-        column-gap: var(--space-8);
-    }
-
-    .welcome__primary {
-        justify-items: end;
-        text-align: end;
     }
 }

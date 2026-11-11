@@ -1,38 +1,23 @@
 @*
-    Dashboard opening: date, greeting (the page h1), a one-line status summary,
-    the single primary action, and secondary quick actions as quiet links.
+    Service desk opening: date, a serif greeting (the page h1), one plain sentence of status,
+    and the New Application action. The button is filled only when nothing waits on the user;
+    otherwise the first "Needs your action" item owns the view's one filled button.
 *@
 
-<section class="welcome" aria-labelledby="welcome-title">
-    <div class="welcome__intro">
-        <p class="welcome__date"><time datetime="@DisplayFormat.Machine(Now)">@DisplayFormat.LongDay(Now)</time></p>
-        <h1 id="welcome-title" class="welcome__title" tabindex="-1">@DisplayFormat.Greeting(Now), @FirstName</h1>
-        <p class="welcome__summary">@Summary</p>
-    </div>
+<section class="desk" aria-labelledby="welcome-title">
+    <p class="eyebrow"><time datetime="@DisplayFormat.Machine(Now)">@DisplayFormat.LongDay(Now)</time></p>
+    <h1 id="welcome-title" class="desk__title serif" tabindex="-1">@DisplayFormat.Greeting(Now), @FirstName.</h1>
+    <p class="desk__status">@Status</p>
 
-    <div class="welcome__primary">
+    <div class="desk__start">
         <AppButton Href="@PortalNavigation.NewApplicationHref"
+                   Variant="@(ActionCount == 0 ? AppButton.ButtonVariant.Primary : AppButton.ButtonVariant.Secondary)"
                    IconStart="plus"
-                   Size="AppButton.ButtonSize.Large"
                    BlockOnMobile="true">
-            Start new application
+            Start a new application
         </AppButton>
-        <p class="welcome__hint">Takes about 10 minutes. You can save a draft at any step.</p>
+        <p class="desk__hint">Five short steps. Your draft saves as you go.</p>
     </div>
-
-    <nav class="welcome__quick" aria-label="Quick actions">
-        <ul role="list" class="quick-list">
-            @foreach (var (label, href, icon) in QuickActions)
-            {
-                <li>
-                    <a class="quick-link" href="@href">
-                        <Icon Name="@icon" Size="18" />
-                        <span>@label</span>
-                    </a>
-                </li>
-            }
-        </ul>
-    </nav>
 </section>
 
 @code {
@@ -41,32 +26,23 @@
     [Parameter] public int ActionCount { get; set; }
     [Parameter] public int InProgressCount { get; set; }
 
-    private static readonly (string Label, string Href, string Icon)[] QuickActions =
-    [
-        ("Add a patient profile", PortalNavigation.Patients.Href, "users"),
-        ("Find a hospital", PortalNavigation.Hospitals.Href, "hospital"),
-        ("Browse assistance programs", PortalNavigation.Programs.Href, "heart"),
-        ("Check required documents", PortalNavigation.Documents.Href, "clipboard-check"),
-        ("Request runner help", PortalNavigation.Runner.Href, "route"),
-    ];
-
-    private string Summary
+    private string Status
     {
         get
         {
-            var attention = ActionCount switch
+            var waiting = ActionCount switch
             {
-                0 => "Nothing needs your attention right now",
-                1 => "1 item needs your attention",
-                _ => $"{ActionCount} items need your attention"
+                0 => "Nothing needs your action today.",
+                1 => "One application needs something from you.",
+                _ => $"{ActionCount} applications need something from you."
             };
-            var progress = InProgressCount switch
+            var moving = InProgressCount switch
             {
-                0 => "no applications are in progress.",
-                1 => "1 application is moving through review.",
-                _ => $"{InProgressCount} applications are moving through review."
+                0 => "",
+                1 => " One more is moving through review.",
+                _ => $" {InProgressCount} more are moving through review."
             };
-            return $"{attention}, and {progress}";
+            return waiting + moving;
         }
     }
 }

@@ -1,109 +1,125 @@
-.ar__head {
-    padding: var(--space-5) var(--space-5) var(--space-4);
+.actions {
+    display: grid;
+    gap: var(--space-5);
 }
 
-.ar__list {
+.slips {
+    display: grid;
+    gap: var(--space-4);
     margin: 0;
-    border-block-start: 1px solid var(--color-border);
 }
 
-.ar__item {
-    position: relative;
+/* ---- The slip ---- */
+.slip {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-        "icon body"
-        "action action";
-    gap: var(--space-3) var(--space-4);
-    padding: var(--space-5);
+    grid-template-columns: 1fr;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
 }
 
-.ar__item + .ar__item {
-    border-block-start: 1px solid var(--color-border);
-}
-
-/* Priority rule on the leading edge. */
-.ar__item::before {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    inset-inline-start: 0;
-    width: 3px;
-}
-
-.ar__item--high::before   { background: var(--color-warning); }
-.ar__item--medium::before { background: var(--color-border-strong); }
-
-.ar__icon {
-    grid-area: icon;
+/* Stub: reference and due date, set like the tear-off part of a form. */
+.slip__stub {
     display: grid;
-    place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--radius-md);
+    grid-template-columns: auto 1fr auto 1fr;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    background: var(--color-surface-sunken);
+    border-block-end: 2px dashed var(--color-border-card);
 }
 
-.ar__item--high .ar__icon   { background: var(--color-warning-subtle); color: var(--color-warning); }
-.ar__item--medium .ar__icon { background: var(--color-neutral-subtle); color: var(--color-neutral); }
-
-.ar__body {
-    grid-area: body;
-    min-width: 0;
+.slip--attention .slip__stub {
+    background: var(--color-red-subtle);
 }
 
-.ar__priority {
+.slip__stub-label {
+    color: var(--color-text-subtle);
     font-size: var(--text-xs);
-    font-weight: var(--weight-semibold);
-    letter-spacing: var(--tracking-caps);
-    text-transform: uppercase;
-}
-
-.ar__item--high .ar__priority   { color: var(--color-warning); }
-.ar__item--medium .ar__priority { color: var(--color-text-muted); }
-
-.ar__due {
     font-weight: var(--weight-medium);
 }
 
-.ar__title {
-    margin-block: var(--space-1);
-    font-size: var(--text-base);
+.slip__ref {
+    color: var(--color-navy);
+    font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
+}
+
+.slip__due {
+    color: var(--color-red);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+}
+
+.slip__body {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-5);
+}
+
+.slip__kind {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+}
+
+.slip--attention .slip__kind {
+    color: var(--color-red);
+}
+
+.slip__for {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+}
+
+.slip__title {
+    font-size: var(--text-lg);
     line-height: var(--leading-snug);
 }
 
-.ar__detail {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
+.slip__detail {
+    max-width: 62ch;
+    color: var(--color-text);
 }
 
-.ar__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin-block-start: var(--space-2);
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
+.slip__note {
+    max-width: 52ch;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-gold);
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
 }
 
-.ar__ref {
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
+.slip__action {
+    margin-block-start: var(--space-3);
 }
 
-.ar__action {
-    grid-area: action;
-}
-
-@media (min-width: 48em) {
-    .ar__head {
-        padding: var(--space-6) var(--space-6) var(--space-4);
+/* ---- Wide: stub becomes a column behind a perforated edge ---- */
+@media (min-width: 40em) {
+    .slip {
+        grid-template-columns: 9.5rem minmax(0, 1fr);
     }
 
-    .ar__item {
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        grid-template-areas: "icon body action";
-        align-items: center;
-        padding: var(--space-5) var(--space-6);
+    .slip__stub {
+        grid-template-columns: 1fr;
+        align-content: start;
+        gap: 2px;
+        padding: var(--space-5) var(--space-4);
+        border-block-end: 0;
+        border-inline-end: 2px dashed var(--color-border-card);
+    }
+
+    .slip__stub .slip__stub-label + .slip__ref ~ .slip__stub-label {
+        margin-block-start: var(--space-3);
+    }
+
+    .slip__body {
+        padding: var(--space-6);
     }
 }

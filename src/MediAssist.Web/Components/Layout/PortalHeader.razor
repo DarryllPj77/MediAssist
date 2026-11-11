@@ -1,32 +1,43 @@
 @*
-    Top header. Mobile: brand + bell + avatar. Tablet/desktop: section name + bell + user.
-    The section name is not an <h1>; each page owns its own h1.
+    Civic masthead: full-width navy band closed by a woven gold rule (a nod to banig mats).
+    Brand, the independence notice (wide screens), notifications and the account.
+    It names MediAssist as an independent service and imitates no government header.
 *@
 
-<header class="header">
-    <a class="header__brand" href="@PortalNavigation.Dashboard.Href">
-        <BrandMark Size="28" />
-        <span class="header__brand-name">MediAssist</span>
-        <span class="visually-hidden">, go to dashboard</span>
-    </a>
+<header class="masthead">
+    <div class="masthead__bar">
+        <a class="masthead__brand" href="@PortalNavigation.Dashboard.Href">
+            <BrandMark Size="34" />
+            <span class="masthead__name">
+                <span class="masthead__wordmark">MediAssist</span>
+                <span class="masthead__tagline">Medical assistance, step by step</span>
+            </span>
+            <span class="visually-hidden">, go to dashboard</span>
+        </a>
 
-    <p class="header__section">@SectionTitle</p>
+        <p class="masthead__notice">
+            <Icon Name="info" Size="16" />
+            <span>Independent service. Not a government agency.</span>
+        </p>
 
-    <div class="header__actions">
-        <NotificationBell UnreadCount="UnreadCount" />
+        <div class="masthead__actions">
+            <NotificationBell UnreadCount="UnreadCount" />
 
-        @if (User is not null)
-        {
-            <a class="header__user" href="@PortalNavigation.Settings.Href">
-                <Avatar Name="@User.FullName" Size="Avatar.AvatarSize.Small" />
-                <span class="header__user-name">@User.FullName</span>
-                <span class="visually-hidden">, profile and settings</span>
-            </a>
-        }
+            @if (User is not null)
+            {
+                <a class="masthead__user" href="@PortalNavigation.Settings.Href">
+                    <Avatar Name="@User.FullName" Size="Avatar.AvatarSize.Small" />
+                    <span class="masthead__user-name">@User.FullName</span>
+                    <span class="visually-hidden">, profile and settings</span>
+                </a>
+            }
+        </div>
     </div>
+    <div class="masthead__weave" aria-hidden="true"></div>
 </header>
 
 @code {
+    /// <summary>Kept for API compatibility; each page names itself with its own h1.</summary>
     [Parameter] public string SectionTitle { get; set; } = "";
     [Parameter] public int UnreadCount { get; set; }
     [Parameter] public PortalUser? User { get; set; }

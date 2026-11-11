@@ -1,21 +1,22 @@
 @*
-    The people this account applies for, with their authorization state (Phase 1: separate
-    user and patient records; administrator-reviewed authorization for others).
+    "Your household": the people this account applies for, with their authorization state
+    (Phase 1: separate user and patient records; administrator-reviewed authorization).
 *@
 
-<Panel LabelledBy="patients-title" Flush="true">
-    <div class="patients__head">
-        <SectionHeader Id="patients-title" Title="Patient profiles" Count="@Patients.Count" />
-    </div>
+<section class="household" aria-labelledby="household-title">
+    <h2 id="household-title" class="aside-title">
+        Your household
+        <span class="visually-hidden">. </span><span class="fil" lang="fil">Ang iyong sambahayan</span>
+    </h2>
 
-    <ul role="list" class="patients__list">
+    <ul role="list" class="household__list">
         @foreach (var patient in Patients)
         {
-            <li class="patients__item">
+            <li class="person">
                 <Avatar Name="@patient.FullName" />
-                <div class="patients__text">
-                    <p class="patients__name">@patient.FullName</p>
-                    <p class="patients__relation">@patient.Relationship</p>
+                <div class="person__text">
+                    <p class="person__name">@patient.FullName</p>
+                    <p class="person__relation">@patient.Relationship</p>
                 </div>
                 @switch (patient.Authorization)
                 {
@@ -23,19 +24,18 @@
                         <Badge Text="Authorized" Tone="Badge.BadgeTone.Success" IconName="shield-check" />
                         break;
                     case AuthorizationStatus.PendingReview:
-                        <Badge Text="Pending review" Tone="Badge.BadgeTone.Warning" IconName="clock" />
+                        <Badge Text="Being reviewed" Tone="Badge.BadgeTone.Info" IconName="clock" />
+                        break;
+                    default:
+                        <span class="person__self">Account holder</span>
                         break;
                 }
             </li>
         }
     </ul>
 
-    <div class="patients__foot">
-        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Patients.Href" IconEnd="arrow-right">
-            Manage patient profiles
-        </AppButton>
-    </div>
-</Panel>
+    <a class="link household__manage" href="@PortalNavigation.Patients.Href">Add or manage patient profiles</a>
+</section>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<PatientProfile> Patients { get; set; } = [];

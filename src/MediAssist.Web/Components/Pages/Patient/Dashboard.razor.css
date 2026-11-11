@@ -1,48 +1,41 @@
 /*
-  Mobile/tablet order: welcome → action required → summary → recent → patients
-  (urgent work first). Desktop (>= 75em): welcome across the top, then a main column
-  and a 22rem aside.
+  Phones and tablets: one column in source order.
+  75em+: a two-column service desk
+      welcome | find
+      main    | aside
 */
 .dashboard {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-9);
 }
 
 .dashboard__main,
 .dashboard__aside {
-    display: contents;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-9);
+    min-width: 0;
 }
 
-.dashboard__welcome  { order: 0; container-type: inline-size; }
-.dashboard__actions  { order: 1; }
-.dashboard__summary  { order: 2; }
-.dashboard__recent   { order: 3; }
-.dashboard__patients { order: 4; }
+.dashboard__aside {
+    gap: var(--space-7);
+}
 
 @media (min-width: 75em) {
     .dashboard {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 22rem;
+        grid-template-columns: minmax(0, 1fr) 23rem;
         grid-template-areas:
-            "welcome welcome"
-            "main aside";
+            "welcome find"
+            "main    aside";
         align-items: start;
-        gap: var(--space-7);
+        column-gap: var(--space-9);
+        row-gap: var(--space-9);
     }
 
-    .dashboard__welcome {
-        grid-area: welcome;
-    }
-
-    .dashboard__main,
-    .dashboard__aside {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-6);
-        min-width: 0;
-    }
-
-    .dashboard__main  { grid-area: main; }
-    .dashboard__aside { grid-area: aside; }
+    .dashboard__welcome { grid-area: welcome; align-self: center; }
+    .dashboard__find    { grid-area: find; }
+    .dashboard__main    { grid-area: main; }
+    .dashboard__aside   { grid-area: aside; }
 }

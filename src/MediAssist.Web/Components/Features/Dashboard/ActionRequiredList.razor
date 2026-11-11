@@ -1,65 +1,86 @@
 @*
-    Prioritised list of things the account holder must do. Each item states what is wrong,
-    which application/patient it affects, any due date, and exactly one action.
+    "Needs your action": each item is a notice slip. A stub on the leading side holds the
+    reference number and due date (official-form vernacular, behind a perforated line); the
+    body says what is wrong, how the process continues, and gives exactly one action.
+    The first slip carries the view's one filled button.
 *@
 
-<Panel LabelledBy="action-required-title" Flush="true">
-    <div class="ar__head">
-        <SectionHeader Id="action-required-title"
-                       Title="Needs your attention"
-                       Count="@Items.Count"
-                       Description="Finish these to keep your applications moving." />
-    </div>
+<section class="actions" aria-labelledby="actions-title">
+    <SectionHeader Id="actions-title"
+                   Title="Needs your action"
+                   Filipino="Kailangan ng iyong aksyon"
+                   Count="@(Items.Count > 0 ? Items.Count : null)" />
 
     @if (Items.Count == 0)
     {
-        <EmptyState Title="You're all caught up"
-                    Message="We'll let you know here when an application needs something from you." />
+        <Panel>
+            <EmptyState Title="Nothing needs your action"
+                        Message="When an application needs something from you, it will appear here first." />
+        </Panel>
     }
     else
     {
-        <ul role="list" class="ar__list">
-            @foreach (var item in Items)
+        <ol role="list" class="slips">
+            @for (var i = 0; i < Items.Count; i++)
             {
+                var item = Items[i];
+                var app = Find(item.ApplicationReference);
                 var high = item.Priority == ActionPriority.High;
-                <li class="ar__item @(high ? "ar__item--high" : "ar__item--medium")">
-                    <span class="ar__icon">
-                        <Icon Name="@(high ? "alert-triangle" : "pencil")" Size="20" />
-                    </span>
+                var headingId = $"slip-{item.Id}";
 
-                    <div class="ar__body">
-                        <p class="ar__priority">
-                            @(high ? "Correction requested" : "Unfinished draft")
+                <li>
+                    <article class="slip @(high ? "slip--attention" : null)" aria-labelledby="@headingId">
+                        <div class="slip__stub">
+                            <span class="slip__stub-label">Reference</span>
+                            <span class="slip__ref ref">@item.ApplicationReference</span>
                             @if (item.DueBy is DateTimeOffset due)
                             {
-                                <span class="ar__due">· Due <time datetime="@DisplayFormat.Machine(due)">@DisplayFormat.ShortDate(due)</time></span>
+                                <span class="slip__stub-label">Due</span>
+                                <time class="slip__due" datetime="@DisplayFormat.Machine(due)">@DisplayFormat.ShortDate(due)</time>
                             }
-                        </p>
-                        <h3 class="ar__title">@item.Title</h3>
-                        <p class="ar__detail">@item.Detail</p>
-                        <p class="ar__meta">
-                            <span class="ar__ref tabular">@item.ApplicationReference</span>
-                            <span aria-hidden="true">·</span>
-                            <span>@item.PatientName</span>
-                        </p>
-                    </div>
+                        </div>
 
-                    <div class="ar__action">
-                        <AppButton Variant="AppButton.ButtonVariant.Secondary"
-                                   Href="@item.ActionHref"
-                                   IconEnd="arrow-right"
-                                   BlockOnMobile="true"
-                                   aria-describedby="@($"ar-title-{item.Id}")">
-                            @item.ActionLabel
-                        </AppButton>
-                        <span id="@($"ar-title-{item.Id}")" class="visually-hidden">for @item.ApplicationReference</span>
-                    </div>
+                        <div class="slip__body">
+                            <p class="slip__kind">
+                                <Icon Name="@(high ? "alert-triangle" : "pencil")" Size="16" />
+                                @(high ? "Correction requested" : "Unfinished draft")
+                                <span class="slip__for">for @item.PatientName@(app is null ? "" : $" · {app.ProgramName}")</span>
+                            </p>
+                            <h3 id="@headingId" class="slip__title">@item.Title</h3>
+                            <p class="slip__detail">@item.Detail</p>
+
+                            @if (Reassurance(app?.Status) is string note)
+                            {
+                                <p class="slip__note serif">@note</p>
+                            }
+
+                            <div class="slip__action">
+                                <AppButton Href="@item.ActionHref"
+                                           Variant="@(i == 0 ? AppButton.ButtonVariant.Primary : AppButton.ButtonVariant.Secondary)"
+                                           IconEnd="arrow-right"
+                                           BlockOnMobile="true">
+                                    @item.ActionLabel<span class="visually-hidden"> for @item.ApplicationReference</span>
+                                </AppButton>
+                            </div>
+                        </div>
+                    </article>
                 </li>
             }
-        </ul>
+        </ol>
     }
-</Panel>
+</section>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ActionItem> Items { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+
+    private AssistanceApplication? Find(string reference) =>
+        Applications.FirstOrDefault(a => a.ReferenceNumber == reference);
+
+    // How the process continues (Phase 1 rules), stated plainly; never a promise of approval.
+    private static string? Reassurance(ApplicationStatus? status) => status switch
+    {
+        ApplicationStatus.NeedsCorrection => "Once you upload the corrected copy, your application goes back to review.",
+        _ => null
+    };
 }

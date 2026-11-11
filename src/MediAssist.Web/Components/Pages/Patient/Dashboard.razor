@@ -12,8 +12,9 @@
 else
 {
     @*
-        On wide screens the main/aside wrappers become
-        real columns; below that they are display:contents and `order` interleaves the regions.
+        Source order is the phone reading order:
+        greeting → needs your action → applications → find assistance → household → runner → how it works.
+        From 75em: greeting | find assistance across the top, then main column | aside.
     *@
     <div class="dashboard">
         <div class="dashboard__welcome">
@@ -24,21 +25,18 @@ else
         </div>
 
         <div class="dashboard__main">
-            <div class="dashboard__actions">
-                <ActionRequiredList Items="_actions" />
-            </div>
-            <div class="dashboard__recent">
-                <RecentApplicationsList Applications="_applications" Now="_now" />
-            </div>
+            <ActionRequiredList Items="_actions" Applications="_applications" />
+            <RecentApplicationsList Applications="_applications" Now="_now" />
+        </div>
+
+        <div class="dashboard__find">
+            <ProgramSearch Patients="_patients" />
         </div>
 
         <div class="dashboard__aside">
-            <div class="dashboard__summary">
-                <ApplicationSummaryStrip Applications="_applications" />
-            </div>
-            <div class="dashboard__patients">
-                <PatientProfilesPanel Patients="_patients" />
-            </div>
+            <PatientProfilesPanel Patients="_patients" />
+            <RunnerHelp />
+            <HowItWorks />
         </div>
     </div>
 }

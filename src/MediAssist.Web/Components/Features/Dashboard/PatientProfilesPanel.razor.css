@@ -1,53 +1,44 @@
-.patients__head {
-    padding: var(--space-5) var(--space-5) var(--space-3);
+.household {
+    display: grid;
+    gap: var(--space-3);
 }
 
-.patients__list {
+.aside-title {
+    font-size: var(--text-lg);
+}
+
+.household__list {
     margin: 0;
-    border-block-start: 1px solid var(--color-border);
+    border-block-start: 2px solid var(--color-navy);
 }
 
-.patients__item {
+.person {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
+    padding-block: var(--space-3);
+    border-block-end: 1px solid var(--color-border);
 }
 
-.patients__item + .patients__item {
-    border-block-start: 1px solid var(--color-border);
-}
-
-.patients__text {
+.person__text {
     flex: 1;
     min-width: 0;
 }
 
-.patients__name {
+.person__name {
+    color: var(--color-text);
     font-weight: var(--weight-semibold);
-    font-size: var(--text-sm);
 }
 
-.patients__relation {
+.person__relation,
+.person__self {
     color: var(--color-text-muted);
     font-size: var(--text-sm);
 }
 
-.patients__foot {
-    padding: var(--space-2) var(--space-3);
-    border-block-start: 1px solid var(--color-border);
-}
-
-@media (min-width: 48em) {
-    .patients__head {
-        padding: var(--space-6) var(--space-6) var(--space-3);
-    }
-
-    .patients__item {
-        padding-inline: var(--space-6);
-    }
-
-    .patients__foot {
-        padding-inline: var(--space-4);
-    }
+.household__manage {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--tap-target);
 }

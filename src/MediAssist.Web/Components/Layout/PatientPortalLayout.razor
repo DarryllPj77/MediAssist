@@ -14,25 +14,31 @@
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
 <div class="portal" data-sidebar="@SidebarAttribute" @ref="_portal">
-    <PortalSidebar Collapsed="IsSidebarCollapsed"
-                   CurrentPath="@_path"
-                   UnreadCount="_unreadCount"
-                   OnToggle="ToggleSidebarAsync" />
+    @* Full-width civic masthead, then the service index (sidebar) and the page. *@
+    <PortalHeader SectionTitle="@SectionTitle" UnreadCount="_unreadCount" User="_user" />
 
-    <div class="portal__body">
-        <PortalHeader SectionTitle="@SectionTitle" UnreadCount="_unreadCount" User="_user" />
+    <div class="portal__frame">
+        <PortalSidebar Collapsed="IsSidebarCollapsed"
+                       CurrentPath="@_path"
+                       UnreadCount="_unreadCount"
+                       OnToggle="ToggleSidebarAsync" />
 
-        <main id="main-content" class="portal__main" tabindex="-1">
-            @Body
-        </main>
+        <div class="portal__body">
+            <main id="main-content" class="portal__main" tabindex="-1">
+                @Body
+            </main>
 
-        <footer class="portal__footer">
-            <p>
-                <strong>MediAssist prototype.</strong>
-                All patients, hospitals, programs and reference numbers shown are fictional.
-                No real medical records are stored.
-            </p>
-        </footer>
+            <footer class="portal__footer">
+                <p class="portal__footer-lead">
+                    MediAssist is an independent assistance service, not a government agency.
+                </p>
+                <p>
+                    We help you prepare, submit and follow up applications. The agencies that run each
+                    program decide on them. This prototype uses fictional patients, hospitals, programs
+                    and reference numbers, and stores no real medical records.
+                </p>
+            </footer>
+        </div>
     </div>
 
     <MobileBottomNav CurrentPath="@_path" MenuOpen="_drawerOpen" OnOpenMenu="OpenDrawerAsync" />

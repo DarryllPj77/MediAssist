@@ -1,12 +1,21 @@
+/*
+  Shell:
+    masthead (full width, sticky)
+    frame: [service index sidebar | page body]
+  Phones: masthead, page, fixed bottom nav.
+*/
 .portal {
     min-height: 100dvh;
+}
+
+.portal__frame {
+    min-height: calc(100dvh - var(--masthead-height) - var(--masthead-weave));
 }
 
 .portal__body {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    min-height: 100dvh;
     /* Keep content and footer clear of the fixed mobile bottom nav. */
     padding-block-end: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
 }
@@ -16,7 +25,7 @@
     width: 100%;
     max-width: var(--content-max-width);
     margin-inline: auto;
-    padding: var(--space-5) var(--space-4) var(--space-8);
+    padding: var(--space-6) var(--space-4) var(--space-9);
 }
 
 .portal__main:focus {
@@ -27,31 +36,43 @@
     width: 100%;
     max-width: var(--content-max-width);
     margin-inline: auto;
-    padding: var(--space-5) var(--space-4) var(--space-6);
+    padding: var(--space-6) var(--space-4) var(--space-7);
     border-block-start: 1px solid var(--color-border);
     color: var(--color-text-muted);
     font-size: var(--text-xs);
+    line-height: var(--leading-normal);
 }
 
-.portal__footer strong {
-    color: var(--color-text);
+.portal__footer p {
+    max-width: 75ch;
+}
+
+.portal__footer p + p {
+    margin-block-start: var(--space-2);
+}
+
+.portal__footer-lead {
+    color: var(--color-navy);
+    font-size: var(--text-sm);
     font-weight: var(--weight-semibold);
 }
 
-/* ---- Tablet and up: sidebar + content grid ---- */
 @media (min-width: 48em) {
     .portal {
         --sidebar-w: var(--sidebar-width-rail);
-        display: grid;
-        grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-    }
-
-    .portal[data-ready] {
-        transition: grid-template-columns var(--duration-slow) var(--ease-out);
     }
 
     .portal[data-sidebar="expanded"] {
         --sidebar-w: var(--sidebar-width-expanded);
+    }
+
+    .portal__frame {
+        display: grid;
+        grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    }
+
+    .portal[data-ready] .portal__frame {
+        transition: grid-template-columns var(--duration-slow) var(--ease-out);
     }
 
     .portal__body {
@@ -59,7 +80,7 @@
     }
 
     .portal__main {
-        padding: var(--space-7) var(--space-7) var(--space-9);
+        padding: var(--space-8) var(--space-7) var(--space-10);
     }
 
     .portal__footer {
@@ -74,6 +95,6 @@
 
     .portal__main,
     .portal__footer {
-        padding-inline: var(--space-8);
+        padding-inline: var(--space-9);
     }
 }

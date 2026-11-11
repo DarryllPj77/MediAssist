@@ -1,0 +1,39 @@
+@*
+    Five-segment stage meter with its meaning in words beside it ("Step 3 of 5 · Needs correction").
+    The bar is decorative (aria-hidden); the words carry the information.
+*@
+
+<div class="step-meter step-meter--@State.ToString().ToLowerInvariant() @Class">
+    <span class="step-meter__bar" aria-hidden="true">
+        @for (var i = 1; i <= ApplicationStageDisplay.Stages.Count; i++)
+        {
+            <span class="step-meter__seg @SegmentClass(i)"></span>
+        }
+    </span>
+    <span class="step-meter__text">
+        <span class="step-meter__step tabular">@ApplicationStageDisplay.StepText(Status)</span>
+        <span aria-hidden="true"> · </span>
+        <span class="step-meter__label">@ApplicationStatusDisplay.Label(Status)</span>
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ApplicationStatus Status { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private StageState State => ApplicationStageDisplay.State(Status);
+
+    private string SegmentClass(int index)
+    {
+        var current = ApplicationStageDisplay.Number(Status);
+        if (current == 0) return "is-todo";
+        if (index < current) return "is-done";
+        if (index > current) return "is-todo";
+        return State switch
+        {
+            StageState.Attention => "is-attention",
+            StageState.Finished => "is-done",
+            _ => "is-current"
+        };
+    }
+}

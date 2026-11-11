@@ -1,82 +1,113 @@
 /*
-  MediAssist design tokens
-  ------------------------
+  MediAssist design tokens: Modern Philippine Civic Identity + Digital Bayanihan
+  -----------------------------------------------------------------------------
   Single source of truth for colour, type, spacing, radius, elevation and motion.
   Components reference these variables only; no raw hex values outside this file.
 
-  Breakpoints (CSS custom properties cannot be used inside media queries,
-  so these are documented here and repeated literally):
-    --bp-tablet:  48em  (768px)   sidebar appears as a rail, bottom nav hidden
-    --bp-desktop: 75em  (1200px)  sidebar expanded by default, two-column dashboard
+  Colour roles (90-95% of every screen stays neutral ivory, white and ink):
+    Civic Navy      structure: the masthead, headings' ink, completed steps
+    Philippine Blue the one action colour: filled button, links, focus ring
+    Muted Gold      marks on navy only (masthead weave, brand roof); dark gold for text
+    Philippine Red  "needs your action" and errors, nothing else
+
+  Every text pairing below was measured against WCAG 2.2 (ratios noted).
+
+  Breakpoints (literal in media queries):
+    48em (768px)  sidebar appears as a rail, bottom nav hidden
+    75em (1200px) sidebar expanded by default, two-column dashboard
 */
 
 :root {
-    /* ---- Brand palette (approved) ---- */
-    --color-primary: #0F766E;
-    --color-primary-hover: #0B5F59;
-    --color-primary-active: #094E49;
-    --color-primary-subtle: #E6F2F1;
-    --color-primary-subtle-hover: #D5EAE8;
+    /* ---- Civic palette ---- */
+    --color-navy: #183153;              /* 12.3:1 on ivory */
+    --color-navy-deep: #10233D;
+    --color-navy-soft: #24426B;
+    --color-on-navy: #FFFFFF;           /* 13.1:1 */
+    --color-on-navy-muted: #C9D2DE;     /* 8.6:1 on navy */
+    --color-gold: #B58B42;              /* marks on navy only (4.2:1); never text on light grounds */
+    --color-gold-on-navy: #D9B36C;      /* 6.6:1 on navy */
+    --color-gold-text: #8A6626;         /* gold as text on ivory: 4.9:1 */
+    --color-gold-subtle: #F6EFE2;
+
+    /* ---- Action ---- */
+    --color-primary: #2455A4;           /* Philippine Blue, 7.2:1 on white */
+    --color-primary-hover: #1D4688;
+    --color-primary-active: #173A72;
+    --color-primary-subtle: #EAF0F9;    /* blue text on it: 6.3:1 */
+    --color-primary-subtle-hover: #DCE6F5;
     --color-on-primary: #FFFFFF;
 
-    --color-secondary: #2563EB;
-    --color-secondary-hover: #1D4FD0;
-    --color-secondary-subtle: #EAF1FE;
+    --color-secondary: var(--color-primary);
+    --color-secondary-hover: var(--color-primary-hover);
+    --color-secondary-subtle: var(--color-primary-subtle);
 
-    /* ---- Surfaces & text ---- */
-    --color-bg: #F7FAF9;
+    /* ---- Grounds and ink ---- */
+    --color-bg: #FAF8F3;                /* Warm Ivory */
     --color-surface: #FFFFFF;
-    --color-surface-sunken: #F0F5F4;
-    --color-text: #172B35;
-    --color-text-muted: #4A5F69;      /* 6.4:1 on --color-bg */
-    --color-text-subtle: #5F727B;     /* 5.0:1 on white, labels only */
+    --color-surface-sunken: #F2EEE5;
+    --color-text: #202C39;              /* Deep Text, 13.4:1 on ivory */
+    --color-text-muted: #4E5965;        /* 6.7:1 on ivory */
+    --color-text-subtle: #5F6873;       /* 5.3:1 on ivory; labels and meta only */
 
-    /* ---- Borders ---- */
-    --color-border: #DCE7E5;          /* decorative dividers and panel edges only */
-    --color-border-strong: #7F9693;   /* form controls & interactive boundaries (>= 3:1) */
+    /* ---- Lines ---- */
+    --color-border: #E4E6E8;            /* dividers and card edges only */
+    --color-border-card: #D9DCE0;       /* card hairline: one step off the page */
+    --color-border-strong: #848B94;     /* form controls, >= 3:1 */
 
-    /* ---- Feedback ---- */
-    --color-success: #166534;  /* 6.4:1 on its subtle tint */
-    --color-success-subtle: #E8F5EC;
-    --color-warning: #A1460A;
-    --color-warning-subtle: #FDF1E4;
-    --color-danger: #B42318;
-    --color-danger-subtle: #FDECEA;
-    --color-info: var(--color-secondary);
-    --color-info-subtle: var(--color-secondary-subtle);
-    --color-neutral: #4A5F69;
-    --color-neutral-subtle: #EEF2F2;
+    /* ---- Status ---- */
+    --color-red: #B53B45;               /* Philippine Red, 5.4:1 on ivory */
+    --color-red-subtle: #FBEEEF;        /* red text on it: 5.1:1 */
+    --color-success: #2E6B3F;           /* 5.6:1 on its tint */
+    --color-success-subtle: #EAF3EC;
+    --color-warning: var(--color-red);
+    --color-warning-subtle: var(--color-red-subtle);
+    --color-danger: #9A2F39;
+    --color-danger-subtle: var(--color-red-subtle);
+    --color-info: var(--color-primary);
+    --color-info-subtle: var(--color-primary-subtle);
+    --color-neutral: #4E5965;
+    --color-neutral-subtle: #EFEDE7;
+    --color-scrim: rgb(16 35 61 / 0.5);
 
-    /* ---- Focus ---- */
-    --focus-ring-color: var(--color-secondary);
+    /* ---- Steps ---- */
+    --step-done: var(--color-navy);
+    --step-current: var(--color-primary);
+    --step-attention: var(--color-red);
+    --step-todo: #D3D7DC;               /* track only, not text */
+
+    /* ---- Focus: 2px ring, 2px off the control, never animated ---- */
+    --focus-ring-color: var(--color-primary);
     --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--focus-ring-color);
+    --focus-ring-on-navy: 0 0 0 2px var(--color-navy), 0 0 0 4px var(--color-gold-on-navy);
 
-    /* ---- Typography ---- */
-    --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-display: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
+    /* ---- Type ---- */
+    --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
+    --font-display: var(--font-sans);
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 
-    --text-xs: 0.75rem;    /* 12 */
-    --text-sm: 0.875rem;   /* 14 */
-    --text-base: 1rem;     /* 16 */
-    --text-md: 1.125rem;   /* 18 */
-    --text-lg: 1.25rem;    /* 20 */
-    --text-xl: 1.5rem;     /* 24 */
-    --text-2xl: 1.875rem;  /* 30 */
-    --text-3xl: 2.25rem;   /* 36 */
+    --text-xs: 0.8125rem;   /* 13: labels, meta (the floor) */
+    --text-sm: 0.9375rem;   /* 15: secondary lines */
+    --text-base: 1.0625rem; /* 17: reading text, sized for older readers */
+    --text-md: 1.1875rem;   /* 19 */
+    --text-lg: 1.375rem;    /* 22 */
+    --text-xl: 1.625rem;    /* 26 */
+    --text-2xl: 2rem;       /* 32 */
+    --text-3xl: 2.75rem;    /* 44 */
 
-    --leading-tight: 1.2;
+    --leading-tight: 1.15;
     --leading-snug: 1.35;
-    --leading-normal: 1.5;
+    --leading-normal: 1.55;
 
     --weight-regular: 400;
     --weight-medium: 500;
     --weight-semibold: 600;
     --weight-bold: 700;
 
-    --tracking-caps: 0.06em;
+    --tracking-tight: -0.015em;
+    --tracking-display: -0.025em;
 
-    /* ---- Spacing (4px base) ---- */
+    /* ---- Space (4px base) ---- */
     --space-1: 0.25rem;
     --space-2: 0.5rem;
     --space-3: 0.75rem;
@@ -88,38 +119,50 @@
     --space-9: 3rem;
     --space-10: 4rem;
 
-    /* ---- Radius ---- */
-    --radius-sm: 4px;
-    --radius-md: 6px;     /* controls */
-    --radius-lg: 10px;    /* panels */
-    --radius-full: 999px; /* badges, avatars */
+    /* ---- Radius: crisp, document-like ---- */
+    --radius-sm: 2px;
+    --radius-md: 4px;     /* controls */
+    --radius-lg: 8px;     /* cards */
+    --radius-full: 999px;
 
-    /* ---- Elevation (restrained) ---- */
-    --shadow-sm: 0 1px 2px rgb(23 43 53 / 0.05);
-    --shadow-md: 0 8px 24px rgb(23 43 53 / 0.12), 0 2px 6px rgb(23 43 53 / 0.06);
+    /* ---- Elevation: none at rest ---- */
+    --shadow-sm: none;
+    --shadow-hover: 0 10px 24px rgb(32 44 57 / 0.08);
+    --shadow-md: 0 12px 32px rgb(16 35 61 / 0.18), 0 2px 6px rgb(16 35 61 / 0.08);
 
-    /* ---- Motion ---- */
+    /* ---- Motion (Taste motion tokens) ---- */
+    --duration-in: 150ms;
+    --duration-out: 120ms;
+    --duration-press: 90ms;
+    --duration-panel: 200ms;
     --duration-fast: 120ms;
     --duration-base: 180ms;
     --duration-slow: 240ms;
-    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 
     /* ---- Layout ---- */
-    --sidebar-width-expanded: 16.5rem;
-    --sidebar-width-rail: 4.5rem;
-    --header-height: 4rem;
-    --bottom-nav-height: 4rem;
-    --content-max-width: 76rem;
-    --tap-target: 2.75rem; /* 44px */
+    --masthead-height: 4rem;
+    --masthead-weave: 6px;
+    --header-height: var(--masthead-height);
+    --sidebar-width-expanded: 17rem;
+    --sidebar-width-rail: 4.75rem;
+    --bottom-nav-height: 4.25rem;
+    --content-max-width: 78rem;
+    --tap-target: 3rem;   /* 48px */
 
-    /* ---- Z-index ---- */
+    /* ---- Layers ---- */
     --z-sticky: 10;
     --z-nav: 20;
+    --z-masthead: 30;
     --z-overlay: 50;
 }
 
 @media (prefers-reduced-motion: reduce) {
     :root {
+        --duration-in: 0ms;
+        --duration-out: 0ms;
+        --duration-press: 0ms;
+        --duration-panel: 0ms;
         --duration-fast: 0ms;
         --duration-base: 0ms;
         --duration-slow: 0ms;

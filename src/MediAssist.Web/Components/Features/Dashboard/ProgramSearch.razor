@@ -1,0 +1,40 @@
+@*
+    "Find assistance": a real GET form to the programs page (?q=…&patient=…), so it works
+    with or without interactivity. Labels sit above each field; the hint is tied to its field.
+*@
+
+<section class="find" aria-labelledby="find-title">
+    <h2 id="find-title" class="find__title">
+        Find assistance
+        <span class="visually-hidden">. </span><span class="fil" lang="fil">Humanap ng tulong</span>
+    </h2>
+
+    <form class="find__form" role="search" method="get" action="@PortalNavigation.Programs.Href" aria-labelledby="find-title">
+        <div class="field">
+            <label class="field__label" for="find-q">What do you need help paying for?</label>
+            <input id="find-q" name="q" type="search" class="input"
+                   autocomplete="off" aria-describedby="find-q-hint" />
+            <p id="find-q-hint" class="field__hint">For example: hospital bill, medicines, dialysis, laboratory tests.</p>
+        </div>
+
+        <div class="field">
+            <label class="field__label" for="find-patient">For</label>
+            <select id="find-patient" name="patient" class="select">
+                @foreach (var patient in Patients)
+                {
+                    <option value="@patient.Id">@patient.FullName (@patient.Relationship.ToLowerInvariant())</option>
+                }
+            </select>
+        </div>
+
+        <AppButton Type="submit" Variant="AppButton.ButtonVariant.Secondary" IconStart="search" Class="find__submit">
+            Search programs
+        </AppButton>
+    </form>
+
+    <p class="find__note">Programs are run by government agencies and hospitals. MediAssist helps you prepare; it does not approve assistance.</p>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<PatientProfile> Patients { get; set; } = [];
+}

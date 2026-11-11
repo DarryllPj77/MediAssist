@@ -1,3 +1,4 @@
+/* Lives in the navy masthead. */
 .bell {
     position: relative;
     display: inline-grid;
@@ -5,34 +6,35 @@
     width: var(--tap-target);
     height: var(--tap-target);
     border-radius: var(--radius-full);
-    color: var(--color-text-muted);
-    transition: background-color var(--duration-fast) var(--ease-out),
-                color var(--duration-fast) var(--ease-out);
+    color: var(--color-on-navy);
+    transition: background-color var(--duration-out) var(--ease-out);
 }
 
 .bell:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-text);
+    background: var(--color-navy-soft);
+    color: var(--color-on-navy);
+    transition-duration: var(--duration-in);
 }
 
 .bell:focus-visible {
     border-radius: var(--radius-full);
+    box-shadow: var(--focus-ring-on-navy);
 }
 
 .bell__badge {
     position: absolute;
-    inset-block-start: 5px;
-    inset-inline-end: 3px;
+    inset-block-start: 6px;
+    inset-inline-end: 5px;
     display: grid;
     place-items: center;
-    min-width: 1.125rem;
-    height: 1.125rem;
-    padding-inline: 0.25rem;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding-inline: 0.3rem;
     border-radius: var(--radius-full);
-    background: var(--color-danger);
+    background: var(--color-red);
     color: var(--color-on-primary);
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     font-weight: var(--weight-bold);
     line-height: 1;
-    box-shadow: 0 0 0 2px var(--color-surface);
+    box-shadow: 0 0 0 2px var(--color-navy);
 }

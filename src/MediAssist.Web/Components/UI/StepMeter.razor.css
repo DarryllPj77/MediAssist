@@ -1,0 +1,46 @@
+.step-meter {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.step-meter__bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    max-width: 14rem;
+}
+
+.step-meter__seg {
+    height: 6px;
+    border-radius: var(--radius-sm);
+    background: var(--step-todo);
+}
+
+.step-meter__seg.is-done      { background: var(--step-done); }
+.step-meter__seg.is-current   { background: var(--step-current); }
+.step-meter__seg.is-attention { background: var(--step-attention); }
+
+.step-meter__text {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.step-meter__label {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+}
+
+.step-meter--attention .step-meter__label {
+    color: var(--color-red);
+}
+
+.step-meter--stopped .step-meter__label {
+    color: var(--color-text-muted);
+}
+
+@media (forced-colors: active) {
+    .step-meter__seg {
+        forced-color-adjust: none;
+    }
+}

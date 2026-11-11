@@ -1,71 +1,60 @@
 @*
-    Most recently updated applications. A list (not a table) so rows can restack on narrow
-    containers without losing semantics; each cell carries a visually hidden label, and the
-    whole row is one link target via the program-name link.
+    "Your applications": a case ledger. Stage filters above; each row shows the program,
+    patient and hospital, a five-segment step meter with its meaning in words, the next step
+    and when it last changed. The program name links the whole row.
 *@
 
-<Panel LabelledBy="recent-title" Flush="true">
-    <div class="recent__head">
-        <SectionHeader Id="recent-title" Title="Recent applications">
-            <Actions>
-                <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Applications.Href" IconEnd="arrow-right">
-                    View all<span class="visually-hidden"> applications</span>
-                </AppButton>
-            </Actions>
-        </SectionHeader>
-    </div>
+<section class="ledger" aria-labelledby="ledger-title">
+    <SectionHeader Id="ledger-title" Title="Your applications" Filipino="Ang iyong mga aplikasyon">
+        <Actions>
+            <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Applications.Href" IconEnd="arrow-right">
+                View all<span class="visually-hidden"> applications</span>
+            </AppButton>
+        </Actions>
+    </SectionHeader>
+
+    <ApplicationSummaryStrip Applications="Applications" />
 
     @if (Rows.Count == 0)
     {
-        <EmptyState IconName="file-text"
-                    Title="No applications yet"
-                    Message="Start an application to see its progress here." />
+        <Panel>
+            <EmptyState IconName="file-text" Title="No applications yet"
+                        Message="Start an application and its progress will show here." />
+        </Panel>
     }
     else
     {
-        <div class="recent">
-            <div class="recent__columns" aria-hidden="true">
+        <div class="ledger__table">
+            <div class="ledger__columns" aria-hidden="true">
                 <span>Application</span>
-                <span>Status</span>
-                <span>Documents</span>
+                <span>Progress</span>
                 <span>Updated</span>
             </div>
-
-            <ul role="list" class="recent__list">
+            <ul role="list" class="ledger__rows">
                 @foreach (var app in Rows)
                 {
-                    <li class="recent__row">
-                        <div class="recent__primary">
-                            <p class="recent__patient"><span class="visually-hidden">Patient: </span>@app.PatientName</p>
-                            <a class="recent__link" href="@($"{PortalNavigation.Applications.Href}/{app.ReferenceNumber}")">
-                                @app.ProgramName
-                            </a>
-                            <p class="recent__sub">
-                                @app.HospitalName
-                                <span aria-hidden="true">·</span>
-                                <span class="recent__ref tabular">@app.ReferenceNumber</span>
-                            </p>
-                            <p class="recent__next"><span class="recent__next-label">Next:</span> @app.NextStep</p>
+                    <li class="case @(app.Status == ApplicationStatus.NeedsCorrection ? "case--attention" : null)">
+                        <div class="case__main">
+                            <p class="case__patient"><span class="visually-hidden">Patient: </span>@app.PatientName</p>
+                            <a class="case__title" href="@($"{PortalNavigation.Applications.Href}/{app.ReferenceNumber}")">@app.ProgramName</a>
+                            <p class="case__meta">@app.HospitalName <span class="case__ref ref">@app.ReferenceNumber</span></p>
                         </div>
 
-                        <div class="recent__cell recent__status">
-                            <span class="visually-hidden">Status: </span><StatusBadge Status="app.Status" />
+                        <div class="case__progress">
+                            <StepMeter Status="app.Status" />
+                            <p class="case__next"><span class="case__next-label">Next:</span> @app.NextStep</p>
                         </div>
 
-                        <div class="recent__cell recent__docs tabular @(app.DocumentsReady < app.DocumentsRequired ? "recent__docs--missing" : null)">
-                            <span class="visually-hidden">Documents: </span>@app.DocumentsReady of @app.DocumentsRequired ready
-                        </div>
-
-                        <div class="recent__cell recent__updated">
+                        <p class="case__updated">
                             <span class="visually-hidden">Updated </span>
                             <time datetime="@DisplayFormat.Machine(app.LastUpdated)">@DisplayFormat.Relative(app.LastUpdated, Now)</time>
-                        </div>
+                        </p>
                     </li>
                 }
             </ul>
         </div>
     }
-</Panel>
+</section>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
@@ -73,5 +62,8 @@
     [Parameter] public int MaxRows { get; set; } = 5;
 
     private IReadOnlyList<AssistanceApplication> Rows =>
-        Applications.OrderByDescending(a => a.LastUpdated).Take(MaxRows).ToList();
+        Applications.Where(a => a.Status != ApplicationStatus.Cancelled)
+                    .OrderByDescending(a => a.LastUpdated)
+                    .Take(MaxRows)
+                    .ToList();
 }

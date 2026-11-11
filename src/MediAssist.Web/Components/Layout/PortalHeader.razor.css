@@ -1,103 +1,149 @@
-.header {
+.masthead {
     position: sticky;
     inset-block-start: 0;
-    z-index: var(--z-sticky);
+    z-index: var(--z-masthead);
+    background: var(--color-navy);
+    color: var(--color-on-navy);
+}
+
+.masthead__bar {
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    min-height: var(--header-height);
+    min-height: var(--masthead-height);
     padding-inline: var(--space-4);
-    background: var(--color-surface);
-    border-block-end: 1px solid var(--color-border);
 }
 
-.header__brand {
+/* Woven rule: two crossing gold diagonals on navy, like the edge of a banig mat. Decorative. */
+.masthead__weave {
+    height: var(--masthead-weave);
+    background-color: var(--color-navy-deep);
+    background-image:
+        repeating-linear-gradient(45deg, var(--color-gold) 0 2px, transparent 2px 6px),
+        repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-gold) 55%, transparent) 0 2px, transparent 2px 6px);
+}
+
+/* ---- Brand ---- */
+.masthead__brand {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
     min-height: var(--tap-target);
-    color: var(--color-text);
+    color: var(--color-on-navy);
     text-decoration: none;
     border-radius: var(--radius-md);
 }
 
-.header__brand:hover {
-    color: var(--color-text);
-    text-decoration: none;
+.masthead__brand:hover {
+    color: var(--color-on-navy);
 }
 
-.header__brand-name {
-    font-family: var(--font-display);
-    font-size: var(--text-md);
-    font-weight: var(--weight-semibold);
+.masthead__brand:focus-visible {
+    box-shadow: var(--focus-ring-on-navy);
 }
 
-.header__section {
+.masthead__name {
+    display: grid;
+    line-height: 1.1;
+}
+
+.masthead__wordmark {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.masthead__tagline {
     display: none;
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-xs);
 }
 
-.header__actions {
+/* ---- Independence notice ---- */
+.masthead__notice {
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    margin-inline-start: auto;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-navy-soft);
+    border-radius: var(--radius-full);
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-xs);
+}
+
+.masthead__notice ::deep .icon {
+    color: var(--color-gold-on-navy);
+}
+
+/* ---- Actions ---- */
+.masthead__actions {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     margin-inline-start: auto;
 }
 
-.header__user {
+.masthead__user {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     min-height: var(--tap-target);
     padding: var(--space-1);
     border-radius: var(--radius-full);
-    color: var(--color-text);
+    color: var(--color-on-navy);
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     text-decoration: none;
-    transition: background-color var(--duration-fast) var(--ease-out);
+    transition: background-color var(--duration-out) var(--ease-out);
 }
 
-.header__user:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-text);
-    text-decoration: none;
+.masthead__user:hover {
+    background: var(--color-navy-soft);
+    color: var(--color-on-navy);
+    transition-duration: var(--duration-in);
 }
 
-.header__user:focus-visible {
+.masthead__user:focus-visible {
     border-radius: var(--radius-full);
+    box-shadow: var(--focus-ring-on-navy);
 }
 
-.header__user-name {
+.masthead__user-name {
     display: none;
 }
 
 @media (min-width: 48em) {
-    .header {
-        padding-inline: var(--space-7);
+    .masthead__bar {
+        padding-inline: var(--space-6);
     }
 
-    .header__brand {
-        display: none;
-    }
-
-    .header__section {
+    .masthead__tagline {
         display: block;
     }
 }
 
-@media (min-width: 75em) {
-    .header {
-        padding-inline: var(--space-8);
+@media (min-width: 64em) {
+    .masthead__notice {
+        display: inline-flex;
     }
 
-    .header__user {
+    .masthead__actions {
+        margin-inline-start: var(--space-5);
+    }
+}
+
+@media (min-width: 75em) {
+    .masthead__bar {
+        padding-inline: var(--space-7);
+    }
+
+    .masthead__user {
         padding-inline-end: var(--space-4);
     }
 
-    .header__user-name {
+    .masthead__user-name {
         display: inline;
     }
 }

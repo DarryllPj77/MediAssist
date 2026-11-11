@@ -90,6 +90,15 @@ public static class PortalNavigation
         _ => group.ToString()
     };
 
+    /// <summary>Filipino helper label for a navigation group (shown with lang="fil").</summary>
+    public static string GroupLabelFilipino(NavGroup group) => group switch
+    {
+        NavGroup.Overview => "Pangkalahatan",
+        NavGroup.FindHelp => "Humanap ng tulong",
+        NavGroup.Account => "Iyong account",
+        _ => ""
+    };
+
     /// <summary>Resolve the current destination for the header title (longest matching prefix).</summary>
     public static NavDestination? Resolve(string relativePath)
     {

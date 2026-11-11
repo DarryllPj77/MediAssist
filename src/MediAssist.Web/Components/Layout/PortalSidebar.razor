@@ -1,16 +1,11 @@
 @*
-    Desktop / tablet sidebar. Its width (expanded vs rail) is driven by the --sidebar-w custom
-    property set on .portal by PatientPortalLayout; children adapt through a container query.
+    Service index (desktop / tablet). Sits under the masthead on the ivory ground, like the
+    contents column of a public-service guide. Width (expanded vs rail) comes from --sidebar-w
+    on .portal; children adapt through a container query.
 *@
 
 <aside class="sidebar" aria-label="Patient portal">
     <div class="sidebar__inner">
-        <a class="sidebar__brand" href="@PortalNavigation.Dashboard.Href">
-            <BrandMark Size="32" />
-            <span class="sidebar__brand-name">MediAssist</span>
-            <span class="visually-hidden">, go to dashboard</span>
-        </a>
-
         <a class="sidebar__new" href="@PortalNavigation.NewApplicationHref" data-label="New application">
             <Icon Name="plus" Size="20" />
             <span class="sidebar__new-label">New application</span>
@@ -21,7 +16,10 @@
             {
                 var labelId = $"nav-group-{group.Key.ToString().ToLowerInvariant()}";
                 <div class="sidebar__group">
-                    <p class="sidebar__group-label" id="@labelId">@PortalNavigation.GroupLabel(group.Key)</p>
+                    <p class="sidebar__group-label" id="@labelId">
+                        @PortalNavigation.GroupLabel(group.Key)
+                        <span class="sidebar__group-fil" lang="fil">@PortalNavigation.GroupLabelFilipino(group.Key)</span>
+                    </p>
                     <ul role="list" class="sidebar__list" aria-labelledby="@labelId">
                         @foreach (var destination in group)
                         {

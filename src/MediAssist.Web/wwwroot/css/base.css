@@ -1,4 +1,4 @@
-/* MediAssist base: reset, typography, focus, accessibility helpers. */
+/* MediAssist base: reset, type roles, links, focus, accessibility helpers. */
 
 *,
 *::before,
@@ -20,7 +20,6 @@ body {
     font-family: var(--font-sans);
     font-size: var(--text-base);
     line-height: var(--leading-normal);
-    font-feature-settings: "tnum" 0;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 }
@@ -29,8 +28,12 @@ h1, h2, h3, h4, p, ul, ol, dl, dd, figure {
     margin: 0;
 }
 
+/* Section headings: Public Sans, medium, tight. The serif is a separate, deliberate role. */
 h1, h2, h3, h4 {
+    color: var(--color-navy);
+    font-family: var(--font-sans);
     font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
     line-height: var(--leading-tight);
     text-wrap: balance;
 }
@@ -63,18 +66,68 @@ button {
     cursor: pointer;
 }
 
+/* ---- Type roles ---- */
+
+/* Editorial serif: page greetings, the service promise and reassurance lines only. */
+.serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+}
+
+/* Small label above a heading: sentence case, 13px, never tracked capitals. */
+.eyebrow {
+    display: block;
+    color: var(--color-text-subtle);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    letter-spacing: 0;
+}
+
+/* Filipino helper line under an English heading; markup sets lang="fil". */
+.fil {
+    display: block;
+    margin-block-start: 3px;
+    color: var(--color-text-subtle);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-regular);
+    letter-spacing: 0;
+}
+
+.tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+.ref {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+/* ---- Links: one look. A faint hairline rests under the word; it fills on hover. ---- */
 a {
-    color: var(--color-secondary);
-    text-underline-offset: 0.18em;
+    color: var(--color-primary);
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
     text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    transition: text-decoration-color var(--duration-out) var(--ease-out),
+                color var(--duration-out) var(--ease-out);
 }
 
 a:hover {
-    color: var(--color-secondary-hover);
-    text-decoration-thickness: 2px;
+    color: var(--color-primary-hover);
+    text-decoration-color: currentColor;
+    transition-duration: var(--duration-in);
 }
 
-/* Visible, consistent keyboard focus; never on mouse click. */
+.link {
+    font-weight: var(--weight-medium);
+}
+
+/* ---- Focus: visible at once, never animated ---- */
 :focus {
     outline: none;
 }
@@ -83,18 +136,15 @@ a:hover {
     outline: none;
     box-shadow: var(--focus-ring);
     border-radius: var(--radius-sm);
+    transition: none;
 }
 
-/* Headings receive programmatic focus on navigation (FocusOnNavigate). */
 h1:focus,
 h1:focus-visible {
     box-shadow: none;
 }
 
-.tabular {
-    font-variant-numeric: tabular-nums;
-}
-
+/* ---- Accessibility helpers ---- */
 .visually-hidden {
     position: absolute !important;
     width: 1px !important;
@@ -113,8 +163,8 @@ h1:focus-visible {
     inset-block-start: var(--space-3);
     z-index: calc(var(--z-overlay) + 1);
     padding: var(--space-3) var(--space-4);
-    background: var(--color-text);
-    color: var(--color-surface);
+    background: var(--color-surface);
+    color: var(--color-navy);
     border-radius: var(--radius-md);
     font-weight: var(--weight-semibold);
     text-decoration: none;
@@ -123,10 +173,9 @@ h1:focus-visible {
 
 .skip-link:focus-visible {
     transform: none;
-    color: var(--color-surface);
+    box-shadow: var(--focus-ring-on-navy);
 }
 
-/* Global reduced motion safety net. */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -138,7 +187,7 @@ h1:focus-visible {
     }
 }
 
-/* Lock page scroll while the mobile navigation drawer is open (no JS needed). */
+/* Lock page scroll while the mobile drawer is open (no JS needed). */
 html:has(dialog.nav-drawer[open]) {
     overflow: hidden;
 }
@@ -151,10 +200,9 @@ html:has(dialog.nav-drawer[open]) {
     inset-block-end: 0;
     z-index: calc(var(--z-overlay) + 2);
     padding: var(--space-3) var(--space-7) var(--space-3) var(--space-5);
-    background: var(--color-warning-subtle);
+    background: var(--color-red-subtle);
     color: var(--color-text);
-    border-block-start: 1px solid var(--color-warning);
-    box-shadow: var(--shadow-md);
+    border-block-start: 2px solid var(--color-red);
 }
 
 #blazor-error-ui .dismiss {
@@ -166,9 +214,9 @@ html:has(dialog.nav-drawer[open]) {
 
 .blazor-error-boundary {
     padding: var(--space-4) var(--space-5);
-    background: var(--color-danger-subtle);
+    background: var(--color-red-subtle);
     color: var(--color-danger);
-    border: 1px solid var(--color-danger);
+    border: 1px solid var(--color-red);
     border-radius: var(--radius-lg);
 }
 

@@ -1,19 +1,21 @@
-.brand-mark {
-    flex-shrink: 0;
-}
+.brand-mark { flex-shrink: 0; }
 
 .brand-mark__tile {
-    fill: var(--color-primary);
+    fill: var(--color-navy-soft);
 }
 
-.brand-mark__glyph {
+.brand-mark__roof {
     fill: none;
-    stroke: var(--color-on-primary);
-    stroke-width: 3;
+    stroke: var(--color-gold-on-navy);
+    stroke-width: 2.6;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
-.brand-mark__dot {
-    fill: var(--color-on-primary);
+.brand-mark__beam,
+.brand-mark__posts {
+    fill: none;
+    stroke: var(--color-on-navy);
+    stroke-width: 2.4;
+    stroke-linecap: round;
 }

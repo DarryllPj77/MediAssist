@@ -1,3 +1,4 @@
+/* Index entry: quiet at rest; the current page sits on white with a navy bar, like a marked page. */
 .nav-item {
     position: relative;
     display: flex;
@@ -10,31 +11,31 @@
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     text-decoration: none;
-    transition: background-color var(--duration-fast) var(--ease-out),
-                color var(--duration-fast) var(--ease-out);
+    transition: background-color var(--duration-out) var(--ease-out),
+                color var(--duration-out) var(--ease-out);
 }
 
 .nav-item:hover {
     background: var(--color-surface-sunken);
-    color: var(--color-text);
-    text-decoration: none;
+    color: var(--color-navy);
+    transition-duration: var(--duration-in);
 }
 
 .nav-item.is-active {
-    background: var(--color-primary-subtle);
-    color: var(--color-primary);
+    background: var(--color-surface);
+    color: var(--color-navy);
     font-weight: var(--weight-semibold);
+    box-shadow: inset 0 0 0 1px var(--color-border-card);
 }
 
-/* Active indicator bar: a second, non-colour cue for the current page. */
 .nav-item.is-active::before {
     content: "";
     position: absolute;
-    inset-block: var(--space-2);
-    inset-inline-start: calc(var(--space-2) * -1);
+    inset-block: 6px;
+    inset-inline-start: 0;
     width: 3px;
-    border-radius: var(--radius-full);
-    background: var(--color-primary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--color-navy);
 }
 
 .nav-item:focus-visible {
@@ -57,13 +58,13 @@
     height: 1.375rem;
     padding-inline: 0.375rem;
     border-radius: var(--radius-full);
-    background: var(--color-primary);
+    background: var(--color-red);
     color: var(--color-on-primary);
     font-size: var(--text-xs);
     font-weight: var(--weight-semibold);
 }
 
-/* ---- Rail mode: the sidebar container is narrow ---- */
+/* ---- Rail: the sidebar container is narrow ---- */
 @container sidebar (max-width: 6rem) {
     .nav-item {
         justify-content: center;
@@ -81,16 +82,14 @@
 
     .nav-item__badge {
         position: absolute;
-        inset-block-start: 2px;
+        inset-block-start: 3px;
         inset-inline-end: 6px;
         min-width: 1.125rem;
         height: 1.125rem;
         padding-inline: 0.25rem;
-        font-size: 0.6875rem;
-        box-shadow: 0 0 0 2px var(--color-surface);
+        box-shadow: 0 0 0 2px var(--color-bg);
     }
 
-    /* Tooltip with the destination name. */
     .nav-item:hover::after,
     .nav-item:focus-visible::after {
         content: attr(data-label);
@@ -101,12 +100,11 @@
         z-index: var(--z-overlay);
         padding: var(--space-1) var(--space-3);
         border-radius: var(--radius-md);
-        background: var(--color-text);
-        color: var(--color-surface);
+        background: var(--color-navy);
+        color: var(--color-on-navy);
         font-size: var(--text-sm);
         font-weight: var(--weight-medium);
         white-space: nowrap;
-        box-shadow: var(--shadow-md);
         pointer-events: none;
     }
 }
