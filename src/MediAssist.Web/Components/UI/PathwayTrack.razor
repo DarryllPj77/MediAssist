@@ -1,0 +1,48 @@
+@*
+    Care Pathway progress line: the one signature element of the interface.
+    An ordered list of stages; the current one carries aria-current="step" and every
+    stage states its condition in text, so colour is never the only cue.
+    In a narrow container the labels collapse and a one-line summary is shown instead.
+*@
+
+<div class="pathway @(Status == ApplicationStatus.Cancelled ? "pathway--stopped" : null) @Class">
+    <ol class="pathway__steps" aria-label="@($"Progress for {Subject}")">
+        @foreach (var step in ApplicationPathway.Steps(Status))
+        {
+            <li class="pathway__step pathway__step--@step.State.ToString().ToLowerInvariant()"
+                aria-current="@(step.IsCurrent ? "step" : null)">
+                <span class="pathway__dot" aria-hidden="true">
+                    @if (step.State == PathwayStepState.Done)
+                    {
+                        <svg viewBox="0 0 12 12" width="10" height="10" focusable="false"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>
+                    }
+                    else if (step.State == PathwayStepState.Attention)
+                    {
+                        <svg viewBox="0 0 12 12" width="10" height="10" focusable="false"><path d="M6 2.75v4" /><path d="M6 9.25h.01" /></svg>
+                    }
+                </span>
+                <span class="pathway__label">
+                    @step.Label<span class="visually-hidden">, @StateText(step)</span>
+                </span>
+            </li>
+        }
+    </ol>
+    <p class="pathway__summary" aria-hidden="true">@ApplicationPathway.Summary(Status)</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ApplicationStatus Status { get; set; }
+    /// <summary>What the pathway belongs to, for the list's accessible name (e.g. a reference number).</summary>
+    [Parameter, EditorRequired] public string Subject { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
+
+    private string StateText(PathwayStep step) => step.State switch
+    {
+        PathwayStepState.Done when step.IsCurrent => "finished",
+        PathwayStepState.Done => "done",
+        PathwayStepState.Current => "current stage",
+        PathwayStepState.Attention => "current stage, action needed",
+        _ when Status == ApplicationStatus.Cancelled => "not reached, application cancelled",
+        _ => "not started"
+    };
+}

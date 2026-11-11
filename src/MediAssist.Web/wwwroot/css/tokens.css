@@ -35,6 +35,12 @@
     --color-border: #DCE7E5;          /* decorative dividers and panel edges only */
     --color-border-strong: #7F9693;   /* form controls & interactive boundaries (>= 3:1) */
 
+    /* ---- Pathway (application journey) ---- */
+    --pathway-done: var(--color-primary);
+    --pathway-current: var(--color-primary);
+    --pathway-attention: var(--color-warning);
+    --pathway-upcoming: #C5D3D1;       /* track line only, not text */
+
     /* ---- Feedback ---- */
     --color-success: #166534;  /* 6.4:1 on its subtle tint */
     --color-success-subtle: #E8F5EC;
@@ -52,11 +58,13 @@
     --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--focus-ring-color);
 
     /* ---- Typography ---- */
-    --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-display: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
+    /* Care Pathway direction: Red Hat Display (headings) + Red Hat Text (UI and reading text).
+       Until the font files are added, the system sans fallback is used. */
+    --font-sans: "Red Hat Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Red Hat Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 
-    --text-xs: 0.75rem;    /* 12 */
+    --text-xs: 0.8125rem;  /* 13: the smallest size used anywhere (labels, meta) */
     --text-sm: 0.875rem;   /* 14 */
     --text-base: 1rem;     /* 16 */
     --text-md: 1.125rem;   /* 18 */
@@ -74,7 +82,9 @@
     --weight-semibold: 600;
     --weight-bold: 700;
 
-    --tracking-caps: 0.06em;
+    --weight-heading: 500;        /* headings: size and tight tracking carry them */
+    --tracking-heading: -0.02em;
+    --tracking-display: -0.03em;  /* 30px and up */
 
     /* ---- Spacing (4px base) ---- */
     --space-1: 0.25rem;
@@ -95,14 +105,18 @@
     --radius-full: 999px; /* badges, avatars */
 
     /* ---- Elevation (restrained) ---- */
-    --shadow-sm: 0 1px 2px rgb(23 43 53 / 0.05);
+    --shadow-sm: none;            /* quiet system: panels rely on a 1px line only */
+    --shadow-hover: 0 8px 24px rgb(23 43 53 / 0.08);
     --shadow-md: 0 8px 24px rgb(23 43 53 / 0.12), 0 2px 6px rgb(23 43 53 / 0.06);
 
     /* ---- Motion ---- */
     --duration-fast: 120ms;
     --duration-base: 180ms;
     --duration-slow: 240ms;
-    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --duration-in: 150ms;     /* hover in */
+    --duration-out: 120ms;    /* hover out */
+    --duration-press: 90ms;
 
     /* ---- Layout ---- */
     --sidebar-width-expanded: 16.5rem;
@@ -123,5 +137,8 @@
         --duration-fast: 0ms;
         --duration-base: 0ms;
         --duration-slow: 0ms;
+        --duration-in: 0ms;
+        --duration-out: 0ms;
+        --duration-press: 0ms;
     }
 }

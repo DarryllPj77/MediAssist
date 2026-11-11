@@ -30,7 +30,9 @@ h1, h2, h3, h4, p, ul, ol, dl, dd, figure {
 }
 
 h1, h2, h3, h4 {
-    font-weight: var(--weight-semibold);
+    font-family: var(--font-display);
+    font-weight: var(--weight-heading);
+    letter-spacing: var(--tracking-heading);
     line-height: var(--leading-tight);
     text-wrap: balance;
 }
@@ -72,6 +74,24 @@ a {
 a:hover {
     color: var(--color-secondary-hover);
     text-decoration-thickness: 2px;
+}
+
+/* Quiet inline link used in running text and link rows. */
+.link {
+    color: var(--color-primary);
+    font-weight: var(--weight-medium);
+    text-decoration: underline;
+    text-decoration-color: var(--color-border-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    transition: text-decoration-color var(--duration-out) var(--ease-out),
+                color var(--duration-out) var(--ease-out);
+}
+
+.link:hover {
+    color: var(--color-primary-hover);
+    text-decoration-color: currentColor;
+    transition-duration: var(--duration-in);
 }
 
 /* Visible, consistent keyboard focus; never on mouse click. */

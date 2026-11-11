@@ -1,88 +1,105 @@
-.summary__head {
-    padding: var(--space-5) var(--space-5) var(--space-4);
+.stages__head {
+    padding: var(--space-5) var(--space-5) var(--space-3);
 }
 
-/* Segments share hairline dividers inside one band; 2x2 when narrow, 4-up when wide. */
-.summary__body {
-    container: summary / inline-size;
+.stages__title {
+    font-size: var(--text-lg);
 }
 
-.summary__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1px;
+.stages__list {
     margin: 0;
-    background: var(--color-border);
-    border-block-start: 1px solid var(--color-border);
+    padding-block-end: var(--space-2);
 }
 
-.summary__cell {
-    display: flex;
-    background: var(--color-surface);
-}
-
-.summary__segment {
+/* A miniature of the pathway: a vertical line with one marker per stage. */
+.stage {
     position: relative;
     display: grid;
-    align-content: start;
-    gap: var(--space-1);
-    width: 100%;
-    min-height: 5.5rem;
-    padding: var(--space-4) var(--space-5);
+    grid-template-columns: 1rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap-target);
+    padding: var(--space-1) var(--space-5);
     color: var(--color-text);
+    font-size: var(--text-base);
     text-decoration: none;
-    transition: background-color var(--duration-fast) var(--ease-out);
+    transition: background-color var(--duration-out) var(--ease-out);
 }
 
-.summary__segment:hover {
+.stage:hover {
     background: var(--color-bg);
     color: var(--color-text);
     text-decoration: none;
+    transition-duration: var(--duration-in);
 }
 
-.summary__segment:focus-visible {
+.stage:focus-visible {
     box-shadow: inset 0 0 0 2px var(--focus-ring-color);
     border-radius: 0;
 }
 
-.summary__count {
-    font-size: var(--text-2xl);
-    font-weight: var(--weight-semibold);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
+.stage__marker {
+    position: relative;
+    justify-self: center;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 2px var(--color-primary);
 }
 
-.summary__label {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
+/* Line joining the markers. */
+.stage__marker::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: calc(50% - 1px);
+    inset-block-end: 100%;
+    width: 2px;
+    height: calc(var(--tap-target) - 0.625rem);
+    background: var(--color-border);
+}
+
+li:first-child .stage__marker::before {
+    display: none;
+}
+
+.stage__count {
+    min-width: 2ch;
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    text-align: end;
+}
+
+/* Needs correction: indented under In review, amber only when it has items. */
+.stage--sub .stage__label {
+    padding-inline-start: var(--space-4);
     color: var(--color-text-muted);
     font-size: var(--text-sm);
+}
+
+.stage--sub .stage__marker {
+    width: 0.375rem;
+    height: 0.375rem;
+    background: var(--color-border-strong);
+    box-shadow: none;
+}
+
+.stage--attention .stage__label,
+.stage--attention .stage__count {
+    color: var(--color-warning);
     font-weight: var(--weight-medium);
 }
 
-.summary__segment--attention .summary__count,
-.summary__segment--attention .summary__label {
-    color: var(--color-warning);
-}
-
-.summary__segment--attention::before {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    inset-block-start: 0;
-    height: 3px;
+.stage--attention .stage__marker {
     background: var(--color-warning);
 }
 
-@container summary (min-width: 36rem) {
-    .summary__grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-}
-
 @media (min-width: 48em) {
-    .summary__head {
-        padding: var(--space-6) var(--space-6) var(--space-4);
+    .stages__head {
+        padding: var(--space-6) var(--space-6) var(--space-3);
+    }
+
+    .stage {
+        padding-inline: var(--space-6);
     }
 }

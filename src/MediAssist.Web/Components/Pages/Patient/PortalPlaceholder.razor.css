@@ -19,6 +19,7 @@
 .placeholder__title {
     font-family: var(--font-display);
     font-size: var(--text-2xl);
+    letter-spacing: var(--tracking-display);
 }
 
 .placeholder__ref {

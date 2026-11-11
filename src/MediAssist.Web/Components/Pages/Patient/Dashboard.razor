@@ -11,10 +11,7 @@
 }
 else
 {
-    @*
-        On wide screens the main/aside wrappers become
-        real columns; below that they are display:contents and `order` interleaves the regions.
-    *@
+    @* Source order is the reading order at every width: greeting, next step, applications, stages, patients. *@
     <div class="dashboard">
         <div class="dashboard__welcome">
             <WelcomeSection FirstName="@_user.FirstName"
@@ -24,21 +21,13 @@ else
         </div>
 
         <div class="dashboard__main">
-            <div class="dashboard__actions">
-                <ActionRequiredList Items="_actions" />
-            </div>
-            <div class="dashboard__recent">
-                <RecentApplicationsList Applications="_applications" Now="_now" />
-            </div>
+            <ActionRequiredList Items="_actions" Applications="_applications" />
+            <RecentApplicationsList Applications="_applications" Now="_now" />
         </div>
 
         <div class="dashboard__aside">
-            <div class="dashboard__summary">
-                <ApplicationSummaryStrip Applications="_applications" />
-            </div>
-            <div class="dashboard__patients">
-                <PatientProfilesPanel Patients="_patients" />
-            </div>
+            <ApplicationSummaryStrip Applications="_applications" />
+            <PatientProfilesPanel Patients="_patients" />
         </div>
     </div>
 }

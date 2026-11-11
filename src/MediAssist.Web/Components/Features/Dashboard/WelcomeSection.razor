@@ -1,6 +1,8 @@
 @*
     Dashboard opening: date, greeting (the page h1), a one-line status summary,
-    the single primary action, and secondary quick actions as quiet links.
+    the New Application action and a quiet row of secondary links.
+    The New Application button is the view's one filled button only when nothing is
+    waiting on the user; otherwise "Your next step" carries the filled button.
 *@
 
 <section class="welcome" aria-labelledby="welcome-title">
@@ -12,24 +14,19 @@
 
     <div class="welcome__primary">
         <AppButton Href="@PortalNavigation.NewApplicationHref"
+                   Variant="@(IsMainAction ? AppButton.ButtonVariant.Primary : AppButton.ButtonVariant.Secondary)"
                    IconStart="plus"
-                   Size="AppButton.ButtonSize.Large"
                    BlockOnMobile="true">
             Start new application
         </AppButton>
-        <p class="welcome__hint">Takes about 10 minutes. You can save a draft at any step.</p>
+        <p class="welcome__hint">About 10 minutes. Drafts save at every step.</p>
     </div>
 
-    <nav class="welcome__quick" aria-label="Quick actions">
-        <ul role="list" class="quick-list">
-            @foreach (var (label, href, icon) in QuickActions)
+    <nav class="welcome__links" aria-label="Shortcuts">
+        <ul role="list">
+            @foreach (var (label, href) in Shortcuts)
             {
-                <li>
-                    <a class="quick-link" href="@href">
-                        <Icon Name="@icon" Size="18" />
-                        <span>@label</span>
-                    </a>
-                </li>
+                <li><a class="link welcome__link" href="@href">@label</a></li>
             }
         </ul>
     </nav>
@@ -41,13 +38,15 @@
     [Parameter] public int ActionCount { get; set; }
     [Parameter] public int InProgressCount { get; set; }
 
-    private static readonly (string Label, string Href, string Icon)[] QuickActions =
+    private bool IsMainAction => ActionCount == 0;
+
+    private static readonly (string Label, string Href)[] Shortcuts =
     [
-        ("Add a patient profile", PortalNavigation.Patients.Href, "users"),
-        ("Find a hospital", PortalNavigation.Hospitals.Href, "hospital"),
-        ("Browse assistance programs", PortalNavigation.Programs.Href, "heart"),
-        ("Check required documents", PortalNavigation.Documents.Href, "clipboard-check"),
-        ("Request runner help", PortalNavigation.Runner.Href, "route"),
+        ("Add a patient profile", PortalNavigation.Patients.Href),
+        ("Find a hospital", PortalNavigation.Hospitals.Href),
+        ("Browse assistance programs", PortalNavigation.Programs.Href),
+        ("Check required documents", PortalNavigation.Documents.Href),
+        ("Request runner help", PortalNavigation.Runner.Href),
     ];
 
     private string Summary
@@ -56,15 +55,15 @@
         {
             var attention = ActionCount switch
             {
-                0 => "Nothing needs your attention right now",
-                1 => "1 item needs your attention",
-                _ => $"{ActionCount} items need your attention"
+                0 => "Nothing is waiting on you",
+                1 => "One thing is waiting on you",
+                _ => $"{ActionCount} things are waiting on you"
             };
             var progress = InProgressCount switch
             {
-                0 => "no applications are in progress.",
-                1 => "1 application is moving through review.",
-                _ => $"{InProgressCount} applications are moving through review."
+                0 => "no applications are moving right now.",
+                1 => "1 application is moving along.",
+                _ => $"{InProgressCount} applications are moving along."
             };
             return $"{attention}, and {progress}";
         }

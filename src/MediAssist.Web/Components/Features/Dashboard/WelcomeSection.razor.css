@@ -1,38 +1,34 @@
-/* The welcome sits directly on the page background (not a card) to set it apart from data panels. */
+/* The greeting sits on the page ground, not in a box. */
 .welcome {
     display: grid;
     gap: var(--space-5);
-    padding-block-end: var(--space-6);
-    border-block-end: 1px solid var(--color-border);
     grid-template-areas:
         "intro"
         "primary"
-        "quick";
+        "links";
 }
 
 .welcome__intro   { grid-area: intro; }
 .welcome__primary { grid-area: primary; }
-.welcome__quick   { grid-area: quick; }
+.welcome__links   { grid-area: links; }
 
 .welcome__date {
     color: var(--color-text-muted);
     font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
 }
 
 .welcome__title {
-    margin-block: var(--space-1) var(--space-2);
-    font-family: var(--font-display);
+    margin-block: var(--space-1) var(--space-3);
     font-size: var(--text-2xl);
-    font-weight: var(--weight-semibold);
-    letter-spacing: -0.015em;
-    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-display);
+    line-height: 1.1;
 }
 
 .welcome__summary {
     max-width: 52ch;
     color: var(--color-text-muted);
     font-size: var(--text-md);
+    line-height: var(--leading-normal);
 }
 
 .welcome__primary {
@@ -46,45 +42,20 @@
     font-size: var(--text-sm);
 }
 
-/* ---- Quick actions ---- */
-.quick-list {
+/* ---- Shortcut links: plain words, not a row of pills ---- */
+.welcome__links ul {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
+    column-gap: var(--space-5);
     margin: 0;
+    padding: 0;
 }
 
-.quick-link {
+.welcome__link {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
     min-height: var(--tap-target);
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-full);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    text-decoration: none;
-    transition: border-color var(--duration-fast) var(--ease-out),
-                background-color var(--duration-fast) var(--ease-out),
-                color var(--duration-fast) var(--ease-out);
-}
-
-.quick-link:hover {
-    border-color: var(--color-primary);
-    background: var(--color-primary-subtle);
-    color: var(--color-primary-hover);
-    text-decoration: none;
-}
-
-.quick-link:focus-visible {
-    border-radius: var(--radius-full);
-}
-
-.quick-link ::deep .icon {
-    color: var(--color-primary);
+    font-size: var(--text-base);
 }
 
 @media (max-width: 47.99em) {
@@ -92,25 +63,18 @@
         justify-items: stretch;
     }
 
-    /* Two-column grid of quick actions on phones: easier to scan and tap than a ragged wrap. */
-    .quick-list {
+    .welcome__links ul {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
+        border-block-start: 1px solid var(--color-border);
     }
 
-    .quick-list li {
-        display: flex;
+    .welcome__links li {
+        border-block-end: 1px solid var(--color-border);
     }
 
-    .quick-link {
+    .welcome__link {
         width: 100%;
-        border-radius: var(--radius-md);
-        padding-inline: var(--space-3);
-        line-height: var(--leading-snug);
-    }
-
-    .quick-link:focus-visible {
-        border-radius: var(--radius-md);
     }
 }
 
@@ -126,7 +90,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
         grid-template-areas:
             "intro primary"
-            "quick quick";
+            "links links";
         align-items: end;
         column-gap: var(--space-8);
     }

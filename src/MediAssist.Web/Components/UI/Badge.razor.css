@@ -1,18 +1,20 @@
+/* Quiet status: a coloured icon plus ink text, no tinted pill.
+   Only attention states (warning, danger) colour the text as well. */
 .badge {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-1);
-    padding: 0.1875rem var(--space-2) 0.1875rem 0.4375rem;
-    border-radius: var(--radius-full);
+    gap: 0.375rem;
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     line-height: var(--leading-snug);
+    color: var(--color-text);
     white-space: nowrap;
 }
 
-.badge--neutral { background: var(--color-neutral-subtle); color: var(--color-neutral); }
-.badge--info    { background: var(--color-info-subtle);    color: var(--color-info); }
-.badge--warning { background: var(--color-warning-subtle); color: var(--color-warning); }
-.badge--danger  { background: var(--color-danger-subtle);  color: var(--color-danger); }
-.badge--success { background: var(--color-success-subtle); color: var(--color-success); }
-.badge--brand   { background: var(--color-primary-subtle); color: var(--color-primary); }
+.badge--neutral ::deep .icon { color: var(--color-neutral); }
+.badge--info    ::deep .icon { color: var(--color-info); }
+.badge--success ::deep .icon { color: var(--color-success); }
+.badge--brand   ::deep .icon { color: var(--color-primary); }
+
+.badge--warning { color: var(--color-warning); }
+.badge--danger  { color: var(--color-danger); }

@@ -2,7 +2,7 @@
     Initials avatar. Decorative: the person's name is always shown beside it as text.
 *@
 
-<span class="avatar avatar--tone-@ToneIndex @(Size == AvatarSize.Small ? "avatar--sm" : null) @Class" aria-hidden="true">@Initials</span>
+<span class="avatar @(Size == AvatarSize.Small ? "avatar--sm" : null) @Class" aria-hidden="true">@Initials</span>
 
 @code {
     public enum AvatarSize { Small, Medium }
@@ -25,6 +25,4 @@
         }
     }
 
-    // Stable, deterministic tone per name (same on prerender and interactive render).
-    private int ToneIndex => Name.Aggregate(0, (acc, c) => (acc + c) % 997) % 3;
 }

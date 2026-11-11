@@ -1,65 +1,85 @@
 @*
-    Prioritised list of things the account holder must do. Each item states what is wrong,
-    which application/patient it affects, any due date, and exactly one action.
+    "Your next step": the single most important thing the user can do, shown with its
+    application's Care Pathway and the view's one filled button. Any further items
+    follow as a short list under "Also waiting on you".
 *@
 
-<Panel LabelledBy="action-required-title" Flush="true">
-    <div class="ar__head">
-        <SectionHeader Id="action-required-title"
-                       Title="Needs your attention"
-                       Count="@Items.Count"
-                       Description="Finish these to keep your applications moving." />
-    </div>
+<section class="next" aria-labelledby="next-step-title">
+    <h2 id="next-step-title" class="next__title">Your next step</h2>
 
     @if (Items.Count == 0)
     {
-        <EmptyState Title="You're all caught up"
-                    Message="We'll let you know here when an application needs something from you." />
+        <Panel>
+            <EmptyState Title="Nothing is waiting on you"
+                        Message="When an application needs something from you, it will show up here first." />
+        </Panel>
     }
     else
     {
-        <ul role="list" class="ar__list">
-            @foreach (var item in Items)
+        var first = Items[0];
+        var app = Find(first.ApplicationReference);
+        var high = first.Priority == ActionPriority.High;
+
+        <article class="next__card @(high ? "next__card--attention" : null)" aria-labelledby="next-step-heading">
+            <p class="next__context">
+                @first.PatientName
+                @if (app is not null)
+                {
+                    <span aria-hidden="true"> · </span>@app.ProgramName
+                }
+                <span class="next__ref"><span aria-hidden="true"> · </span>@first.ApplicationReference</span>
+            </p>
+            <h3 id="next-step-heading" class="next__heading">@first.Title</h3>
+            <p class="next__detail">@first.Detail</p>
+
+            @if (app is not null)
             {
-                var high = item.Priority == ActionPriority.High;
-                <li class="ar__item @(high ? "ar__item--high" : "ar__item--medium")">
-                    <span class="ar__icon">
-                        <Icon Name="@(high ? "alert-triangle" : "pencil")" Size="20" />
-                    </span>
-
-                    <div class="ar__body">
-                        <p class="ar__priority">
-                            @(high ? "Correction requested" : "Unfinished draft")
-                            @if (item.DueBy is DateTimeOffset due)
-                            {
-                                <span class="ar__due">· Due <time datetime="@DisplayFormat.Machine(due)">@DisplayFormat.ShortDate(due)</time></span>
-                            }
-                        </p>
-                        <h3 class="ar__title">@item.Title</h3>
-                        <p class="ar__detail">@item.Detail</p>
-                        <p class="ar__meta">
-                            <span class="ar__ref tabular">@item.ApplicationReference</span>
-                            <span aria-hidden="true">·</span>
-                            <span>@item.PatientName</span>
-                        </p>
-                    </div>
-
-                    <div class="ar__action">
-                        <AppButton Variant="AppButton.ButtonVariant.Secondary"
-                                   Href="@item.ActionHref"
-                                   IconEnd="arrow-right"
-                                   BlockOnMobile="true"
-                                   aria-describedby="@($"ar-title-{item.Id}")">
-                            @item.ActionLabel
-                        </AppButton>
-                        <span id="@($"ar-title-{item.Id}")" class="visually-hidden">for @item.ApplicationReference</span>
-                    </div>
-                </li>
+                <PathwayTrack Status="app.Status" Subject="@first.ApplicationReference" Class="next__pathway" />
             }
-        </ul>
+
+            <div class="next__actions">
+                <AppButton Href="@first.ActionHref" IconEnd="arrow-right" BlockOnMobile="true">
+                    @first.ActionLabel
+                </AppButton>
+                @if (first.DueBy is DateTimeOffset due)
+                {
+                    <p class="next__due">
+                        <Icon Name="clock" Size="16" />
+                        <span>Due <time datetime="@DisplayFormat.Machine(due)">@DisplayFormat.ShortDate(due)</time></span>
+                    </p>
+                }
+            </div>
+        </article>
+
+        @if (Items.Count > 1)
+        {
+            <div class="next__more">
+                <h3 class="next__more-title">Also waiting on you</h3>
+                <ul role="list" class="next__list">
+                    @foreach (var item in Items.Skip(1))
+                    {
+                        <li class="next__row">
+                            <div class="next__row-text">
+                                <p class="next__row-title">@item.Title</p>
+                                <p class="next__row-meta">
+                                    @item.PatientName<span class="next__ref"><span aria-hidden="true"> · </span>@item.ApplicationReference</span>
+                                </p>
+                            </div>
+                            <a class="link next__row-link" href="@item.ActionHref">
+                                @item.ActionLabel<span class="visually-hidden"> for @item.ApplicationReference</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
     }
-</Panel>
+</section>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ActionItem> Items { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+
+    private AssistanceApplication? Find(string reference) =>
+        Applications.FirstOrDefault(a => a.ReferenceNumber == reference);
 }

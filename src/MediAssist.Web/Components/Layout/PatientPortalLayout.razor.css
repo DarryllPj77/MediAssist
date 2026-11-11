@@ -35,7 +35,7 @@
 
 .portal__footer strong {
     color: var(--color-text);
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
 }
 
 /* ---- Tablet and up: sidebar + content grid ---- */

@@ -17,7 +17,7 @@
 }
 
 .empty-state__title {
-    font-weight: var(--weight-semibold);
+    font-weight: var(--weight-medium);
 }
 
 .empty-state__message {
