@@ -11,6 +11,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
 builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
 builder.Services.AddScoped<PortalLayoutInterop>();
+builder.Services.AddScoped<PageSectionState>();
 
 var app = builder.Build();
 

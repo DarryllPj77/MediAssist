@@ -17,7 +17,10 @@
 
         <p class="masthead__section">
             <span class="masthead__portal-label">@Set.PortalLabel</span>
-            <span class="masthead__section-title">@SectionTitle</span>
+            @if (!string.IsNullOrWhiteSpace(SectionTitle) && SectionTitle != Set.PortalLabel)
+            {
+                <span class="masthead__section-title">@SectionTitle</span>
+            }
         </p>
 
         <p class="masthead__notice">
@@ -42,7 +45,7 @@
 </header>
 
 @code {
-    /// <summary>Kept for API compatibility; each page names itself with its own h1.</summary>
+    /// <summary>The current section's name; empty shows the portal label alone.</summary>
     [Parameter] public string SectionTitle { get; set; } = "";
     [Parameter] public int UnreadCount { get; set; }
     [Parameter, EditorRequired] public NavSet Set { get; set; } = RoleNavigation.Patient;

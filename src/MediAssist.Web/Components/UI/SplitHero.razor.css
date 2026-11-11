@@ -119,6 +119,35 @@
     padding-block: var(--space-2) var(--space-4);
 }
 
+/* Phones: work before imagery. The text stands alone and the rays rest. */
+@container split (max-width: 39.99rem) {
+    .split--compact .split__media {
+        display: none;
+    }
+
+    .split--compact .split__grid {
+        gap: 0;
+    }
+
+    .split--compact .split__title {
+        font-size: var(--text-2xl);
+    }
+
+    .split--compact .split__actions {
+        margin-block-start: var(--space-3);
+    }
+}
+
+@media (max-width: 47.99em) {
+    .split--compact {
+        padding-block: 0 var(--space-2);
+    }
+
+    .split--compact .split__rays {
+        display: none;
+    }
+}
+
 @container split (min-width: 60rem) {
     .split--compact .split__grid {
         grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);

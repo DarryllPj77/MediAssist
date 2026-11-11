@@ -2,7 +2,8 @@
     Split hero (reference + premium hospital-site composition): large serif title, lead and the
     guided actions on one side; a framed image slot on the other. Sits on the cream ground with one
     faint, abstract ray motif behind it (twelve even rays: not the flag's sun, no stars).
-    Phones: text first, then the image at 4:3.
+    Phones: text first, then the image at 4:3. Compact (staff) heroes drop the image on phones
+    so the work below starts on the first screen.
 *@
 
 <section class="split @(Compact ? "split--compact" : null) @Class" aria-labelledby="@TitleId">
@@ -33,7 +34,8 @@
         </div>
 
         <div class="split__media">
-            <ImageSlot Key="@ImageKey" Frame="true" Priority="true" />
+            @* Compact (staff) heroes hide the image on phones, so it loads lazily and is never fetched there. *@
+            <ImageSlot Key="@ImageKey" Frame="true" Priority="@(!Compact)" />
             <svg class="split__leaves" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                 <path d="M8 116 C 18 70, 50 40, 96 26 C 84 72, 56 102, 8 116 Z" />
                 <path d="M30 118 C 44 94, 70 78, 112 72 C 98 98, 72 114, 30 118 Z" />

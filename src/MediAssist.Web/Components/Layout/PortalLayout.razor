@@ -11,6 +11,7 @@
 @inject IStaffPortalDataService Staff
 @inject PortalLayoutInterop Interop
 @inject NavigationManager Nav
+@inject PageSectionState PageSection
 
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
@@ -84,7 +85,8 @@
         _ => !_isWideViewport
     };
 
-    private string SectionTitle => _set.Resolve(_path)?.Label ?? _set.PortalLabel;
+    // A page's own label (404, error) wins; then the wizard's action name or the matching destination.
+    private string SectionTitle => PageSection.Label ?? _set.SectionLabel(_path) ?? "";
 
     private string SkipLinkHref => $"{_path.Split('#')[0]}#main-content";
 
@@ -92,6 +94,7 @@
     {
         _path = Nav.ToBaseRelativePath(Nav.Uri);
         Nav.LocationChanged += OnLocationChanged;
+        PageSection.Changed += OnPageSectionChanged;
         await LoadRoleAsync(RoleNavigation.ForPath(_path));
     }
 
@@ -162,6 +165,8 @@
 
     private void OnDrawerOpenChanged(bool isOpen) => _drawerOpen = isOpen;
 
+    private void OnPageSectionChanged() => _ = InvokeAsync(StateHasChanged);
+
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         _path = Nav.ToBaseRelativePath(e.Location);
@@ -176,6 +181,7 @@
     public async ValueTask DisposeAsync()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        PageSection.Changed -= OnPageSectionChanged;
         if (_viewportWatchId is int id)
         {
             try { await Interop.UnwatchWideViewportAsync(id); }

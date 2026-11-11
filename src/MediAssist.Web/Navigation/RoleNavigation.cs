@@ -47,6 +47,23 @@ public sealed record NavSet(
             || path.StartsWith(destination.Href + "/", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// The top-bar section name for a path: the primary action's page (e.g. the application
+    /// wizard) by its action label, otherwise the matching destination; null when none matches.
+    /// </summary>
+    public string? SectionLabel(string relativePath)
+    {
+        var path = RoleNavigation.Normalize(relativePath);
+        var actionPath = PrimaryActionHref?.Split('?')[0];
+        if (actionPath is not null &&
+            !All.Any(d => string.Equals(d.Href, actionPath, StringComparison.OrdinalIgnoreCase)) &&
+            (string.Equals(path, actionPath, StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith(actionPath + "/", StringComparison.OrdinalIgnoreCase)))
+            return PrimaryActionLabel;
+
+        return Resolve(relativePath)?.Label;
+    }
+
     public NavDestination? Resolve(string relativePath) =>
         All.Where(d => IsActive(d, relativePath))
            .OrderByDescending(d => d.Href.Length)

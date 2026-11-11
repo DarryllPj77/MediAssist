@@ -1,0 +1,17 @@
+@*
+    Names the current page's section in the top bar when navigation cannot (404, error).
+    Renders nothing itself. Usage: <SectionLabel Text="Page not found" />
+*@
+@implements IDisposable
+@inject PageSectionState State
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    protected override void OnParametersSet() => State.Set(Text);
+
+    public void Dispose()
+    {
+        if (State.Label == Text) State.Set(null);
+    }
+}
