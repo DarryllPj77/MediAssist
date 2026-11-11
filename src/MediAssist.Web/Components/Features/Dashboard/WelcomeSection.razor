@@ -1,6 +1,6 @@
 @*
     Dashboard opening: date, greeting (the page h1), a one-line status summary,
-    the New Application action and a quiet row of secondary links.
+    and the New Application action. Shortcuts live in ShortcutLinks.
     The New Application button is the view's one filled button only when nothing is
     waiting on the user; otherwise "Your next step" carries the filled button.
 *@
@@ -8,7 +8,7 @@
 <section class="welcome" aria-labelledby="welcome-title">
     <div class="welcome__intro">
         <p class="welcome__date"><time datetime="@DisplayFormat.Machine(Now)">@DisplayFormat.LongDay(Now)</time></p>
-        <h1 id="welcome-title" class="welcome__title" tabindex="-1">@DisplayFormat.Greeting(Now), @FirstName</h1>
+        <h1 id="welcome-title" class="welcome__title serif" tabindex="-1">@DisplayFormat.Greeting(Now), @FirstName</h1>
         <p class="welcome__summary">@Summary</p>
     </div>
 
@@ -21,15 +21,6 @@
         </AppButton>
         <p class="welcome__hint">About 10 minutes. Drafts save at every step.</p>
     </div>
-
-    <nav class="welcome__links" aria-label="Shortcuts">
-        <ul role="list">
-            @foreach (var (label, href) in Shortcuts)
-            {
-                <li><a class="link welcome__link" href="@href">@label</a></li>
-            }
-        </ul>
-    </nav>
 </section>
 
 @code {
@@ -39,15 +30,6 @@
     [Parameter] public int InProgressCount { get; set; }
 
     private bool IsMainAction => ActionCount == 0;
-
-    private static readonly (string Label, string Href)[] Shortcuts =
-    [
-        ("Add a patient profile", PortalNavigation.Patients.Href),
-        ("Find a hospital", PortalNavigation.Hospitals.Href),
-        ("Browse assistance programs", PortalNavigation.Programs.Href),
-        ("Check required documents", PortalNavigation.Documents.Href),
-        ("Request runner help", PortalNavigation.Runner.Href),
-    ];
 
     private string Summary
     {

@@ -22,35 +22,42 @@
 }
 
 .sidebar__inner {
+    --sb-pad: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
     height: 100%;
-    padding: var(--space-5) var(--space-4);
+    padding: 0 var(--sb-pad) var(--space-5);
 }
 
-/* ---- Brand ---- */
+/* ---- Brand: the masthead continues across the sidebar ---- */
 .sidebar__brand {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: var(--tap-target);
-    padding-inline: var(--space-1);
-    color: var(--color-text);
+    min-height: var(--header-height);
+    margin-inline: calc(var(--sb-pad) * -1);
+    padding-inline: calc(var(--sb-pad) + var(--space-1));
+    background: var(--color-navy);
+    border-block-end: var(--masthead-rule) solid var(--color-gold);
+    color: var(--color-on-navy);
     text-decoration: none;
-    border-radius: var(--radius-md);
 }
 
 .sidebar__brand:hover {
-    color: var(--color-text);
+    color: var(--color-on-navy);
     text-decoration: none;
 }
 
+.sidebar__brand:focus-visible {
+    border-radius: 0;
+    box-shadow: inset 0 0 0 2px var(--color-gold-on-navy);
+}
+
 .sidebar__brand-name {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    letter-spacing: var(--tracking-heading);
-    font-weight: var(--weight-medium);
+    font-family: var(--font-serif);
+    font-size: var(--text-xl);
+    font-weight: 600;
     letter-spacing: -0.01em;
     white-space: nowrap;
 }
@@ -157,7 +164,7 @@
 /* ---- Rail mode ---- */
 @container sidebar (max-width: 6rem) {
     .sidebar__inner {
-        padding-inline: var(--space-3);
+        --sb-pad: var(--space-3);
         align-items: stretch;
     }
 

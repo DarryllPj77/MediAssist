@@ -1,16 +1,22 @@
 @*
-    Top header. Mobile: brand + bell + avatar. Tablet/desktop: section name + bell + user.
+    Navy masthead with a gold rule. Mobile: brand + bell + avatar.
+    Tablet/desktop: section name, the independence notice, bell and user.
     The section name is not an <h1>; each page owns its own h1.
 *@
 
 <header class="header">
     <a class="header__brand" href="@PortalNavigation.Dashboard.Href">
-        <BrandMark Size="28" />
+        <BrandMark Size="30" />
         <span class="header__brand-name">MediAssist</span>
         <span class="visually-hidden">, go to dashboard</span>
     </a>
 
     <p class="header__section">@SectionTitle</p>
+
+    <p class="header__notice">
+        <Icon Name="info" Size="16" />
+        Independent assistance service. Not a government agency.
+    </p>
 
     <div class="header__actions">
         <NotificationBell UnreadCount="UnreadCount" />

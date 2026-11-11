@@ -1,0 +1,27 @@
+@*
+    Secondary destinations as plain words. Under the greeting on wide screens;
+    at the end of the page on phones, so the next step stays first.
+*@
+
+<nav class="shortcuts" aria-labelledby="shortcuts-title">
+    <h2 id="shortcuts-title" class="shortcuts__title">
+        Other things you can do <span class="fil" lang="fil">Iba pang magagawa mo</span>
+    </h2>
+    <ul role="list" class="shortcuts__list">
+        @foreach (var (label, href) in Items)
+        {
+            <li><a class="link shortcuts__link" href="@href">@label</a></li>
+        }
+    </ul>
+</nav>
+
+@code {
+    private static readonly (string Label, string Href)[] Items =
+    [
+        ("Add a patient profile", PortalNavigation.Patients.Href),
+        ("Find a hospital", PortalNavigation.Hospitals.Href),
+        ("Browse assistance programs", PortalNavigation.Programs.Href),
+        ("Check required documents", PortalNavigation.Documents.Href),
+        ("Request runner help", PortalNavigation.Runner.Href),
+    ];
+}

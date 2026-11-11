@@ -1,3 +1,4 @@
+/* Navy masthead: the one dark band in the interface, closed by a gold rule. */
 .header {
     position: sticky;
     inset-block-start: 0;
@@ -7,8 +8,9 @@
     gap: var(--space-4);
     min-height: var(--header-height);
     padding-inline: var(--space-4);
-    background: var(--color-surface);
-    border-block-end: 1px solid var(--color-border);
+    background: var(--color-navy);
+    color: var(--color-on-navy);
+    border-block-end: var(--masthead-rule) solid var(--color-gold);
 }
 
 .header__brand {
@@ -16,28 +18,40 @@
     align-items: center;
     gap: var(--space-2);
     min-height: var(--tap-target);
-    color: var(--color-text);
+    color: var(--color-on-navy);
     text-decoration: none;
     border-radius: var(--radius-md);
 }
 
 .header__brand:hover {
-    color: var(--color-text);
+    color: var(--color-on-navy);
     text-decoration: none;
 }
 
 .header__brand-name {
-    font-family: var(--font-display);
-    font-size: var(--text-md);
-    letter-spacing: var(--tracking-heading);
-    font-weight: var(--weight-medium);
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 
 .header__section {
     display: none;
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
+    color: var(--color-on-navy);
+    font-size: var(--text-base);
     font-weight: var(--weight-medium);
+}
+
+.header__notice {
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-on-navy-muted);
+    font-size: var(--text-xs);
+}
+
+.header__notice ::deep .icon {
+    color: var(--color-gold-on-navy);
 }
 
 .header__actions {
@@ -54,17 +68,22 @@
     min-height: var(--tap-target);
     padding: var(--space-1);
     border-radius: var(--radius-full);
-    color: var(--color-text);
+    color: var(--color-on-navy);
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
     text-decoration: none;
-    transition: background-color var(--duration-fast) var(--ease-out);
+    transition: background-color var(--duration-out) var(--ease-out);
 }
 
 .header__user:hover {
-    background: var(--color-surface-sunken);
-    color: var(--color-text);
+    background: var(--color-navy-deep);
+    color: var(--color-on-navy);
     text-decoration: none;
+}
+
+.header__user:focus-visible,
+.header__brand:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-navy), 0 0 0 4px var(--color-gold-on-navy);
 }
 
 .header__user:focus-visible {
@@ -86,6 +105,17 @@
 
     .header__section {
         display: block;
+    }
+}
+
+@media (min-width: 64em) {
+    .header__notice {
+        display: inline-flex;
+        margin-inline-start: auto;
+    }
+
+    .header__actions {
+        margin-inline-start: var(--space-5);
     }
 }
 

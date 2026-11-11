@@ -111,6 +111,24 @@ h1:focus-visible {
     box-shadow: none;
 }
 
+/* Editorial serif: page greeting and public-service reassurance lines only. */
+.serif {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+}
+
+/* Filipino helper line under an English heading (marked lang="fil" in markup). */
+.fil {
+    display: block;
+    margin-block-start: 2px;
+    color: var(--color-text-subtle);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-regular);
+    letter-spacing: 0;
+}
+
 .tabular {
     font-variant-numeric: tabular-nums;
 }

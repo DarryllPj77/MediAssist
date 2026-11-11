@@ -1,6 +1,7 @@
 /*
-  One column below 75em (greeting, next step, applications, stages, patients).
-  From 75em: greeting across the top, then a main column and a 21rem aside.
+  Phones: greeting, next step, applications, stages, people, shortcuts (source order).
+  48em+: shortcuts move up under the greeting.
+  75em+: greeting and shortcuts across the top, then a main column and a 21rem aside.
 */
 .dashboard {
     display: flex;
@@ -24,12 +25,20 @@
     gap: var(--space-6);
 }
 
+@media (min-width: 48em) and (max-width: 74.99em) {
+    .dashboard__welcome { order: 0; }
+    .dashboard__links   { order: 1; margin-block-start: calc(var(--space-6) * -1); }
+    .dashboard__main    { order: 2; }
+    .dashboard__aside   { order: 3; }
+}
+
 @media (min-width: 75em) {
     .dashboard {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 21rem;
         grid-template-areas:
             "welcome welcome"
+            "links links"
             "main aside";
         align-items: start;
         column-gap: var(--space-8);
@@ -37,11 +46,10 @@
     }
 
     .dashboard__welcome { grid-area: welcome; }
+    .dashboard__links   { grid-area: links; margin-block-start: calc(var(--space-6) * -1); }
     .dashboard__main    { grid-area: main; }
 
-    /* The aside lines up with the "Your next step" heading. */
     .dashboard__aside {
         grid-area: aside;
-        padding-block-start: calc(var(--text-xl) * 1.2 + var(--space-4));
     }
 }

@@ -1,0 +1,50 @@
+.shortcuts__title {
+    margin-block-end: var(--space-3);
+    font-size: var(--text-xl);
+}
+
+.shortcuts__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    border-block-start: 1px solid var(--color-border);
+}
+
+.shortcuts__list li {
+    border-block-end: 1px solid var(--color-border);
+}
+
+.shortcuts__link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: var(--tap-target);
+    font-size: var(--text-base);
+}
+
+/* Wide screens: one quiet row of words under the greeting, no heading shown. */
+@media (min-width: 48em) {
+    .shortcuts__title {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .shortcuts__list {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: var(--space-6);
+        border: 0;
+    }
+
+    .shortcuts__list li {
+        border: 0;
+    }
+
+    .shortcuts__link {
+        width: auto;
+    }
+}

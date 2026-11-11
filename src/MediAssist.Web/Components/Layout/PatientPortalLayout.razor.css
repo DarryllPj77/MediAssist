@@ -33,6 +33,10 @@
     font-size: var(--text-xs);
 }
 
+.portal__footer p + p {
+    margin-block-start: var(--space-2);
+}
+
 .portal__footer strong {
     color: var(--color-text);
     font-weight: var(--weight-medium);

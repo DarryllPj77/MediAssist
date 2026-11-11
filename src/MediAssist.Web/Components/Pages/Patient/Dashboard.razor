@@ -11,7 +11,8 @@
 }
 else
 {
-    @* Source order is the reading order at every width: greeting, next step, applications, stages, patients. *@
+    @* Source order is the phone reading order: greeting, next step, applications, stages, people, shortcuts.
+       From 48em the shortcuts move up under the greeting. *@
     <div class="dashboard">
         <div class="dashboard__welcome">
             <WelcomeSection FirstName="@_user.FirstName"
@@ -28,6 +29,10 @@ else
         <div class="dashboard__aside">
             <ApplicationSummaryStrip Applications="_applications" />
             <PatientProfilesPanel Patients="_patients" />
+        </div>
+
+        <div class="dashboard__links">
+            <ShortcutLinks />
         </div>
     </div>
 }

@@ -1,5 +1,5 @@
 /*
-  MediAssist design tokens
+  MediAssist design tokens (Digital Bayanihan / Civic Modernism direction)
   ------------------------
   Single source of truth for colour, type, spacing, radius, elevation and motion.
   Components reference these variables only; no raw hex values outside this file.
@@ -11,67 +11,81 @@
 */
 
 :root {
-    /* ---- Brand palette (approved) ---- */
-    --color-primary: #0F766E;
-    --color-primary-hover: #0B5F59;
-    --color-primary-active: #094E49;
-    --color-primary-subtle: #E6F2F1;
-    --color-primary-subtle-hover: #D5EAE8;
+    /* ---- Civic palette: "Digital Bayanihan" on Philippine Civic Modernism ----
+       Navy carries structure (masthead, ink), Philippine Blue is the one action colour,
+       gold marks completion and the masthead rule, red means "needs action" only. */
+    --color-navy: #183153;
+    --color-navy-deep: #12253F;
+    --color-on-navy: #FFFFFF;
+    --color-on-navy-muted: #C9D2DE;   /* 8.6:1 on navy */
+    --color-gold: #B58B42;            /* marks on navy only (4.2:1); never text on ivory */
+    --color-gold-on-navy: #D9B36C;    /* 6.6:1 on navy */
+    --color-gold-text: #8A6626;       /* gold as text on light grounds (4.9:1 on ivory) */
+    --color-gold-subtle: #F6EFE2;
+
+    --color-primary: #2455A4;         /* Philippine Blue: buttons, links, focus (7.2:1 on white) */
+    --color-primary-hover: #1D4688;
+    --color-primary-active: #173A72;
+    --color-primary-subtle: #EAF0F9;
+    --color-primary-subtle-hover: #DCE6F5;
     --color-on-primary: #FFFFFF;
 
-    --color-secondary: #2563EB;
-    --color-secondary-hover: #1D4FD0;
-    --color-secondary-subtle: #EAF1FE;
+    --color-secondary: #2455A4;
+    --color-secondary-hover: #1D4688;
+    --color-secondary-subtle: #EAF0F9;
 
     /* ---- Surfaces & text ---- */
-    --color-bg: #F7FAF9;
+    --color-bg: #FAF8F3;              /* Warm Ivory */
     --color-surface: #FFFFFF;
-    --color-surface-sunken: #F0F5F4;
-    --color-text: #172B35;
-    --color-text-muted: #4A5F69;      /* 6.4:1 on --color-bg */
-    --color-text-subtle: #5F727B;     /* 5.0:1 on white, labels only */
+    --color-surface-sunken: #F2EEE5;
+    --color-text: #202C39;            /* Deep Text, 13.4:1 on ivory */
+    --color-text-muted: #4E5965;      /* 6.7:1 on ivory */
+    --color-text-subtle: #5F6873;     /* 5.3:1 on ivory, labels only */
 
     /* ---- Borders ---- */
-    --color-border: #DCE7E5;          /* decorative dividers and panel edges only */
-    --color-border-strong: #7F9693;   /* form controls & interactive boundaries (>= 3:1) */
+    --color-border: #E4E6E8;          /* decorative dividers and panel edges only */
+    --color-border-strong: #848B94;   /* form controls & interactive boundaries (>= 3:1) */
 
     /* ---- Pathway (application journey) ---- */
-    --pathway-done: var(--color-primary);
+    --pathway-done: var(--color-navy);
     --pathway-current: var(--color-primary);
-    --pathway-attention: var(--color-warning);
-    --pathway-upcoming: #C5D3D1;       /* track line only, not text */
+    --pathway-attention: var(--color-red);
+    --pathway-upcoming: #CBD0D6;      /* track line only, not text */
 
     /* ---- Feedback ---- */
-    --color-success: #166534;  /* 6.4:1 on its subtle tint */
-    --color-success-subtle: #E8F5EC;
-    --color-warning: #A1460A;
-    --color-warning-subtle: #FDF1E4;
-    --color-danger: #B42318;
-    --color-danger-subtle: #FDECEA;
-    --color-info: var(--color-secondary);
-    --color-info-subtle: var(--color-secondary-subtle);
-    --color-neutral: #4A5F69;
-    --color-neutral-subtle: #EEF2F2;
+    --color-red: #B53B45;             /* Philippine Red: "needs action" and errors only (5.4:1) */
+    --color-red-subtle: #FBEEEF;
+    --color-success: #2E6B3F;
+    --color-success-subtle: #EAF3EC;
+    --color-warning: var(--color-red);           /* corrections read as "needs action" */
+    --color-warning-subtle: var(--color-red-subtle);
+    --color-danger: #9A2F39;
+    --color-danger-subtle: #FBEEEF;
+    --color-info: var(--color-primary);
+    --color-info-subtle: var(--color-primary-subtle);
+    --color-neutral: #4E5965;
+    --color-neutral-subtle: #EFEDE7;
 
     /* ---- Focus ---- */
     --focus-ring-color: var(--color-secondary);
     --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--focus-ring-color);
 
     /* ---- Typography ---- */
-    /* Care Pathway direction: Red Hat Display (headings) + Red Hat Text (UI and reading text).
-       Until the font files are added, the system sans fallback is used. */
-    --font-sans: "Red Hat Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-    --font-display: "Red Hat Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    /* Public Sans for all interface text and section headings;
+       Source Serif 4 only for the page greeting and public-service reassurance lines. */
+    --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-display: var(--font-sans);
+    --font-serif: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 
     --text-xs: 0.8125rem;  /* 13: the smallest size used anywhere (labels, meta) */
     --text-sm: 0.875rem;   /* 14 */
-    --text-base: 1rem;     /* 16 */
-    --text-md: 1.125rem;   /* 18 */
+    --text-base: 1.0625rem; /* 17: reading text, sized for older readers */
+    --text-md: 1.1875rem;  /* 19 */
     --text-lg: 1.25rem;    /* 20 */
     --text-xl: 1.5rem;     /* 24 */
     --text-2xl: 1.875rem;  /* 30 */
-    --text-3xl: 2.25rem;   /* 36 */
+    --text-3xl: 2.375rem;  /* 38 */
 
     --leading-tight: 1.2;
     --leading-snug: 1.35;
@@ -100,8 +114,8 @@
 
     /* ---- Radius ---- */
     --radius-sm: 4px;
-    --radius-md: 6px;     /* controls */
-    --radius-lg: 10px;    /* panels */
+    --radius-md: 4px;     /* controls: crisp, form-like */
+    --radius-lg: 6px;     /* panels */
     --radius-full: 999px; /* badges, avatars */
 
     /* ---- Elevation (restrained) ---- */
@@ -122,9 +136,10 @@
     --sidebar-width-expanded: 16.5rem;
     --sidebar-width-rail: 4.5rem;
     --header-height: 4rem;
+    --masthead-rule: 3px;
     --bottom-nav-height: 4rem;
     --content-max-width: 76rem;
-    --tap-target: 2.75rem; /* 44px */
+    --tap-target: 3rem;    /* 48px: generous for older users and phones */
 
     /* ---- Z-index ---- */
     --z-sticky: 10;

@@ -5,7 +5,7 @@
 *@
 
 <section class="next" aria-labelledby="next-step-title">
-    <h2 id="next-step-title" class="next__title">Your next step</h2>
+    <h2 id="next-step-title" class="next__title">Your next step <span class="fil" lang="fil">Ang susunod mong hakbang</span></h2>
 
     @if (Items.Count == 0)
     {
@@ -35,6 +35,11 @@
             @if (app is not null)
             {
                 <PathwayTrack Status="app.Status" Subject="@first.ApplicationReference" Class="next__pathway" />
+            }
+
+            @if (Reassurance(app?.Status) is string note)
+            {
+                <p class="next__note serif">@note</p>
             }
 
             <div class="next__actions">
@@ -79,6 +84,14 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ActionItem> Items { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+
+    // Plain statements of how the process works (Phase 1 business rules), never promises of approval.
+    private static string? Reassurance(ApplicationStatus? status) => status switch
+    {
+        ApplicationStatus.NeedsCorrection => "Once you upload the corrected copy, your application goes back to review.",
+        ApplicationStatus.Draft => "You can submit now and add missing documents later.",
+        _ => null
+    };
 
     private AssistanceApplication? Find(string reference) =>
         Applications.FirstOrDefault(a => a.ReferenceNumber == reference);

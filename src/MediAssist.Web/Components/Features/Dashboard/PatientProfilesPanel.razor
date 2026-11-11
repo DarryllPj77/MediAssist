@@ -5,7 +5,7 @@
 
 <Panel LabelledBy="patients-title" Flush="true">
     <div class="patients__head">
-        <h2 id="patients-title" class="patients__title">Patient profiles</h2>
+        <h2 id="patients-title" class="patients__title">People you help <span class="fil" lang="fil">Mga tinutulungan mo</span></h2>
     </div>
 
     <ul role="list" class="patients__list">
@@ -29,6 +29,13 @@
             </li>
         }
     </ul>
+
+    <div class="patients__runner">
+        <p class="patients__runner-text">
+            Need someone to bring documents to the hospital or office for you?
+        </p>
+        <a class="link patients__runner-link" href="@PortalNavigation.Runner.Href">Request runner help</a>
+    </div>
 
     <div class="patients__foot">
         <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Patients.Href" IconEnd="arrow-right">

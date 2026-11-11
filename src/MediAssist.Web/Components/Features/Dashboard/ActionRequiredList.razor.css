@@ -48,6 +48,12 @@
     margin-block: var(--space-3) var(--space-2);
 }
 
+.next__note {
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
+}
+
 .next__actions {
     display: flex;
     flex-wrap: wrap;

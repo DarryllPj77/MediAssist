@@ -1,0 +1,20 @@
+/*
+  Self-hosted variable fonts (Latin subset; covers English and Filipino, including ñ).
+  Public Sans and Source Serif 4 are licensed under the SIL Open Font License 1.1.
+  Source: Google Fonts. See ../fonts/README.md.
+*/
+@font-face {
+    font-family: "Public Sans";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("../fonts/public-sans-latin-var.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Source Serif 4";
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url("../fonts/source-serif-4-latin-var.woff2") format("woff2");
+}
