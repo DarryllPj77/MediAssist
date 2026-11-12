@@ -5,6 +5,8 @@
     Compact (the wizard and the dashboard): a shorter band. Only the current step shows its
     Filipino label; every state word, and the other steps' Filipino labels, stay for screen
     readers. In a narrow container the other steps shrink to their numbers so the band stays one row.
+    StepHref (the wizard): steps it returns a link for get a full-size link over the step,
+    named "Go to step N, Label", so completed steps can be revisited. Off by default.
 *@
 
 <div class="stepper @(Compact ? "stepper--compact" : null) @Class">
@@ -13,7 +15,8 @@
         {
             var step = Steps[i];
             var isCurrent = step.State is StepState.Current or StepState.Attention;
-            <li class="stepper__step stepper__step--@step.State.ToString().ToLowerInvariant()"
+            var href = StepHref?.Invoke(i);
+            <li class="stepper__step stepper__step--@step.State.ToString().ToLowerInvariant() @(href is null ? null : "stepper__step--linked")"
                 aria-current="@(isCurrent ? "step" : null)">
                 <span class="stepper__num" aria-hidden="true">
                     @if (step.State == StepState.Done)
@@ -33,6 +36,10 @@
                     }
                     <span class="stepper__state">@StateText(step.State)</span>
                 </span>
+                @if (href is not null)
+                {
+                    <a class="stepper__link" href="@href"><span class="visually-hidden">Go to step @(i + 1), @step.Label</span></a>
+                }
             </li>
         }
     </ol>
@@ -43,6 +50,8 @@
     [Parameter, EditorRequired] public string AriaLabel { get; set; } = "Progress";
     [Parameter] public bool ShowFilipino { get; set; } = true;
     [Parameter] public bool Compact { get; set; }
+    /// <summary>A link for the step at a zero-based index, or null when it cannot be visited.</summary>
+    [Parameter] public Func<int, string?>? StepHref { get; set; }
     [Parameter] public string? Class { get; set; }
 
     private static string StateText(StepState state) => state switch

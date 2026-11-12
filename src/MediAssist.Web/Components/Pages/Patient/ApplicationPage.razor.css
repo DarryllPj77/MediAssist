@@ -188,3 +188,30 @@
 .errand__status--attention {
     color: var(--color-red);
 }
+
+/* ---- Confirmation after submitting (from the wizard) ---- */
+.detail__done {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    border-inline-start: 4px solid var(--color-success);
+    background: var(--color-success-subtle);
+    color: var(--color-text);
+}
+
+.detail__done ::deep .icon {
+    color: var(--color-success);
+}
+
+.detail__done strong {
+    color: var(--color-success);
+}
+
+.detail__done-ref {
+    font-weight: var(--weight-semibold);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

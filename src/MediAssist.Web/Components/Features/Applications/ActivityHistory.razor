@@ -50,6 +50,7 @@
     private static string IconFor(ApplicationEventKind kind) => kind switch
     {
         ApplicationEventKind.Created => "pencil",
+        ApplicationEventKind.DraftSaved => "pencil",
         ApplicationEventKind.Submitted => "send",
         ApplicationEventKind.ReviewStarted => "search",
         ApplicationEventKind.DocumentUploaded => "upload",

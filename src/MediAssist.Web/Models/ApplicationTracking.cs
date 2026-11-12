@@ -7,6 +7,7 @@ namespace MediAssist.Web.Models;
 public enum ApplicationEventKind
 {
     Created,
+    DraftSaved,
     Submitted,
     ReviewStarted,
     DocumentUploaded,

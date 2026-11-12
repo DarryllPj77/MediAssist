@@ -10,6 +10,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton(TimeProvider.System);
 // One shared in-memory store, so every portal reads the same fictional story.
 builder.Services.AddSingleton<MockPortalStore>();
+// Each user's own drafts and submissions: per circuit, kept in that user's browser storage.
+builder.Services.AddScoped<IWorkspaceStorage, ProtectedLocalWorkspaceStorage>();
+builder.Services.AddScoped<ApplicationWorkspace>();
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
 builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
 builder.Services.AddScoped<PortalLayoutInterop>();

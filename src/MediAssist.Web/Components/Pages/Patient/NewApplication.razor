@@ -1,194 +1,437 @@
 @page "/patient/applications/new"
+@implements IDisposable
 @inject IPatientPortalDataService Data
+@inject ApplicationWorkspace Workspace
+@inject NavigationManager Nav
+@inject TimeProvider Clock
+
+@*
+    The five-step wizard. Interactive: choices live in this component and in the user's draft
+    (ApplicationWorkspace, kept in their browser), and the URL carries ?draft=&step= so back,
+    forward and reload work. A draft is created on the first Continue (or Save draft) and saved
+    again on every change. Patient, hospital and program are required; documents never are.
+    Completed steps can be revisited from the stepper or the review's Change links.
+*@
 
 <PageTitle>New application · MediAssist</PageTitle>
 
 <div class="page wizard">
     <header class="page__head">
-        <p class="eyebrow">Step @CurrentStep of 5</p>
+        <p class="eyebrow">Step @_step of 5@(_draft is null ? "" : $" · Draft {_draft.SourceReference ?? _draft.Id}")</p>
         <h1 class="page__title serif" tabindex="-1">New application</h1>
         <p class="fil page__fil" lang="fil">Bagong aplikasyon</p>
     </header>
 
-    <ChevronStepper Steps="StepperSteps.ForWizard(CurrentStep - 1)" AriaLabel="Application steps" Compact="true" />
+    @if (_loadingDraft)
+    {
+        <Panel>
+            <p class="wizard__loading" role="status">Loading your draft…</p>
+        </Panel>
+    }
+    else if (_draftMissing)
+    {
+        <Panel>
+            <EmptyState IconName="search" Title="We couldn’t find that draft"
+                        Message="It may have been submitted already, or saved in another browser. Drafts are kept in the browser where you started them.">
+                <Action>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Applications.Href">See my applications</AppButton>
+                </Action>
+            </EmptyState>
+        </Panel>
+    }
+    else
+    {
+        <ChevronStepper Steps="StepperSteps.ForWizard(_step - 1)" AriaLabel="Application steps" Compact="true" StepHref="StepLink" />
 
-    <form class="wizard__form" method="get" action="@PortalNavigation.NewApplicationHref" novalidate>
-        <input type="hidden" name="step" value="@(CurrentStep + 1)" />
-        @if (CurrentStep != 1 && PatientId is not null) { <input type="hidden" name="patient" value="@PatientId" /> }
-        @if (CurrentStep != 2 && Hospital is not null) { <input type="hidden" name="hospital" value="@Hospital" /> }
-        @if (CurrentStep != 3 && ProgramId is not null) { <input type="hidden" name="program" value="@ProgramId" /> }
-
-        @switch (CurrentStep)
-        {
-            case 1:
-                <fieldset class="choice" aria-describedby="@ErrorId">
-                    <legend class="choice__legend">
-                        Who is this application for?
-                        <span class="visually-hidden">. </span><span class="fil" lang="fil">Para kanino ang aplikasyon?</span>
-                    </legend>
-                    @foreach (var p in _patients)
-                    {
-                        <label class="choice__option">
-                            <input type="radio" name="patient" value="@p.Id" aria-invalid="@Invalid" checked="@(p.Id.ToString() == (PatientId ?? _patients[0].Id.ToString()))" />
-                            <span class="choice__text">
-                                <span class="choice__title">@p.FullName</span>
-                                <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? $" · authorization {AuthorizationStatusDisplay.Label(p.Authorization).ToLowerInvariant()}" : "")</span>
-                            </span>
-                        </label>
-                    }
-                </fieldset>
-                break;
-
-            case 2:
-                <div class="field">
-                    <label class="field__label" for="hospital">Hospital where the patient is treated</label>
-                    <select id="hospital" name="hospital" class="select" aria-invalid="@Invalid"
-                            aria-describedby="@(Error is null ? "hospital-hint" : "hospital-hint wizard-error")">
-                        @foreach (var h in Hospitals)
+        <form class="wizard__form" @onsubmit="OnSubmitAsync" novalidate>
+            @switch (_step)
+            {
+                case 1:
+                    <fieldset class="choice" aria-describedby="@ErrorId">
+                        <legend class="choice__legend">
+                            Who is this application for?
+                            <span class="visually-hidden">. </span><span class="fil" lang="fil">Para kanino ang aplikasyon?</span>
+                        </legend>
+                        @foreach (var p in _patients)
                         {
-                            <option value="@h" selected="@(h == Hospital)">@h</option>
+                            <label class="choice__option">
+                                <input type="radio" name="patient" value="@p.Id" aria-invalid="@Invalid"
+                                       checked="@(p.Id == _patientId)" @onchange="() => ChoosePatientAsync(p.Id)" />
+                                <span class="choice__text">
+                                    <span class="choice__title">@p.FullName</span>
+                                    <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? $" · authorization {AuthorizationStatusDisplay.Label(p.Authorization).ToLowerInvariant()}" : "")</span>
+                                </span>
+                            </label>
                         }
-                    </select>
-                    <p id="hospital-hint" class="field__hint">Pick the hospital that will receive or bill the assistance.</p>
-                </div>
-                break;
+                    </fieldset>
+                    break;
 
-            case 3:
-                <fieldset class="choice" aria-describedby="@ErrorId">
-                    <legend class="choice__legend">
-                        Which program are you applying to?
-                        <span class="visually-hidden">. </span><span class="fil" lang="fil">Aling programa ang aaplayan?</span>
-                    </legend>
-                    @foreach (var prog in _programs)
+                case 2:
+                    <div class="field">
+                        <label class="field__label" for="hospital">Hospital where the patient is treated</label>
+                        <select id="hospital" name="hospital" class="select" aria-invalid="@Invalid"
+                                aria-describedby="@(Error is null ? "hospital-hint" : "hospital-hint wizard-error")"
+                                @onchange="ChooseHospitalAsync">
+                            <option value="" selected="@(_hospital is null)">Choose a hospital</option>
+                            @foreach (var h in _hospitals)
+                            {
+                                <option value="@h" selected="@(h == _hospital)">@h</option>
+                            }
+                        </select>
+                        <p id="hospital-hint" class="field__hint">Pick the hospital that will receive or bill the assistance.</p>
+                    </div>
+                    break;
+
+                case 3:
+                    <fieldset class="choice" aria-describedby="@ErrorId">
+                        <legend class="choice__legend">
+                            Which program are you applying to?
+                            <span class="visually-hidden">. </span><span class="fil" lang="fil">Aling programa ang aaplayan?</span>
+                        </legend>
+                        @foreach (var prog in _programs)
+                        {
+                            <label class="choice__option">
+                                <input type="radio" name="program" value="@prog.Id" aria-invalid="@Invalid"
+                                       checked="@(prog.Id == _programId)" @onchange="() => ChooseProgramAsync(prog.Id)" />
+                                <span class="choice__text">
+                                    <span class="choice__title">@prog.Name</span>
+                                    <span class="choice__meta">@prog.Covers · run by @prog.RunBy.ToLowerInvariant()</span>
+                                </span>
+                            </label>
+                        }
+                    </fieldset>
+                    break;
+
+                case 4:
+                    @if (CurrentChecklist is { } checklist)
                     {
-                        <label class="choice__option">
-                            <input type="radio" name="program" value="@prog.Id" aria-invalid="@Invalid" checked="@(prog.Id == (ProgramId ?? _programs[0].Id))" />
-                            <span class="choice__text">
-                                <span class="choice__title">@prog.Name</span>
-                                <span class="choice__meta">@prog.Covers · run by @prog.RunBy.ToLowerInvariant()</span>
-                            </span>
-                        </label>
+                        <p class="wizard__lead">
+                            These are the documents @(SelectedProgram?.Name ?? "this program") asks for.
+                            You can submit before they are all ready and add the rest later.
+                        </p>
+                        <DocumentChecklist Checklist="checklist" ShowActions="false" HeadingLevel="2" />
                     }
-                </fieldset>
-                break;
+                    break;
 
-            case 4:
-                @if (DraftChecklist is not null)
+                default:
+                    <section class="review" aria-labelledby="review-title">
+                        <h2 id="review-title" class="review__title">Check your application</h2>
+                        <dl class="review__list">
+                            <div>
+                                <dt>Patient</dt>
+                                <dd>@(SelectedPatient?.FullName ?? "Not chosen")</dd>
+                                <dd class="review__change"><a href="@StepUrl(1)">Change<span class="visually-hidden"> patient</span></a></dd>
+                            </div>
+                            <div>
+                                <dt>Hospital</dt>
+                                <dd>@(_hospital ?? "Not chosen")</dd>
+                                <dd class="review__change"><a href="@StepUrl(2)">Change<span class="visually-hidden"> hospital</span></a></dd>
+                            </div>
+                            <div>
+                                <dt>Program</dt>
+                                <dd>@(SelectedProgram?.Name ?? "Not chosen")</dd>
+                                <dd class="review__change"><a href="@StepUrl(3)">Change<span class="visually-hidden"> program</span></a></dd>
+                            </div>
+                            <div>
+                                <dt>Documents</dt>
+                                <dd>@DocumentsSummary</dd>
+                                <dd class="review__change"><a href="@StepUrl(4)">View<span class="visually-hidden"> documents</span></a></dd>
+                            </div>
+                        </dl>
+
+                        <label class="confirm">
+                            <input type="checkbox" checked="@_confirmed" @onchange="ToggleConfirmAsync"
+                                   aria-invalid="@Invalid" aria-describedby="@ErrorId" />
+                            <span>I confirm that this information is correct and that I may apply for this patient.</span>
+                        </label>
+
+                        <p class="prototype-note">
+                            <Icon Name="info" Size="20" />
+                            <span>This prototype keeps your applications in this browser only. Nothing is sent to a hospital or program office.</span>
+                        </p>
+                    </section>
+                    break;
+            }
+
+            @if (Error is not null)
+            {
+                <p id="wizard-error" class="field__error" role="alert">
+                    <Icon Name="alert-circle" Size="18" />
+                    @Error
+                </p>
+            }
+
+            <div class="wizard__save">
+                <p class="wizard__save-status" aria-live="polite">@SaveStatus</p>
+                <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="check" OnClick="SaveDraftAsync">Save draft</AppButton>
+            </div>
+
+            <div class="wizard__nav">
+                @if (_step > 1)
                 {
-                    <p class="wizard__lead">
-                        These are the documents @(SelectedProgram?.Name ?? "this program") asks for.
-                        You can submit before they are all ready and add the rest later.
-                    </p>
-                    <DocumentChecklist Checklist="DraftChecklist" ShowActions="false" HeadingLevel="2" />
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@StepUrl(_step - 1)" IconStart="chevron-left">
+                        Back
+                    </AppButton>
                 }
-                break;
-
-            default:
-                <section class="review" aria-labelledby="review-title">
-                    <h2 id="review-title" class="review__title">Check your application</h2>
-                    <dl class="review__list">
-                        <div><dt>Patient</dt><dd>@(SelectedPatient?.FullName ?? "Not chosen")</dd></div>
-                        <div><dt>Hospital</dt><dd>@(Hospital ?? "Not chosen")</dd></div>
-                        <div><dt>Program</dt><dd>@(SelectedProgram?.Name ?? "Not chosen")</dd></div>
-                        <div><dt>Documents</dt><dd>@(DraftChecklist is null ? "None listed" : $"{DraftChecklist.ReadyCount} of {DraftChecklist.Items.Count} ready")</dd></div>
-                    </dl>
-                    <p class="prototype-note">
-                        <Icon Name="info" Size="20" />
-                        <span>Submitting isn’t part of this prototype yet. In the full service this sends your application for review, and you can add missing documents afterwards.</span>
-                    </p>
-                </section>
-                break;
-        }
-
-        @if (Error is not null)
-        {
-            <p id="wizard-error" class="field__error" role="alert">
-                <Icon Name="alert-circle" Size="18" />
-                @Error
-            </p>
-        }
-
-        <p class="wizard__save">Drafts are not saved in this prototype yet.</p>
-
-        <div class="wizard__nav">
-            @if (CurrentStep > 1)
-            {
-                <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@BackHref" IconStart="chevron-left">
-                    Back
-                </AppButton>
-            }
-            @if (CurrentStep < 5)
-            {
-                <AppButton Type="submit" IconEnd="arrow-right">Continue</AppButton>
-            }
-            else
-            {
-                <AppButton Type="button" Disabled="true" IconEnd="send">Submit application</AppButton>
-            }
-        </div>
-    </form>
+                @if (_step < 5)
+                {
+                    <AppButton Type="submit" IconEnd="arrow-right">Continue</AppButton>
+                }
+                else
+                {
+                    <AppButton Type="submit" IconEnd="send" Disabled="_submitting">Submit application</AppButton>
+                }
+            </div>
+        </form>
+    }
 </div>
 
 @code {
     [SupplyParameterFromQuery(Name = "step")] public int? Step { get; set; }
-    [SupplyParameterFromQuery(Name = "patient")] public string? PatientId { get; set; }
-    [SupplyParameterFromQuery(Name = "hospital")] public string? Hospital { get; set; }
-    [SupplyParameterFromQuery(Name = "program")] public string? ProgramId { get; set; }
-    [SupplyParameterFromQuery(Name = "draft")] public string? Draft { get; set; }
+    [SupplyParameterFromQuery(Name = "draft")] public string? DraftKey { get; set; }
 
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
-    private IReadOnlyList<AssistanceApplication> _applications = [];
+    private IReadOnlyList<string> _hospitals = [];
 
-    private int CurrentStep { get; set; } = 1;
+    // The wizard's working copy of the draft.
+    private WizardDraft? _draft;
+    private Guid? _patientId;
+    private string? _hospital;
+    private string? _programId;
+    private bool _confirmed;
+
+    private int _step = 1;
+    private bool _loadingDraft;
+    private bool _draftMissing;
+    private bool _submitting;
+    private bool _manualSave;
+    private string? _resolvedKey = "";      // "" = nothing resolved yet; null = a new application
+    private string? _carriedError;          // an error to show after navigating to its step
+
     private string? Error { get; set; }
 
-    // Validation only ever sends the user back to the step whose choice is missing, so an error
-    // always belongs to the controls on screen: link them to it and mark them invalid.
+    // An error always belongs to the controls on screen: link them to it and mark them invalid.
     private string? ErrorId => Error is null ? null : "wizard-error";
     private string? Invalid => Error is null ? null : "true";
 
-    private IEnumerable<string> Hospitals => _applications.Select(a => a.HospitalName).Distinct().Order();
-    private PatientProfile? SelectedPatient => _patients.FirstOrDefault(p => p.Id.ToString() == PatientId);
-    private AssistanceProgram? SelectedProgram => _programs.FirstOrDefault(p => p.Id == ProgramId);
+    private PatientProfile? SelectedPatient => _patients.FirstOrDefault(p => p.Id == _patientId);
+    private AssistanceProgram? SelectedProgram => _programs.FirstOrDefault(p => p.Id == _programId);
+    private int Furthest => Math.Max(_draft?.FurthestStep ?? 1, _step);
 
-    private ApplicationChecklist? DraftChecklist => SelectedProgram is null ? null :
-        new ApplicationChecklist("New application", SelectedProgram.Name, SelectedPatient?.FullName ?? "the patient",
-            SelectedProgram.RequiredDocuments.Select(d => new ChecklistItem(d, DocumentStatus.Missing, true, "See the program's requirements")).ToList());
-
-    private string BackHref
+    /// <summary>The draft as it stands on screen (saved or not).</summary>
+    private WizardDraft Current
     {
         get
         {
-            var q = new List<string> { $"step={CurrentStep - 1}" };
-            if (PatientId is not null) q.Add($"patient={Uri.EscapeDataString(PatientId)}");
-            if (Hospital is not null) q.Add($"hospital={Uri.EscapeDataString(Hospital)}");
-            if (ProgramId is not null) q.Add($"program={Uri.EscapeDataString(ProgramId)}");
-            return $"{PortalNavigation.NewApplicationHref}?{string.Join('&', q)}";
+            var now = Clock.GetLocalNow();
+            return (_draft ?? new WizardDraft(Workspace.NewDraftId(), null, null, null, 1, false, now, now)) with
+            {
+                PatientId = _patientId,
+                Hospital = _hospital,
+                ProgramId = _programId,
+                Confirmed = _confirmed,
+                FurthestStep = Furthest,
+            };
         }
+    }
+
+    private ApplicationChecklist? CurrentChecklist =>
+        _programId is null ? null : Workspace.DraftChecklist(Current with { Id = _draft?.Id ?? "new" });
+
+    private string DocumentsSummary => CurrentChecklist is { } c
+        ? (c.ReadyCount == c.Items.Count ? $"All {c.Items.Count} ready" : $"{c.ReadyCount} of {c.Items.Count} ready · you can add the rest after you submit")
+        : "None listed";
+
+    private string SaveStatus => _draft is null || !Workspace.Drafts.Any(d => d.Id == _draft.Id)
+        ? "Your answers are saved as a draft when you continue."
+        : $"{(_manualSave ? "Draft saved" : "Saved automatically")} at {_draft.UpdatedAt.ToString("h:mm tt", System.Globalization.CultureInfo.GetCultureInfo("en-PH"))}";
+
+    private string StepUrl(int step) =>
+        _draft is null ? $"{PortalNavigation.NewApplicationHref}?step={step}"
+                       : $"{PortalNavigation.NewApplicationHref}?draft={Uri.EscapeDataString(_draft.Id)}&step={step}";
+
+    /// <summary>Every step reached so far links to itself, except the one on screen.</summary>
+    private string? StepLink(int index) =>
+        _draft is not null && index + 1 <= Furthest && index + 1 != _step ? StepUrl(index + 1) : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Workspace.Changed += OnWorkspaceChanged;
+        _patients = await Data.GetPatientProfilesAsync();
+        _programs = await Data.GetProgramsAsync();
+        _hospitals = await Data.GetHospitalsAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        _patients = await Data.GetPatientProfilesAsync();
-        _programs = await Data.GetProgramsAsync();
-        _applications = await Data.GetApplicationsAsync();
+        if (DraftKey != _resolvedKey) await ResolveDraftAsync();
+        if (_loadingDraft || _draftMissing) return;
 
-        // Continuing a draft: carry its choices and open the documents step.
-        if (Draft is not null && _applications.FirstOrDefault(a => a.ReferenceNumber == Draft) is { } draft)
+        _step = Math.Clamp(Step ?? _draft?.FurthestStep ?? 1, 1, 5);
+        Error = _carriedError;
+        _carriedError = null;
+
+        // A later step needs the earlier choices: send the user back with a clear reason.
+        if (FirstMissing(_step) is { } missing)
         {
-            PatientId ??= draft.PatientId.ToString();
-            Hospital ??= draft.HospitalName;
-            ProgramId ??= _programs.FirstOrDefault(p => p.Name == draft.ProgramName)?.Id;
-            Step ??= 4;
+            _step = missing.Step;
+            Error = missing.Message;
+        }
+    }
+
+    /// <summary>Load the draft named in the URL (once the browser storage is readable).</summary>
+    private async Task ResolveDraftAsync()
+    {
+        _draftMissing = false;
+        if (DraftKey is null)
+        {
+            _resolvedKey = null;
+            _draft = null;
+            (_patientId, _hospital, _programId, _confirmed) = (null, null, null, false);
+            _loadingDraft = false;
+            return;
         }
 
-        CurrentStep = Math.Clamp(Step ?? 1, 1, 5);
-        Error = null;
+        if (!Workspace.IsLoaded)
+        {
+            _loadingDraft = true;     // OnWorkspaceChanged resumes once the layout has loaded it
+            return;
+        }
 
-        // Each later step needs the earlier choices; send the user back with a clear reason.
-        if (CurrentStep > 1 && SelectedPatient is null) { CurrentStep = 1; Error = "Choose who this application is for."; }
-        else if (CurrentStep > 2 && string.IsNullOrWhiteSpace(Hospital)) { CurrentStep = 2; Error = "Choose the hospital."; }
-        else if (CurrentStep > 3 && SelectedProgram is null) { CurrentStep = 3; Error = "Choose a program."; }
+        _loadingDraft = false;
+        _resolvedKey = DraftKey;
+        var draft = Workspace.FindDraft(DraftKey);
+
+        if (draft is null)
+        {
+            // A seeded draft (for example from the dashboard): continue it as a new local draft.
+            var seeded = (await Data.GetApplicationsAsync())
+                .FirstOrDefault(a => a.ReferenceNumber == DraftKey && a.Status == ApplicationStatus.Draft);
+            if (seeded is null)
+            {
+                _draftMissing = true;
+                _draft = null;
+                return;
+            }
+            draft = new WizardDraft(seeded.ReferenceNumber, seeded.PatientId, seeded.HospitalName,
+                string.IsNullOrEmpty(seeded.ProgramId) ? null : seeded.ProgramId, 4, false,
+                seeded.CreatedAt, seeded.LastUpdated, SourceReference: seeded.ReferenceNumber);
+        }
+
+        _draft = draft;
+        (_patientId, _hospital, _programId, _confirmed) = (draft.PatientId, draft.Hospital, draft.ProgramId, draft.Confirmed);
     }
+
+    private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
+    {
+        if (!_loadingDraft) return;   // our own saves change nothing on screen
+        await OnParametersSetAsync();
+        StateHasChanged();
+    });
+
+    // ---- Validation ----
+
+    /// <summary>The first required choice missing before <paramref name="step"/>, if any.</summary>
+    private (int Step, string Message)? FirstMissing(int step) =>
+        step > 1 && SelectedPatient is null ? (1, "Choose who this application is for.")
+        : step > 2 && string.IsNullOrWhiteSpace(_hospital) ? (2, "Choose the hospital.")
+        : step > 3 && SelectedProgram is null ? (3, "Choose a program.")
+        : null;
+
+    /// <summary>The current step's own required choice, if it is missing.</summary>
+    private string? MissingHere() => _step switch
+    {
+        1 when SelectedPatient is null => "Choose who this application is for.",
+        2 when string.IsNullOrWhiteSpace(_hospital) => "Choose the hospital.",
+        3 when SelectedProgram is null => "Choose a program.",
+        5 when !_confirmed => "Confirm that the information is correct before you submit.",
+        _ => null
+    };
+
+    // ---- Choices (auto-saved once a draft exists) ----
+
+    private async Task ChoosePatientAsync(Guid id) { _patientId = id; Error = null; await AutoSaveAsync(); }
+
+    private async Task ChooseHospitalAsync(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        _hospital = string.IsNullOrWhiteSpace(value) ? null : value;
+        Error = null;
+        await AutoSaveAsync();
+    }
+
+    private async Task ChooseProgramAsync(string id) { _programId = id; Error = null; await AutoSaveAsync(); }
+
+    private async Task ToggleConfirmAsync(ChangeEventArgs e)
+    {
+        _confirmed = e.Value is true || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        Error = null;
+        await AutoSaveAsync();
+    }
+
+    private async Task AutoSaveAsync()
+    {
+        if (_draft is null) return;   // nothing saved until the first Continue or Save draft
+        _manualSave = false;
+        await PersistAsync();
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        if (_draft is null && SelectedPatient is null)
+        {
+            Error = "Choose who this application is for before saving a draft.";
+            return;
+        }
+        _manualSave = true;
+        await PersistAsync();
+        if (DraftKey != _draft!.Id)
+        {
+            _resolvedKey = _draft.Id;
+            Nav.NavigateTo(StepUrl(_step), replace: true);
+        }
+    }
+
+    /// <summary>Save the draft; <paramref name="reached"/> raises the furthest step (Continue passes the next one).</summary>
+    private async Task PersistAsync(int reached = 0) =>
+        _draft = await Workspace.SaveDraftAsync(Current with { FurthestStep = Math.Max(Furthest, reached) });
+
+    // ---- Continue and submit ----
+
+    private async Task OnSubmitAsync()
+    {
+        if (MissingHere() is string message)
+        {
+            Error = message;
+            return;
+        }
+
+        if (_step < 5)
+        {
+            var startedHere = DraftKey is null;
+            _manualSave = false;
+            await PersistAsync(reached: _step + 1);
+            _resolvedKey = _draft!.Id;
+            // The bare /new entry becomes this draft's step 1, so the browser's Back returns to it.
+            if (startedHere) Nav.NavigateTo(StepUrl(_step), replace: true);
+            Nav.NavigateTo(StepUrl(_step + 1));
+            return;
+        }
+
+        // Submit: re-check every required choice, then hand the draft to the workspace.
+        if (FirstMissing(5) is { } missing)
+        {
+            _carriedError = missing.Message;
+            Nav.NavigateTo(StepUrl(missing.Step));
+            return;
+        }
+
+        _submitting = true;
+        await PersistAsync();
+        var reference = await Workspace.SubmitAsync(_draft!);
+        Nav.NavigateTo($"{ApplicationsHref.Detail(reference)}?submitted=1");
+    }
+
+    public void Dispose() => Workspace.Changed -= OnWorkspaceChanged;
 }

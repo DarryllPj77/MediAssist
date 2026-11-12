@@ -241,6 +241,52 @@
     }
 }
 
+/*
+  Very narrow (a 320px phone): with completed steps as 44px links there is no room for the
+  current step's words, so every step is a number; the current step's name stays for screen
+  readers and the step's own heading names it on screen.
+*/
+@container stepper (max-width: 20rem) {
+    .stepper--compact .stepper__step[aria-current] {
+        flex: 0 0 auto;
+        grid-template-columns: 1.75rem;
+        min-width: var(--tap-target);
+        padding-inline-end: var(--space-1);
+    }
+
+    .stepper--compact .stepper__step[aria-current] .stepper__text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+/* ---- Linked steps (the wizard: revisit a step already reached) ---- */
+.stepper__step--linked {
+    min-width: var(--tap-target);
+    transition: filter var(--duration-out) var(--ease-out);
+}
+
+.stepper__link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+}
+
+.stepper__step--linked:hover {
+    filter: brightness(1.12);
+    transition-duration: var(--duration-in);
+}
+
+.stepper__link:focus-visible {
+    box-shadow: inset 0 0 0 3px var(--color-gold-action), inset 0 0 0 5px var(--color-navy);
+}
+
 @media (forced-colors: active) {
     .stepper__step {
         border: 1px solid CanvasText;

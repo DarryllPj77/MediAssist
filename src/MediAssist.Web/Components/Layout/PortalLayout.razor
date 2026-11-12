@@ -12,6 +12,7 @@
 @inject PortalLayoutInterop Interop
 @inject NavigationManager Nav
 @inject PageSectionState PageSection
+@inject ApplicationWorkspace Workspace
 
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
@@ -95,6 +96,7 @@
         _path = Nav.ToBaseRelativePath(Nav.Uri);
         Nav.LocationChanged += OnLocationChanged;
         PageSection.Changed += OnPageSectionChanged;
+        Workspace.Changed += OnWorkspaceChanged;
         await LoadRoleAsync(RoleNavigation.ForPath(_path));
     }
 
@@ -128,6 +130,10 @@
             }
             return;
         }
+
+        // The patient's own drafts and submissions live in their browser: read them now that
+        // the page is interactive. Pages showing applications refresh when this completes.
+        if (_set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
 
         _self = DotNetObjectReference.Create(this);
         var watch = await Interop.WatchWideViewportAsync(_self);
@@ -167,13 +173,27 @@
 
     private void OnPageSectionChanged() => _ = InvokeAsync(StateHasChanged);
 
+    // A submission adds a notification: keep the bell's count current.
+    private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_set.Role == PortalRole.Patient)
+        {
+            _unreadCount = (await Data.GetNotificationsAsync()).Count(n => !n.IsRead);
+            StateHasChanged();
+        }
+    });
+
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         _path = Nav.ToBaseRelativePath(e.Location);
         var set = RoleNavigation.ForPath(_path);
         _ = InvokeAsync(async () =>
         {
-            if (set != _set) await LoadRoleAsync(set);
+            if (set != _set)
+            {
+                await LoadRoleAsync(set);
+                if (set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
+            }
             StateHasChanged();
         });
     }
@@ -182,6 +202,7 @@
     {
         Nav.LocationChanged -= OnLocationChanged;
         PageSection.Changed -= OnPageSectionChanged;
+        Workspace.Changed -= OnWorkspaceChanged;
         if (_viewportWatchId is int id)
         {
             try { await Interop.UnwatchWideViewportAsync(id); }

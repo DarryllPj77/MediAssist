@@ -1,4 +1,5 @@
 @page "/patient/applications/{Reference}"
+@inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
 @inject TimeProvider Clock
 
@@ -51,6 +52,17 @@
                 </span>
             </p>
         </header>
+
+        @if (Submitted == 1 && app.Status == ApplicationStatus.Submitted)
+        {
+            <div class="detail__done" role="status">
+                <Icon Name="check-circle" Size="22" />
+                <p>
+                    <strong>Application submitted.</strong> Your reference is <span class="detail__done-ref">@app.ReferenceNumber</span>.
+                    @(app.DocumentsReady < app.DocumentsRequired ? "You can add the missing documents from this page." : "You will be notified when the review starts.")
+                </p>
+            </div>
+        }
 
         <div class="detail__grid">
             <div class="detail__main">
@@ -160,6 +172,8 @@
 
 @code {
     [Parameter] public string Reference { get; set; } = "";
+    /// <summary>Set by the wizard after a submission, to show the confirmation.</summary>
+    [SupplyParameterFromQuery(Name = "submitted")] public int? Submitted { get; set; }
 
     private ApplicationDetail? _detail;
     private DateTimeOffset _now;
@@ -187,7 +201,7 @@
     /// <summary>"Yesterday" reads "yesterday" mid-sentence; dates and times keep their case.</summary>
     private static string InSentence(string relative) => char.ToLowerInvariant(relative[0]) + relative[1..];
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task LoadAsync()
     {
         _now = Clock.GetLocalNow();
         _detail = await Data.GetApplicationAsync(Reference);

@@ -1,4 +1,5 @@
 @page "/patient/notifications"
+@inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
 @inject TimeProvider Clock
 
@@ -65,7 +66,7 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task LoadAsync()
     {
         _now = Clock.GetLocalNow();
         // Unread first, newest first within each group.

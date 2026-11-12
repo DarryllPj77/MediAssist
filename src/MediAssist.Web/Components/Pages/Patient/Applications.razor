@@ -1,4 +1,5 @@
 @page "/patient/applications"
+@inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
 @inject TimeProvider Clock
 
@@ -104,7 +105,7 @@
         }
     }
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task LoadAsync()
     {
         _now = Clock.GetLocalNow();
         _all = await Data.GetApplicationsAsync();

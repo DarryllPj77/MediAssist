@@ -1,4 +1,5 @@
 @page "/patient/documents"
+@inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
 
 <PageTitle>Document checklist · MediAssist</PageTitle>
@@ -47,6 +48,6 @@
 
     private IReadOnlyList<ApplicationChecklist> _checklists = [];
 
-    protected override async Task OnInitializedAsync() =>
+    protected override async Task LoadAsync() =>
         _checklists = await Data.GetDocumentChecklistsAsync();
 }
