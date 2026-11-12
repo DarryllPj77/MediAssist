@@ -1,0 +1,120 @@
+.tl {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.tl__title {
+    display: grid;
+    font-size: var(--text-lg);
+}
+
+.tl__fil {
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+    font-size: var(--text-sm);
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.tl__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* One stage: a dot on a vertical line, then its label and date. */
+.tl__step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    column-gap: var(--space-3);
+    padding-block-end: var(--space-4);
+}
+
+.tl__step:last-child {
+    padding-block-end: 0;
+}
+
+/* The line joining this dot to the next one. */
+.tl__step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    inset-block: 1.75rem 0;
+    inset-inline-start: calc(0.875rem - 1px);
+    width: 2px;
+    background: var(--step-todo);
+}
+
+.tl__step--done:not(:last-child)::before {
+    background: var(--step-done);
+}
+
+.tl__dot {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 2px var(--step-todo);
+    color: var(--color-on-navy);
+}
+
+.tl__step--done .tl__dot {
+    background: var(--step-done);
+    box-shadow: none;
+}
+
+.tl__step--current .tl__dot {
+    background: var(--step-current);
+    box-shadow: inset 0 0 0 2px var(--color-navy);
+}
+
+.tl__step--attention .tl__dot {
+    background: var(--step-attention);
+    box-shadow: none;
+}
+
+.tl__text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding-block-start: 2px;
+}
+
+.tl__label {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+}
+
+.tl__step--done .tl__label,
+.tl__step--current .tl__label {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.tl__step--attention .tl__label {
+    color: var(--color-red);
+    font-weight: var(--weight-semibold);
+}
+
+.tl__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+}
+
+.tl__stopped {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+@media (forced-colors: active) {
+    .tl__dot {
+        border: 2px solid CanvasText;
+    }
+}

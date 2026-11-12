@@ -1,0 +1,96 @@
+.history {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.history__title {
+    display: grid;
+    font-size: var(--text-lg);
+}
+
+.history__fil {
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+    font-size: var(--text-sm);
+    font-weight: 400;
+    letter-spacing: 0;
+}
+
+.history__empty {
+    color: var(--color-text-muted);
+}
+
+.history__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+}
+
+/* One entry: an icon chip, then title, who and when, and any detail. */
+.entry {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    column-gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+}
+
+.entry + .entry {
+    border-block-start: 1px solid var(--color-border);
+}
+
+.entry__icon {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-sunken);
+    color: var(--color-navy);
+}
+
+.entry--attention .entry__icon {
+    background: var(--color-red-subtle);
+    color: var(--color-red);
+}
+
+.entry__text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    padding-block-start: var(--space-1);
+}
+
+.entry__title {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.entry--attention .entry__title {
+    color: var(--color-red);
+}
+
+.entry__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+}
+
+.entry__detail {
+    margin-block-start: var(--space-1);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+/* A reviewer's own words: the gold-ruled serif note used elsewhere for guidance. */
+.entry__quote {
+    margin: var(--space-2) 0 0;
+    max-width: 60ch;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-gold);
+    color: var(--color-navy);
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+    line-height: var(--leading-snug);
+}

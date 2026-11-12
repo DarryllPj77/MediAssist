@@ -1,40 +1,27 @@
 @*
-    Stage filters for the applications ledger: counts by stage as plain links
-    (replacing the old row of statistic cards). Cancelled applications are excluded.
+    Stage filters with counts (ApplicationStageFilter groups the statuses, so the dashboard and
+    the My applications page agree). On the dashboard: the four stages. On My applications:
+    "All" first, the active filter marked, and the patient filter kept in every link.
 *@
 
-<nav class="stages" aria-label="Applications by stage">
-    <ul role="list" class="stages__list">
-        @foreach (var stage in Stages)
-        {
-            <li>
-                <a class="stage @(stage.Attention ? "stage--attention" : null)"
-                   href="@($"{PortalNavigation.Applications.Href}?stage={stage.Key}")">
-                    <span class="stage__label">@stage.Label</span>
-                    <span class="stage__count tabular">@stage.Count</span>
-                    <span class="visually-hidden">@(stage.Count == 1 ? "application" : "applications")</span>
-                </a>
-            </li>
-        }
-    </ul>
-</nav>
+<FilterChips Chips="Chips" AriaLabel="Applications by stage" />
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+    /// <summary>The filter currently shown (My applications page); null on the dashboard.</summary>
+    [Parameter] public ApplicationStageFilter? Active { get; set; }
+    /// <summary>Lead with "All" (My applications page).</summary>
+    [Parameter] public bool IncludeAll { get; set; }
+    /// <summary>The patient filter to keep in every link (My applications page).</summary>
+    [Parameter] public string? PatientKey { get; set; }
 
-    private sealed record Stage(string Key, string Label, int Count, bool Attention = false);
-
-    private IEnumerable<Stage> Stages
-    {
-        get
-        {
-            int Count(params ApplicationStatus[] statuses) => Applications.Count(a => statuses.Contains(a.Status));
-            var corrections = Count(ApplicationStatus.NeedsCorrection);
-
-            yield return new("draft", "Drafts", Count(ApplicationStatus.Draft));
-            yield return new("in-review", "Submitted or under review", Count(ApplicationStatus.Submitted, ApplicationStatus.UnderReview));
-            yield return new("needs-correction", "Needs correction", corrections, Attention: corrections > 0);
-            yield return new("finished", "Ready or completed", Count(ApplicationStatus.ReadyForProcessing, ApplicationStatus.Completed));
-        }
-    }
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+        (IncludeAll ? ApplicationStageFilter.WithAll : ApplicationStageFilter.Stages)
+            .Select(f =>
+            {
+                var count = Applications.Count(f.Matches);
+                return new FilterChips.Chip(f.Label, ApplicationsHref.For(f, PatientKey), count,
+                    Active: Active == f, Attention: f.IsAttention && count > 0);
+            })
+            .ToList();
 }

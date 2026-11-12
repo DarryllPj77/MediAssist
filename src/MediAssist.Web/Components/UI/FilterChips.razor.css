@@ -1,3 +1,4 @@
+/* Filter chip: label and optional count, outlined; hover darkens the line. */
 .stages__list {
     display: flex;
     flex-wrap: wrap;
@@ -5,7 +6,7 @@
     margin: 0;
 }
 
-/* Filter chip: label and count, outlined; hover darkens the line. */
+
 .stage {
     display: inline-flex;
     align-items: center;
@@ -52,4 +53,17 @@
 .stage--attention .stage__count {
     background: var(--color-red);
     color: var(--color-on-primary);
+}
+
+/* The filter being shown (My applications): a navy chip. */
+.stage--active,
+.stage--active:hover {
+    border-color: var(--color-navy);
+    background: var(--color-navy);
+    color: var(--color-on-navy);
+}
+
+.stage--active .stage__count {
+    background: var(--color-surface);
+    color: var(--color-navy);
 }

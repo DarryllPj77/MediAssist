@@ -1,0 +1,24 @@
+@*
+    The case ledger shared by the dashboard ("Your applications") and the My applications page:
+    column labels on wide containers, then one ApplicationRow per application.
+*@
+
+<div class="ledger__table @Class">
+    <div class="ledger__columns" aria-hidden="true">
+        <span>Application</span>
+        <span>Progress</span>
+        <span>Updated</span>
+    </div>
+    <ul role="list" class="ledger__rows">
+        @foreach (var application in Applications)
+        {
+            <ApplicationRow Application="application" Now="Now" />
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+    [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

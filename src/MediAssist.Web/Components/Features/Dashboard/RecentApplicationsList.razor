@@ -1,7 +1,6 @@
 @*
-    "Your applications": a case ledger. Stage filters above; each row shows the program,
-    patient and hospital, a five-segment step meter with its meaning in words, the next step
-    and when it last changed. The program name links the whole row.
+    "Your applications": stage filters above the shared case ledger (ApplicationTable), limited to
+    the most recently changed applications, with "View all" to the My applications page.
 *@
 
 <section class="ledger" aria-labelledby="ledger-title">
@@ -24,35 +23,7 @@
     }
     else
     {
-        <div class="ledger__table">
-            <div class="ledger__columns" aria-hidden="true">
-                <span>Application</span>
-                <span>Progress</span>
-                <span>Updated</span>
-            </div>
-            <ul role="list" class="ledger__rows">
-                @foreach (var app in Rows)
-                {
-                    <li class="case @(app.Status == ApplicationStatus.NeedsCorrection ? "case--attention" : null)">
-                        <div class="case__main">
-                            <p class="case__patient"><span class="visually-hidden">Patient: </span>@app.PatientName</p>
-                            <a class="case__title" href="@($"{PortalNavigation.Applications.Href}/{app.ReferenceNumber}")">@app.ProgramName</a>
-                            <p class="case__meta">@app.HospitalName <span class="case__ref ref">@app.ReferenceNumber</span></p>
-                        </div>
-
-                        <div class="case__progress">
-                            <StepMeter Status="app.Status" />
-                            <p class="case__next"><span class="case__next-label">Next:</span> @app.NextStep</p>
-                        </div>
-
-                        <p class="case__updated">
-                            <span class="visually-hidden">Updated </span>
-                            <time datetime="@DisplayFormat.Machine(app.LastUpdated)">@DisplayFormat.Relative(app.LastUpdated, Now)</time>
-                        </p>
-                    </li>
-                }
-            </ul>
-        </div>
+        <ApplicationTable Applications="Rows" Now="Now" />
     }
 </section>
 

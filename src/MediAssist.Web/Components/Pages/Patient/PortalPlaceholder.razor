@@ -3,8 +3,6 @@
     the page's name, one plain message and one way back sit beside the section's own image slot
     (hero-patient-<section>, falling back to hero-default; hidden on phones so the message leads).
 *@
-@page "/patient/applications"
-@page "/patient/applications/{Reference}"
 @page "/patient/patients"
 @page "/patient/hospitals"
 @page "/patient/runner"
@@ -29,13 +27,11 @@
 </div>
 
 @code {
-    [Parameter] public string? Reference { get; set; }
-
     private string Path => Nav.ToBaseRelativePath(Nav.Uri);
     private NavDestination? Destination => PortalNavigation.Resolve(Path);
 
-    private string Title => Reference is not null ? "Application details" : Destination?.Label ?? "Coming soon";
-    private string Lead => (Reference is null ? "This page" : $"The details page for {Reference}")
-        + " is planned for an upcoming milestone of the prototype. Your dashboard has everything that works today.";
+    private string Title => Destination?.Label ?? "Coming soon";
+    private const string Lead =
+        "This page is planned for an upcoming milestone of the prototype. Your dashboard has everything that works today.";
     private string ImageKey => ImageSlots.HeroKeyForPath(Path);
 }

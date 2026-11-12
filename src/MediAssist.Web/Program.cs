@@ -8,6 +8,8 @@ builder.Services.AddRazorComponents()
 
 // Prototype data: fictional records only. Replace with an EF Core implementation later.
 builder.Services.AddSingleton(TimeProvider.System);
+// One shared in-memory store, so every portal reads the same fictional story.
+builder.Services.AddSingleton<MockPortalStore>();
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
 builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
 builder.Services.AddScoped<PortalLayoutInterop>();

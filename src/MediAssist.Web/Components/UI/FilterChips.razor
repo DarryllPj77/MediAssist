@@ -1,0 +1,33 @@
+@*
+    A row of filter chips as plain links (they work before the live connection, survive the back
+    button and can be shared). The chip being shown is navy and carries aria-current="page";
+    an attention chip (something waits on the user) is red.
+*@
+
+<nav class="stages @Class" aria-label="@AriaLabel">
+    <ul role="list" class="stages__list">
+        @foreach (var chip in Chips)
+        {
+            <li>
+                <a class="stage @(chip.Attention ? "stage--attention" : null) @(chip.Active ? "stage--active" : null)"
+                   href="@chip.Href"
+                   aria-current="@(chip.Active ? "page" : null)">
+                    <span class="stage__label">@chip.Label</span>
+                    @if (chip.Count is int count)
+                    {
+                        <span class="stage__count tabular">@count</span>
+                        <span class="visually-hidden">@(count == 1 ? "application" : "applications")</span>
+                    }
+                </a>
+            </li>
+        }
+    </ul>
+</nav>
+
+@code {
+    public sealed record Chip(string Label, string Href, int? Count = null, bool Active = false, bool Attention = false);
+
+    [Parameter, EditorRequired] public IReadOnlyList<Chip> Chips { get; set; } = [];
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = "";
+    [Parameter] public string? Class { get; set; }
+}

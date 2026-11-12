@@ -25,6 +25,12 @@ public static class DisplayFormat
 
     public static string ShortDate(DateTimeOffset when) => when.ToString("d MMM", Culture);
 
+    /// <summary>"12 Nov 2026": a full calendar date (timelines, application details).</summary>
+    public static string Date(DateTimeOffset when) => when.ToString("d MMM yyyy", Culture);
+
+    /// <summary>"12 Nov 2026, 9:00 AM": an exact moment (activity history).</summary>
+    public static string DateTime(DateTimeOffset when) => when.ToString("d MMM yyyy, h:mm tt", Culture);
+
     public static string Greeting(DateTimeOffset now) => now.Hour switch
     {
         < 12 => "Good morning",

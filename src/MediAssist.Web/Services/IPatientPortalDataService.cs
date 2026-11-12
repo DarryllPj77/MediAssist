@@ -14,5 +14,12 @@ public interface IPatientPortalDataService
     Task<IReadOnlyList<ActionItem>> GetActionItemsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Checklists of the household's applications that still need documents.</summary>
     Task<IReadOnlyList<ApplicationChecklist>> GetDocumentChecklistsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>One of the household's applications with its program, checklist, history and runner errands; null if not found.</summary>
+    Task<ApplicationDetail?> GetApplicationAsync(string reference, CancellationToken cancellationToken = default);
+
+    /// <summary>An application's activity history, oldest first (empty if not the household's).</summary>
+    Task<IReadOnlyList<ApplicationEvent>> GetApplicationHistoryAsync(string reference, CancellationToken cancellationToken = default);
 }

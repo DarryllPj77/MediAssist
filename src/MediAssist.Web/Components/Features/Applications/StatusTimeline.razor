@@ -1,0 +1,95 @@
+@*
+    Status timeline: the five application stages (StepperSteps, the same names as every stepper)
+    as a vertical list joined by a line, each with the date it was reached from the history.
+    The current stage carries aria-current="step"; a stage needing correction is red. A cancelled
+    application shows the stages it reached and the date it stopped.
+*@
+
+<section class="tl" aria-labelledby="@HeadingId">
+    <h2 id="@HeadingId" class="tl__title">
+        Status timeline
+        <span class="visually-hidden">. </span><span class="tl__fil" lang="fil">Mga yugto</span>
+    </h2>
+
+    <ol class="tl__list">
+        @for (var i = 0; i < Steps.Count; i++)
+        {
+            var step = Steps[i];
+            var reached = ReachedAt(i);
+            var isCurrent = step.State is StepState.Current or StepState.Attention;
+            <li class="tl__step tl__step--@StateClass(step, reached)" aria-current="@(isCurrent ? "step" : null)">
+                <span class="tl__dot" aria-hidden="true">
+                    @if (step.State == StepState.Done || (Cancelled && reached is not null))
+                    {
+                        <Icon Name="check" Size="14" />
+                    }
+                    else if (step.State == StepState.Attention)
+                    {
+                        <Icon Name="alert-triangle" Size="14" />
+                    }
+                </span>
+                <div class="tl__text">
+                    <p class="tl__label">
+                        @step.Label
+                        <span class="visually-hidden">, @StateText(step, reached)</span>
+                    </p>
+                    <p class="tl__meta">
+                        <span lang="fil">@step.LabelFilipino</span>
+                        @if (reached is DateTimeOffset at)
+                        {
+                            <span aria-hidden="true"> · </span><time datetime="@DisplayFormat.Machine(at)">@DisplayFormat.Date(at)</time>
+                        }
+                    </p>
+                </div>
+            </li>
+        }
+    </ol>
+
+    @if (Cancelled && Detail.ReachedAt(ApplicationStatus.Cancelled) is DateTimeOffset stopped)
+    {
+        <p class="tl__stopped">
+            <Icon Name="x-circle" Size="16" />
+            Cancelled on <time datetime="@DisplayFormat.Machine(stopped)">@DisplayFormat.Date(stopped)</time>
+        </p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ApplicationDetail Detail { get; set; } = default!;
+    [Parameter] public string HeadingId { get; set; } = "timeline-title";
+
+    private bool Cancelled => Detail.Application.Status == ApplicationStatus.Cancelled;
+    private IReadOnlyList<StepperStep> Steps => StepperSteps.ForApplication(Detail.Application.Status);
+
+    // Which statuses mark each stage as reached (stage 3 is review, including a correction round).
+    private static readonly ApplicationStatus[][] StageStatuses =
+    [
+        [ApplicationStatus.Draft],
+        [ApplicationStatus.Submitted],
+        [ApplicationStatus.UnderReview, ApplicationStatus.NeedsCorrection],
+        [ApplicationStatus.ReadyForProcessing],
+        [ApplicationStatus.Completed],
+    ];
+
+    /// <summary>The date a stage was reached; for the correction stage, when the correction was asked.</summary>
+    private DateTimeOffset? ReachedAt(int stage)
+    {
+        if (stage == 2 && Detail.Application.Status == ApplicationStatus.NeedsCorrection)
+            return Detail.ReachedAt(ApplicationStatus.NeedsCorrection);
+        return StageStatuses[stage].Select(Detail.ReachedAt).Where(d => d is not null).Min();
+    }
+
+    private string StateClass(StepperStep step, DateTimeOffset? reached) =>
+        Cancelled ? (reached is null ? "upcoming" : "done") : step.State.ToString().ToLowerInvariant();
+
+    private string StateText(StepperStep step, DateTimeOffset? reached) =>
+        Cancelled
+            ? (reached is null ? "not reached" : "done")
+            : step.State switch
+            {
+                StepState.Done => "done",
+                StepState.Current => "current stage",
+                StepState.Attention => "action needed",
+                _ => "not yet"
+            };
+}

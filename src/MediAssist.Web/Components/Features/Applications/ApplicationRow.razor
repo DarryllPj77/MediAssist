@@ -1,0 +1,28 @@
+@*
+    One application in the ledger: patient, program (the link covers the whole row), hospital and
+    reference; a five-segment step meter with its meaning in words and the next step; when it last
+    changed. A red leading edge marks a case waiting on the applicant.
+*@
+
+<li class="case @(Application.Status == ApplicationStatus.NeedsCorrection ? "case--attention" : null)">
+    <div class="case__main">
+        <p class="case__patient"><span class="visually-hidden">Patient: </span>@Application.PatientName</p>
+        <a class="case__title" href="@ApplicationsHref.Detail(Application.ReferenceNumber)">@Application.ProgramName</a>
+        <p class="case__meta">@Application.HospitalName <span class="case__ref ref">@Application.ReferenceNumber</span></p>
+    </div>
+
+    <div class="case__progress">
+        <StepMeter Status="Application.Status" />
+        <p class="case__next"><span class="case__next-label">Next:</span> @Application.NextStep</p>
+    </div>
+
+    <p class="case__updated">
+        <span class="visually-hidden">Updated </span>
+        <time datetime="@DisplayFormat.Machine(Application.LastUpdated)">@DisplayFormat.Relative(Application.LastUpdated, Now)</time>
+    </p>
+</li>
+
+@code {
+    [Parameter, EditorRequired] public AssistanceApplication Application { get; set; } = default!;
+    [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+}

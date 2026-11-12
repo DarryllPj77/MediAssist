@@ -1,0 +1,18 @@
+.apps {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.apps__filters {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.apps__count {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.apps__count strong {
+    color: var(--color-navy);
+}

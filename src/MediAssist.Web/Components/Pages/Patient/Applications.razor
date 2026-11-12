@@ -1,0 +1,130 @@
+@page "/patient/applications"
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+@*
+    My applications: every application started for the household. Two rows of filter links
+    (stage, then patient) narrow the shared case ledger; each row's counts follow the other
+    filter. Applications waiting on the user come first, then the most recently changed.
+*@
+
+<PageTitle>My applications · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="applications-title" ImageKey="hero-patient-applications" Compact="true"
+               Title="My applications"
+               TitleFilipino="Ang aking mga aplikasyon"
+               Lead="Every application you have started for your household. The ones waiting on you come first."
+               LeadFilipino="Pindutin ang isang aplikasyon para makita ang mga hakbang at kasaysayan nito.">
+        <Eyebrow>Overview</Eyebrow>
+        <Actions>
+            <AppButton Href="@PortalNavigation.NewApplicationHref" IconStart="plus">Start a new application</AppButton>
+        </Actions>
+    </SplitHero>
+
+    @if (_all.Count == 0)
+    {
+        <Panel>
+            <EmptyState IconName="file-text" Title="No applications yet"
+                        Message="Start an application and you can follow every step of it here." />
+        </Panel>
+    }
+    else
+    {
+        <section class="apps" aria-labelledby="apps-results-title">
+            <h2 id="apps-results-title" class="visually-hidden">Applications</h2>
+
+            <div class="apps__filters">
+                <ApplicationSummaryStrip Applications="ForPatient" Active="_stage" IncludeAll="true" PatientKey="_patientKey" />
+                <FilterChips Chips="PatientChips" AriaLabel="Applications by patient" Class="apps__patients" />
+            </div>
+
+            <p class="apps__count" role="status">
+                Showing <strong>@_rows.Count</strong> of @_all.Count @(_all.Count == 1 ? "application" : "applications")@FilterPhrase
+            </p>
+
+            @if (_rows.Count == 0)
+            {
+                <Panel>
+                    <EmptyState IconName="search" Title="No applications match"
+                                Message="@($"Nothing is in “{_stage.Label}”{(SelectedPatient is null ? "" : $" for {SelectedPatient.FullName}")} right now.")">
+                        <Action>
+                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Applications.Href">
+                                Show all applications
+                            </AppButton>
+                        </Action>
+                    </EmptyState>
+                </Panel>
+            }
+            else
+            {
+                <ApplicationTable Applications="_rows" Now="_now" />
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "stage")] public string? StageKey { get; set; }
+    [SupplyParameterFromQuery(Name = "patient")] public string? PatientQuery { get; set; }
+
+    private IReadOnlyList<AssistanceApplication> _all = [];
+    private IReadOnlyList<PatientProfile> _patients = [];
+    private IReadOnlyList<AssistanceApplication> _rows = [];
+    private ApplicationStageFilter _stage = ApplicationStageFilter.All;
+    private string? _patientKey;
+    private DateTimeOffset _now;
+
+    private PatientProfile? SelectedPatient =>
+        _patientKey is null ? null : _patients.FirstOrDefault(p => ApplicationsHref.PatientKey(p) == _patientKey);
+
+    /// <summary>The household's applications for the chosen patient (all patients when none).</summary>
+    private IReadOnlyList<AssistanceApplication> ForPatient =>
+        SelectedPatient is { } patient ? _all.Where(a => a.PatientId == patient.Id).ToList() : _all;
+
+    private string FilterPhrase =>
+        (_stage == ApplicationStageFilter.All ? "" : $" · {_stage.Label}")
+        + (SelectedPatient is null ? "" : $" · {SelectedPatient.FullName}");
+
+    private IReadOnlyList<FilterChips.Chip> PatientChips
+    {
+        get
+        {
+            var inStage = _all.Where(_stage.Matches).ToList();
+            var chips = new List<FilterChips.Chip>
+            {
+                new("Everyone", ApplicationsHref.For(_stage), inStage.Count, Active: SelectedPatient is null)
+            };
+            chips.AddRange(_patients.Select(p => new FilterChips.Chip(
+                p.Authorization == AuthorizationStatus.Self ? $"{p.FullName} (you)" : p.FullName,
+                ApplicationsHref.For(_stage, ApplicationsHref.PatientKey(p)),
+                inStage.Count(a => a.PatientId == p.Id),
+                Active: SelectedPatient?.Id == p.Id)));
+            return chips;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _all = await Data.GetApplicationsAsync();
+        _patients = await Data.GetPatientProfilesAsync();
+
+        _stage = ApplicationStageFilter.FromKey(StageKey);
+        _patientKey = string.IsNullOrWhiteSpace(PatientQuery) ? null : PatientQuery.Trim().ToLowerInvariant();
+        if (SelectedPatient is null) _patientKey = null;   // unknown patient: show everyone
+
+        // Waiting on the user first (needs correction, then drafts), then the most recently changed.
+        _rows = ForPatient
+            .Where(_stage.Matches)
+            .OrderBy(a => a.Status switch
+            {
+                ApplicationStatus.NeedsCorrection => 0,
+                ApplicationStatus.Draft => 1,
+                ApplicationStatus.Cancelled => 3,
+                _ => 2
+            })
+            .ThenByDescending(a => a.LastUpdated)
+            .ToList();
+    }
+}

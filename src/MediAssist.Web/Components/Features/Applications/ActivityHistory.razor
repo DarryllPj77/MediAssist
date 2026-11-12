@@ -1,0 +1,64 @@
+@*
+    Activity history: everything that happened to an application, newest first. Each entry has
+    an icon for its kind, a title, who did it and when; a reviewer's words are quoted.
+*@
+
+<section class="history" aria-labelledby="@HeadingId">
+    <h2 id="@HeadingId" class="history__title">
+        Activity history
+        <span class="visually-hidden">. </span><span class="history__fil" lang="fil">Kasaysayan</span>
+    </h2>
+
+    @if (Events.Count == 0)
+    {
+        <p class="history__empty">Nothing has happened to this application yet.</p>
+    }
+    else
+    {
+        <ol class="history__list" reversed>
+            @foreach (var e in Events.OrderByDescending(e => e.At))
+            {
+                <li class="entry @(e.Kind == ApplicationEventKind.CorrectionRequested ? "entry--attention" : null)">
+                    <span class="entry__icon" aria-hidden="true"><Icon Name="@IconFor(e.Kind)" Size="18" /></span>
+                    <div class="entry__text">
+                        <p class="entry__title">@e.Title</p>
+                        <p class="entry__meta">
+                            @e.Actor<span aria-hidden="true"> · </span><span class="visually-hidden">, </span><time datetime="@DisplayFormat.Machine(e.At)">@DisplayFormat.DateTime(e.At)</time>
+                        </p>
+                        @if (e.Detail is not null)
+                        {
+                            @if (e.Actor == "Reviewer")
+                            {
+                                <blockquote class="entry__quote">@e.Detail</blockquote>
+                            }
+                            else
+                            {
+                                <p class="entry__detail">@e.Detail</p>
+                            }
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ApplicationEvent> Events { get; set; } = [];
+    [Parameter] public string HeadingId { get; set; } = "history-title";
+
+    private static string IconFor(ApplicationEventKind kind) => kind switch
+    {
+        ApplicationEventKind.Created => "pencil",
+        ApplicationEventKind.Submitted => "send",
+        ApplicationEventKind.ReviewStarted => "search",
+        ApplicationEventKind.DocumentUploaded => "upload",
+        ApplicationEventKind.CorrectionRequested => "alert-triangle",
+        ApplicationEventKind.ReviewerNote => "info",
+        ApplicationEventKind.ReadyForProcessing => "list-checks",
+        ApplicationEventKind.RunnerRequested => "route",
+        ApplicationEventKind.Completed => "check-circle",
+        ApplicationEventKind.Cancelled => "x-circle",
+        _ => "circle"
+    };
+}

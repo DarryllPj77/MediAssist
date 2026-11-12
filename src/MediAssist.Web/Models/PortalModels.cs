@@ -62,7 +62,9 @@ public sealed record AssistanceApplication(
     int DocumentsReady,
     int DocumentsRequired,
     DateTimeOffset LastUpdated,
-    string NextStep);
+    string NextStep,
+    string ProgramId,
+    DateTimeOffset CreatedAt);
 
 /// <summary>Something the account holder must do to keep an application moving.</summary>
 public sealed record ActionItem(

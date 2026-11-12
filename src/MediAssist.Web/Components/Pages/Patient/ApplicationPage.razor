@@ -1,0 +1,195 @@
+@page "/patient/applications/{Reference}"
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+@*
+    One application: a plain page head (a task page, so no hero image), then
+    main column: what happens next (the view's one filled button), documents, activity history;
+    side column (from 75em): application details, status timeline, runner help.
+    Each fact appears once: the program in the head, the patient and hospital in the details.
+*@
+
+<PageTitle>@(_detail is null ? "Application not found" : $"{_detail.Application.ProgramName} · {_detail.Application.ReferenceNumber}") · MediAssist</PageTitle>
+
+<div class="page page--wide detail">
+    <div class="detail__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Applications.Href" IconStart="chevron-left">
+            My applications
+        </AppButton>
+    </div>
+
+    @if (_detail is null)
+    {
+        <header class="page__head">
+            <h1 class="page__title serif" tabindex="-1">Application not found</h1>
+        </header>
+        <Panel>
+            <EmptyState IconName="search" Title="We couldn’t find that application"
+                        Message="@($"There is no application “{Reference}” for your household. Check the reference, or open it from your list.")">
+                <Action>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Applications.Href">
+                        See my applications
+                    </AppButton>
+                </Action>
+            </EmptyState>
+        </Panel>
+    }
+    else
+    {
+        var app = _detail.Application;
+        <header class="page__head detail__head">
+            <p class="eyebrow">Application <span class="tabular">@app.ReferenceNumber</span></p>
+            <h1 class="page__title serif" tabindex="-1">@app.ProgramName</h1>
+            @if (_detail.Program is { } program)
+            {
+                <p class="fil page__fil" lang="fil">@program.NameFilipino</p>
+            }
+            <p class="detail__status">
+                <StatusBadge Status="app.Status" />
+                <span class="detail__updated">
+                    Updated <time datetime="@DisplayFormat.Machine(app.LastUpdated)">@InSentence(DisplayFormat.Relative(app.LastUpdated, _now))</time>
+                </span>
+            </p>
+        </header>
+
+        <div class="detail__grid">
+            <div class="detail__main">
+                <section class="next @(app.Status == ApplicationStatus.NeedsCorrection ? "next--attention" : null)" aria-labelledby="next-title">
+                    <h2 id="next-title" class="next__title">
+                        What happens next
+                        <span class="visually-hidden">. </span><span class="next__fil" lang="fil">Susunod na hakbang</span>
+                    </h2>
+                    <p class="next__step">@app.NextStep.</p>
+                    @if (ApplicationStatusDisplay.Reassurance(app.Status) is string note)
+                    {
+                        <p class="next__note serif">@note</p>
+                    }
+                    @if (NextAction is var (label, href, icon))
+                    {
+                        <div class="next__action">
+                            <AppButton Href="@href" IconEnd="@icon" BlockOnMobile="true">@label</AppButton>
+                        </div>
+                    }
+                </section>
+
+                @if (_detail.Checklist is { } checklist)
+                {
+                    <DocumentChecklist Checklist="checklist" HeadingLevel="2" ShowContext="false"
+                                       ShowActions="@(app.Status is ApplicationStatus.Draft or ApplicationStatus.Submitted or ApplicationStatus.UnderReview or ApplicationStatus.NeedsCorrection)" />
+                }
+
+                <ActivityHistory Events="_detail.History" />
+            </div>
+
+            <aside class="detail__aside" aria-label="About this application">
+                <section class="facts" aria-labelledby="facts-title">
+                    <h2 id="facts-title" class="facts__title">Application details</h2>
+                    <dl class="facts__list">
+                        <div>
+                            <dt>Patient</dt>
+                            <dd>@app.PatientName@(_detail.Patient is { } p ? $" · {p.Relationship}" : "")</dd>
+                        </div>
+                        <div>
+                            <dt>Hospital</dt>
+                            <dd>@app.HospitalName</dd>
+                        </div>
+                        @if (_detail.Program is { } prog)
+                        {
+                            <div>
+                                <dt>Program</dt>
+                                <dd>
+                                    Run by @prog.RunBy.ToLowerInvariant().
+                                    <a class="facts__link" href="@($"{PortalNavigation.Programs.Href}?program={prog.Id}")">See what it covers<span class="visually-hidden"> for @prog.Name</span></a>
+                                </dd>
+                            </div>
+                        }
+                        <div>
+                            <dt>Started</dt>
+                            <dd><time datetime="@DisplayFormat.Machine(app.CreatedAt)">@DisplayFormat.Date(app.CreatedAt)</time></dd>
+                        </div>
+                        <div>
+                            <dt>Submitted</dt>
+                            <dd>
+                                @if (_detail.ReachedAt(ApplicationStatus.Submitted) is DateTimeOffset submitted)
+                                {
+                                    <time datetime="@DisplayFormat.Machine(submitted)">@DisplayFormat.Date(submitted)</time>
+                                }
+                                else
+                                {
+                                    <span class="facts__none">Not yet</span>
+                                }
+                            </dd>
+                        </div>
+                    </dl>
+                </section>
+
+                <StatusTimeline Detail="_detail" />
+
+                @if (_detail.RunnerRequests.Count > 0)
+                {
+                    <section class="errands" aria-labelledby="errands-title">
+                        <h2 id="errands-title" class="errands__title">
+                            Runner help
+                            <span class="visually-hidden">. </span><span class="errands__fil" lang="fil">Tulong ng runner</span>
+                        </h2>
+                        <ul role="list" class="errands__list">
+                            @foreach (var r in _detail.RunnerRequests)
+                            {
+                                <li class="errand">
+                                    <p class="errand__name">@r.Errand</p>
+                                    <p class="errand__meta">
+                                        @r.Place<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>by
+                                        <time datetime="@DisplayFormat.Machine(r.NeededBy)">@DisplayFormat.Relative(r.NeededBy, _now)</time>
+                                    </p>
+                                    <p class="errand__status @(r.Status == RunnerTaskStatus.Declined ? "errand__status--attention" : null)">
+                                        @RunnerTaskStatusDisplay.Label(r.Status)
+                                    </p>
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+                else if (app.Status is not (ApplicationStatus.Completed or ApplicationStatus.Cancelled))
+                {
+                    <RunnerHelp />
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Reference { get; set; } = "";
+
+    private ApplicationDetail? _detail;
+    private DateTimeOffset _now;
+
+    /// <summary>The one thing the user can do next, if anything: (label, link, icon).</summary>
+    private (string Label, string Href, string Icon)? NextAction
+    {
+        get
+        {
+            if (_detail is null) return null;
+            var app = _detail.Application;
+            return app.Status switch
+            {
+                ApplicationStatus.NeedsCorrection when _detail.Checklist?.Items.FirstOrDefault(i => i.Status == DocumentStatus.NeedsCorrection) is { } item =>
+                    ("Upload corrected document",
+                     $"/patient/documents?upload={Uri.EscapeDataString(item.Name)}&application={app.ReferenceNumber}",
+                     "upload"),
+                ApplicationStatus.Draft =>
+                    ("Continue application", $"{PortalNavigation.NewApplicationHref}?draft={app.ReferenceNumber}", "arrow-right"),
+                _ => null
+            };
+        }
+    }
+
+    /// <summary>"Yesterday" reads "yesterday" mid-sentence; dates and times keep their case.</summary>
+    private static string InSentence(string relative) => char.ToLowerInvariant(relative[0]) + relative[1..];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _detail = await Data.GetApplicationAsync(Reference);
+    }
+}
