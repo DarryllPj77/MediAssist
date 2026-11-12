@@ -134,3 +134,29 @@
         gap: var(--space-6);
     }
 }
+
+/* ---- Compact (dashboard): photograph a third wide, text vertically centred beside it ---- */
+.featured--compact .featured__main {
+    gap: var(--space-4);
+}
+
+/* Stacked: the photograph is a 16:9 band above the text (cropped from the same slot). */
+.featured--compact ::deep .slot {
+    aspect-ratio: 16 / 9;
+}
+
+.featured--compact .featured__text > div {
+    margin-block-start: var(--space-2);
+}
+
+@container featured (min-width: 40rem) {
+    .featured--compact ::deep .slot {
+        aspect-ratio: var(--slot-ratio);
+    }
+
+    .featured--compact .featured__main {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        align-items: center;
+        gap: var(--space-5);
+    }
+}

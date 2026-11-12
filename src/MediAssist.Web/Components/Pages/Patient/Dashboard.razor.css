@@ -20,16 +20,50 @@
     gap: var(--space-7);
 }
 
+/*
+  ---- Hero: a moderately shorter split than the default ----
+  Wide: text and image at 7:5 with less padding, no fixed minimum height.
+  Stacked (phones, tablets): the same image slot cropped to 16:9 (object-fit and the slot's focal point keep the subject).
+*/
+.dashboard__hero ::deep .split {
+    padding-block: var(--space-2) var(--space-4);
+}
+
+.dashboard__hero ::deep .split__grid {
+    gap: var(--space-5);
+}
+
+@media (min-width: 60em) {
+    .dashboard__hero ::deep .split__grid {
+        grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+        gap: var(--space-8);
+        min-height: 0;
+    }
+}
+
+/* Whenever the hero stacks (its own container is narrow), the image is a 16:9 band. */
+@container split (max-width: 39.99rem) {
+    .dashboard__hero ::deep .slot {
+        aspect-ratio: 16 / 9;
+    }
+}
+
 /* ---- Current application ---- */
 .current {
     display: grid;
     gap: var(--space-5);
 }
 
-.current__docs-title {
-    margin-block-start: var(--space-3);
-    font-size: var(--text-lg);
+/* How the process continues after a correction: the same gold-ruled note as the action slips. */
+.current__note {
+    max-width: 52ch;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-gold);
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
 }
+
 
 /* ---- Programs ---- */
 .programs {

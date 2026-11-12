@@ -1,7 +1,7 @@
 @*
-    Patient pages planned for later milestones. Composition from the reference: a split hero with
-    the section's own image slot (hero-patient-<section>, falling back to hero-default), then the
-    centred notice card with its illustration slot and one way back.
+    Patient pages planned for later milestones: one compact split hero says it once. The status,
+    the page's name, one plain message and one way back sit beside the section's own image slot
+    (hero-patient-<section>, falling back to hero-default; hidden on phones so the message leads).
 *@
 @page "/patient/applications"
 @page "/patient/applications/{Reference}"
@@ -14,17 +14,18 @@
 <PageTitle>@Title · MediAssist</PageTitle>
 
 <div class="page page--wide">
-    <SplitHero TitleId="section-title" ImageKey="@ImageKey"
+    <SplitHero TitleId="section-title" ImageKey="@ImageKey" Compact="true"
                Title="@Title"
-               Lead="@(Reference is null ? "This part of the patient portal is being prepared." : $"Details for application {Reference} are being prepared.")">
-        <Eyebrow>Patient portal</Eyebrow>
+               TitleFilipino="Kasalukuyang inaayos ang pahina"
+               Lead="@Lead"
+               LeadFilipino="Salamat sa inyong pag-unawa.">
+        <Eyebrow>Coming in a later milestone</Eyebrow>
+        <Actions>
+            <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Dashboard.Href" IconStart="home">
+                Back to dashboard
+            </AppButton>
+        </Actions>
     </SplitHero>
-
-    <NoticeCard Title="This page is on its way"
-                TitleFilipino="Kasalukuyang inaayos ang pahina"
-                Message="It is planned for an upcoming milestone of the prototype. Your dashboard has everything that works today."
-                MessageFilipino="Salamat sa inyong pag-unawa."
-                ActionHref="@PortalNavigation.Dashboard.Href" />
 </div>
 
 @code {
@@ -34,5 +35,7 @@
     private NavDestination? Destination => PortalNavigation.Resolve(Path);
 
     private string Title => Reference is not null ? "Application details" : Destination?.Label ?? "Coming soon";
+    private string Lead => (Reference is null ? "This page" : $"The details page for {Reference}")
+        + " is planned for an upcoming milestone of the prototype. Your dashboard has everything that works today.";
     private string ImageKey => ImageSlots.HeroKeyForPath(Path);
 }

@@ -32,7 +32,7 @@
             var corrections = Count(ApplicationStatus.NeedsCorrection);
 
             yield return new("draft", "Drafts", Count(ApplicationStatus.Draft));
-            yield return new("in-review", "In review", Count(ApplicationStatus.Submitted, ApplicationStatus.UnderReview));
+            yield return new("in-review", "Submitted or under review", Count(ApplicationStatus.Submitted, ApplicationStatus.UnderReview));
             yield return new("needs-correction", "Needs correction", corrections, Attention: corrections > 0);
             yield return new("finished", "Ready or completed", Count(ApplicationStatus.ReadyForProcessing, ApplicationStatus.Completed));
         }

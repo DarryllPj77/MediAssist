@@ -13,9 +13,10 @@ else
 {
     @*
         Reading order (every width): split hero → current application (stepper + checklist) →
-        needs your action → featured program → latest notices → your applications →
-        household, runner help, how it works.
-        From 75em the last three sit in an aside beside the main column.
+        also needs your action (shown only when another application waits) → your applications →
+        latest notifications → featured program → household, runner help.
+        From 75em the last two sit in an aside beside the main column.
+        "How MediAssist works" lives at the bottom of the Programs page.
     *@
     <div class="dashboard">
         <div class="dashboard__hero">
@@ -44,8 +45,8 @@ else
                                        PrimaryFilipino="Mag-umpisa ng aplikasyon"
                                        PrimaryIcon="plus"
                                        SecondaryHref="@PortalNavigation.Applications.Href"
-                                       SecondaryLabel="Track my papers"
-                                       SecondaryFilipino="I-track ang aking papeles" />
+                                       SecondaryLabel="View my applications"
+                                       SecondaryFilipino="Tingnan ang aking mga aplikasyon" />
                     }
                 </Actions>
             </SplitHero>
@@ -60,19 +61,29 @@ else
                                    Filipino="Dadaanang hakbang"
                                    Description="@($"{_focus.ProgramName} for {_focus.PatientName}. {_focus.NextStep}.")" />
                     <ChevronStepper Steps="StepperSteps.ForApplication(_focus.Status)"
-                                    AriaLabel="@($"Progress of application {_focus.ReferenceNumber}")" />
+                                    AriaLabel="@($"Progress of application {_focus.ReferenceNumber}")" Compact="true" />
+                    @if (ActionRequiredList.Reassurance(_focus.Status) is string note)
+                    {
+                        <p class="current__note serif">@note</p>
+                    }
                     @if (_focusChecklist is not null)
                     {
-                        <h3 class="current__docs-title">
-                            Documents for this application
-                            <span class="visually-hidden">. </span><span class="fil" lang="fil">Ihanda ang mga papeles</span>
-                        </h3>
-                        <DocumentChecklist Checklist="_focusChecklist" />
+                        <DocumentChecklist Checklist="_focusChecklist" NeedsActionOnly="true"
+                                           FullListHref="@($"{PortalNavigation.Applications.Href}/{_focus.ReferenceNumber}")" />
                     }
                 </section>
             }
 
-            <ActionRequiredList Items="_actions" Applications="_applications" />
+            @if (_otherActions.Count > 0)
+            {
+                <ActionRequiredList Items="_otherActions" Applications="_applications"
+                                    Title="@(_focus is null ? "Needs your action" : "Also needs your action")"
+                                    Filipino="@(_focus is null ? "Kailangan ng iyong aksyon" : "Kailangan din ng iyong aksyon")" />
+            }
+
+            <RecentApplicationsList Applications="_applications" Now="_now" MaxRows="3" />
+
+            <LatestNotices Notifications="_notifications" Now="_now" />
 
             <section class="programs" aria-labelledby="programs-title">
                 <SectionHeader Id="programs-title"
@@ -87,19 +98,14 @@ else
                 </SectionHeader>
                 @if (_programs.Count > 0)
                 {
-                    <FeaturedProgram Featured="FeaturedProgramItem" Others="_programs.Where(p => p != FeaturedProgramItem).ToList()" />
+                    <FeaturedProgram Featured="FeaturedProgramItem" Compact="true" />
                 }
             </section>
-
-            <LatestNotices Notifications="_notifications" Now="_now" />
-
-            <RecentApplicationsList Applications="_applications" Now="_now" />
         </div>
 
         <div class="dashboard__aside">
             <PatientProfilesPanel Patients="_patients" />
             <RunnerHelp />
-            <HowItWorks />
         </div>
     </div>
 }
@@ -108,6 +114,7 @@ else
     private PortalUser? _user;
     private IReadOnlyList<AssistanceApplication> _applications = [];
     private IReadOnlyList<ActionItem> _actions = [];
+    private IReadOnlyList<ActionItem> _otherActions = [];
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
     private IReadOnlyList<PortalNotification> _notifications = [];
@@ -151,6 +158,8 @@ else
                  ?? _applications.Where(a => a.Status is not (ApplicationStatus.Completed or ApplicationStatus.Cancelled))
                                  .OrderByDescending(a => a.LastUpdated)
                                  .FirstOrDefault();
+        // The focus application already leads the page; the action list shows only the rest.
+        _otherActions = _actions.Where(a => a.ApplicationReference != _focus?.ReferenceNumber).ToList();
         _focusChecklist = checklists.FirstOrDefault(c => c.ApplicationReference == _focus?.ReferenceNumber);
 
         _user = await Data.GetCurrentUserAsync();

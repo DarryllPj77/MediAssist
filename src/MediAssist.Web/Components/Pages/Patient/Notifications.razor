@@ -2,11 +2,11 @@
 @inject IPatientPortalDataService Data
 @inject TimeProvider Clock
 
-<PageTitle>Notices · MediAssist</PageTitle>
+<PageTitle>Notifications · MediAssist</PageTitle>
 
 <div class="page page--wide">
     <SplitHero TitleId="notices-title" ImageKey="hero-notifications"
-               Title="Notices for your family"
+               Title="Notifications for your family"
                TitleFilipino="Mga abiso para sa inyong pamilya"
                Lead="@LeadText"
                LeadFilipino="Narito ang pinakabagong balita tungkol sa inyong mga aplikasyon.">
@@ -16,14 +16,14 @@
     @if (_items.Count == 0)
     {
         <Panel>
-            <EmptyState IconName="bell" Title="No notices yet"
+            <EmptyState IconName="bell" Title="No notifications yet"
                         Message="When an application changes, you will see it here." />
         </Panel>
     }
     else
     {
         <section aria-labelledby="notice-list-title" class="notices">
-            <h2 id="notice-list-title" class="notices__title">All notices</h2>
+            <h2 id="notice-list-title" class="notices__title">All notifications</h2>
             <ol role="list" class="notices__list">
                 @foreach (var n in _items)
                 {
@@ -59,8 +59,8 @@
             return unread switch
             {
                 0 => "You are up to date.",
-                1 => "1 notice you haven't read yet.",
-                _ => $"{unread} notices you haven't read yet."
+                1 => "1 notification you haven't read yet.",
+                _ => $"{unread} notifications you haven't read yet."
             };
         }
     }

@@ -7,8 +7,8 @@
 
 <section class="actions" aria-labelledby="actions-title">
     <SectionHeader Id="actions-title"
-                   Title="Needs your action"
-                   Filipino="Kailangan ng iyong aksyon"
+                   Title="@Title"
+                   Filipino="@Filipino"
                    Count="@(Items.Count > 0 ? Items.Count : null)" />
 
     @if (Items.Count == 0)
@@ -73,12 +73,15 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ActionItem> Items { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<AssistanceApplication> Applications { get; set; } = [];
+    [Parameter] public string Title { get; set; } = "Needs your action";
+    [Parameter] public string Filipino { get; set; } = "Kailangan ng iyong aksyon";
 
     private AssistanceApplication? Find(string reference) =>
         Applications.FirstOrDefault(a => a.ReferenceNumber == reference);
 
     // How the process continues (Phase 1 rules), stated plainly; never a promise of approval.
-    private static string? Reassurance(ApplicationStatus? status) => status switch
+    // Shared with the dashboard's current application so the wording stays in one place.
+    public static string? Reassurance(ApplicationStatus? status) => status switch
     {
         ApplicationStatus.NeedsCorrection => "Once you upload the corrected copy, your application goes back to review.",
         _ => null

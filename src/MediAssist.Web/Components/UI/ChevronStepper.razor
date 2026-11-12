@@ -2,9 +2,12 @@
     Chevron step indicator (from the reference): an ordered list of stages, each saying its
     state in words ("Done", "Current", "Action needed"), with aria-current="step" on the
     current one. In a narrow container it becomes a vertical list.
+    Compact (the wizard): a shorter band. Only the current step shows its Filipino label and
+    state; the others keep them for screen readers. In a narrow container the other steps
+    shrink to their numbers so the band stays one row.
 *@
 
-<div class="stepper @Class">
+<div class="stepper @(Compact ? "stepper--compact" : null) @Class">
     <ol class="stepper__list" aria-label="@AriaLabel">
         @for (var i = 0; i < Steps.Count; i++)
         {
@@ -39,6 +42,7 @@
     [Parameter, EditorRequired] public IReadOnlyList<StepperStep> Steps { get; set; } = [];
     [Parameter, EditorRequired] public string AriaLabel { get; set; } = "Progress";
     [Parameter] public bool ShowFilipino { get; set; } = true;
+    [Parameter] public bool Compact { get; set; }
     [Parameter] public string? Class { get; set; }
 
     private static string StateText(StepState state) => state switch

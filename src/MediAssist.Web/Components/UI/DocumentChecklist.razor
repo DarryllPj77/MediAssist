@@ -2,6 +2,8 @@
     Document checklist ("Ihanda ang mga papeles"): one row per document with an icon, the
     document name, where to get it, and its status in English and Filipino. Required-but-missing
     and needs-correction rows carry a red side line and a reviewer note; status is always in words.
+    NeedsActionOnly (the dashboard): only the rows the user must act on, then one line counting the
+    rest with a link to the full list.
 *@
 
 <section class="checklist @Class" aria-labelledby="@HeadingId">
@@ -22,9 +24,9 @@
     </header>
 
     <ul role="list" class="checklist__rows">
-        @foreach (var item in Checklist.Items)
+        @foreach (var item in VisibleItems)
         {
-            var needs = item.Status is DocumentStatus.Missing or DocumentStatus.NeedsCorrection;
+            var needs = NeedsAction(item);
             <li class="row @(needs ? "row--needs" : null)">
                 <span class="row__icon" aria-hidden="true"><Icon Name="@IconFor(item.Name)" Size="22" /></span>
 
@@ -56,11 +58,27 @@
             </li>
         }
     </ul>
+
+    @if (NeedsActionOnly && HiddenCount > 0)
+    {
+        <div class="checklist__rest">
+            <p>@(HiddenCount == 1 ? "1 other document is" : $"{HiddenCount} other documents are") ready, being reviewed or not needed.</p>
+            @if (FullListHref is not null)
+            {
+                <a class="checklist__all" href="@FullListHref">
+                    See all @Checklist.Items.Count documents
+                    <Icon Name="arrow-right" Size="16" />
+                </a>
+            }
+        </div>
+    }
 </section>
 
 @code {
     [Parameter, EditorRequired] public ApplicationChecklist Checklist { get; set; } = default!;
     [Parameter] public bool ShowActions { get; set; } = true;
+    [Parameter] public bool NeedsActionOnly { get; set; }
+    [Parameter] public string? FullListHref { get; set; }
     /// <summary>2 when the checklist sits directly under the page h1; 3 under a section h2.</summary>
     [Parameter] public int HeadingLevel { get; set; } = 3;
 
@@ -70,7 +88,16 @@
     </text>;
     [Parameter] public string? Class { get; set; }
 
-    private string HeadingId => $"checklist-{Checklist.ApplicationReference}";
+    // A draft's reference can be words ("New application"); an id must not contain spaces.
+    private static bool NeedsAction(ChecklistItem item) =>
+        item.Status is DocumentStatus.Missing or DocumentStatus.NeedsCorrection;
+
+    private IEnumerable<ChecklistItem> VisibleItems =>
+        NeedsActionOnly ? Checklist.Items.Where(NeedsAction) : Checklist.Items;
+
+    private int HiddenCount => NeedsActionOnly ? Checklist.Items.Count(i => !NeedsAction(i)) : 0;
+
+    private string HeadingId => $"checklist-{Checklist.ApplicationReference.Replace(' ', '-')}";
 
     private static string IconFor(string name) => name.ToLowerInvariant() switch
     {

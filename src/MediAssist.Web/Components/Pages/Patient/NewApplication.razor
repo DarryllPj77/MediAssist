@@ -10,7 +10,7 @@
         <p class="fil page__fil" lang="fil">Bagong aplikasyon</p>
     </header>
 
-    <ChevronStepper Steps="StepperSteps.ForWizard(CurrentStep - 1)" AriaLabel="Application steps" />
+    <ChevronStepper Steps="StepperSteps.ForWizard(CurrentStep - 1)" AriaLabel="Application steps" Compact="true" />
 
     <form class="wizard__form" method="get" action="@PortalNavigation.NewApplicationHref" novalidate>
         <input type="hidden" name="step" value="@(CurrentStep + 1)" />
@@ -21,7 +21,7 @@
         @switch (CurrentStep)
         {
             case 1:
-                <fieldset class="choice" aria-describedby="@(Error is null ? null : "step-error")">
+                <fieldset class="choice" aria-describedby="@ErrorId">
                     <legend class="choice__legend">
                         Who is this application for?
                         <span class="visually-hidden">. </span><span class="fil" lang="fil">Para kanino ang aplikasyon?</span>
@@ -29,7 +29,7 @@
                     @foreach (var p in _patients)
                     {
                         <label class="choice__option">
-                            <input type="radio" name="patient" value="@p.Id" checked="@(p.Id.ToString() == (PatientId ?? _patients[0].Id.ToString()))" />
+                            <input type="radio" name="patient" value="@p.Id" aria-invalid="@Invalid" checked="@(p.Id.ToString() == (PatientId ?? _patients[0].Id.ToString()))" />
                             <span class="choice__text">
                                 <span class="choice__title">@p.FullName</span>
                                 <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? " · authorization being reviewed" : "")</span>
@@ -42,7 +42,8 @@
             case 2:
                 <div class="field">
                     <label class="field__label" for="hospital">Hospital where the patient is treated</label>
-                    <select id="hospital" name="hospital" class="select" aria-describedby="hospital-hint">
+                    <select id="hospital" name="hospital" class="select" aria-invalid="@Invalid"
+                            aria-describedby="@(Error is null ? "hospital-hint" : "hospital-hint wizard-error")">
                         @foreach (var h in Hospitals)
                         {
                             <option value="@h" selected="@(h == Hospital)">@h</option>
@@ -53,7 +54,7 @@
                 break;
 
             case 3:
-                <fieldset class="choice">
+                <fieldset class="choice" aria-describedby="@ErrorId">
                     <legend class="choice__legend">
                         Which program are you applying to?
                         <span class="visually-hidden">. </span><span class="fil" lang="fil">Aling programa ang aaplayan?</span>
@@ -61,7 +62,7 @@
                     @foreach (var prog in _programs)
                     {
                         <label class="choice__option">
-                            <input type="radio" name="program" value="@prog.Id" checked="@(prog.Id == (ProgramId ?? _programs[0].Id))" />
+                            <input type="radio" name="program" value="@prog.Id" aria-invalid="@Invalid" checked="@(prog.Id == (ProgramId ?? _programs[0].Id))" />
                             <span class="choice__text">
                                 <span class="choice__title">@prog.Name</span>
                                 <span class="choice__meta">@prog.Covers · run by @prog.RunBy.ToLowerInvariant()</span>
@@ -101,11 +102,13 @@
 
         @if (Error is not null)
         {
-            <p id="step-error" class="field__error" role="alert">
+            <p id="wizard-error" class="field__error" role="alert">
                 <Icon Name="alert-circle" Size="18" />
                 @Error
             </p>
         }
+
+        <p class="wizard__save">Drafts are not saved in this prototype yet.</p>
 
         <div class="wizard__nav">
             @if (CurrentStep > 1)
@@ -123,7 +126,6 @@
                 <AppButton Type="button" Disabled="true" IconEnd="send">Submit application</AppButton>
             }
         </div>
-        <p class="wizard__save">Drafts are not saved in this prototype yet.</p>
     </form>
 </div>
 
@@ -140,6 +142,11 @@
 
     private int CurrentStep { get; set; } = 1;
     private string? Error { get; set; }
+
+    // Validation only ever sends the user back to the step whose choice is missing, so an error
+    // always belongs to the controls on screen: link them to it and mark them invalid.
+    private string? ErrorId => Error is null ? null : "wizard-error";
+    private string? Invalid => Error is null ? null : "true";
 
     private IEnumerable<string> Hospitals => _applications.Select(a => a.HospitalName).Distinct().Order();
     private PatientProfile? SelectedPatient => _patients.FirstOrDefault(p => p.Id.ToString() == PatientId);

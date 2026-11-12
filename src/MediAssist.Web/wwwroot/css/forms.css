@@ -93,3 +93,14 @@
         background-image: none;
     }
 }
+
+/* Wizard pages: keyboard focus and in-page jumps never land behind the sticky step bar. */
+html:has(.wizard__nav) {
+    scroll-padding-block-end: 6rem;
+}
+
+@media (max-width: 47.99em) {
+    html:has(.wizard__nav) {
+        scroll-padding-block-end: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6rem);
+    }
+}

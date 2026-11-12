@@ -1,7 +1,7 @@
 @*
-    Administrator and Runner pages planned for later milestones: split hero with the section's
-    image slot (hero-admin-<section> / hero-runner-<section>, falling back to hero-default), then
-    the notice card.
+    Administrator and Runner pages planned for later milestones: one compact split hero says it
+    once (status, name, message, one way back) beside the section's image slot
+    (hero-admin-<section> / hero-runner-<section>, falling back to hero-default).
 *@
 @page "/admin/reviews"
 @page "/admin/reviews/{Item}"
@@ -23,16 +23,16 @@
 <div class="page page--wide">
     <SplitHero TitleId="section-title" ImageKey="@ImageSlots.HeroKeyForPath(Path)" Compact="true"
                Title="@Title"
-               Lead="@(Item is null ? $"This part of the {Set.PortalLabel.ToLowerInvariant()} portal is being prepared." : $"Details for {Item} are being prepared.")">
-        <Eyebrow>@Set.PortalLabel</Eyebrow>
+               TitleFilipino="Kasalukuyang inaayos ang pahina"
+               Lead="@Lead"
+               LeadFilipino="Salamat sa inyong pag-unawa.">
+        <Eyebrow>Coming in a later milestone</Eyebrow>
+        <Actions>
+            <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@Set.Home.Href" IconStart="home">
+                Back to @Set.Home.Label.ToLowerInvariant()
+            </AppButton>
+        </Actions>
     </SplitHero>
-
-    <NoticeCard Title="This page is on its way"
-                TitleFilipino="Kasalukuyang inaayos ang pahina"
-                Message="It is planned for an upcoming milestone of the prototype."
-                MessageFilipino="Salamat sa inyong pag-unawa."
-                ActionHref="@Set.Home.Href"
-                ActionLabel="@($"Back to {Set.Home.Label.ToLowerInvariant()}")" />
 </div>
 
 @code {
@@ -40,6 +40,9 @@
 
     private string Path => Nav.ToBaseRelativePath(Nav.Uri);
     private NavSet Set => RoleNavigation.ForPath(Path);
+
+    private string Lead => (Item is null ? "This page" : $"The details page for {Item}")
+        + " is planned for an upcoming milestone of the prototype.";
 
     private string Title => Set.Resolve(Path)?.Label is { } label
         ? (Item is null ? label : $"{label}: details")

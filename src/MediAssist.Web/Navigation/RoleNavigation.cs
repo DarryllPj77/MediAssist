@@ -92,7 +92,7 @@ public static class RoleNavigation
     public static readonly NavDestination AdminAuthorizations =
         new("Authorization reviews", "/admin/authorizations", "shield-check", NavGroup.Overview, ShortLabel: "Authorizations");
     public static readonly NavDestination AdminPrograms =
-        new("Hospitals & programs", "/admin/programs", "heart", NavGroup.Manage);
+        new("Hospitals and programs", "/admin/programs", "heart", NavGroup.Manage);
     public static readonly NavDestination AdminRunners =
         new("Runner management", "/admin/runners", "route", NavGroup.Manage, ShortLabel: "Runners");
     public static readonly NavDestination AdminUsers =
@@ -100,7 +100,7 @@ public static class RoleNavigation
     public static readonly NavDestination AdminNotifications =
         new("Notifications", "/admin/notifications", "bell", NavGroup.Account, ShortLabel: "Alerts");
     public static readonly NavDestination AdminSettings =
-        new("Profile & Settings", "/admin/settings", "user-circle", NavGroup.Account);
+        new("Profile and settings", "/admin/settings", "user-circle", NavGroup.Account);
 
     public static NavSet Administrator { get; } = new(
         PortalRole.Administrator,
@@ -123,7 +123,7 @@ public static class RoleNavigation
     public static readonly NavDestination RunnerNotifications =
         new("Notifications", "/runner/notifications", "bell", NavGroup.Account, ShortLabel: "Alerts");
     public static readonly NavDestination RunnerSettings =
-        new("Profile & Settings", "/runner/settings", "user-circle", NavGroup.Account);
+        new("Profile and settings", "/runner/settings", "user-circle", NavGroup.Account);
 
     public static NavSet Runner { get; } = new(
         PortalRole.Runner,

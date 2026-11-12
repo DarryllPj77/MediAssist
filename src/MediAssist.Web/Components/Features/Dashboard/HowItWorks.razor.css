@@ -47,3 +47,11 @@
     color: var(--color-text);
     font-size: var(--text-sm);
 }
+
+/* Full-width on the Programs page: the three steps sit side by side once there is room. */
+@media (min-width: 48em) {
+    .how__steps {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-6);
+    }
+}

@@ -31,28 +31,28 @@ public static class PortalNavigation
         new("Dashboard", "/patient", "home", NavGroup.Overview, NavLinkMatch.All, ShortLabel: "Home");
 
     public static readonly NavDestination Applications =
-        new("My Applications", "/patient/applications", "file-text", NavGroup.Overview, ShortLabel: "Applications");
+        new("My applications", "/patient/applications", "file-text", NavGroup.Overview, ShortLabel: "Applications");
 
     public static readonly NavDestination Patients =
-        new("Patient Profiles", "/patient/patients", "users", NavGroup.Overview, ShortLabel: "Patients");
+        new("Patient profiles", "/patient/patients", "users", NavGroup.Overview, ShortLabel: "Patients");
 
     public static readonly NavDestination Hospitals =
         new("Hospitals", "/patient/hospitals", "hospital", NavGroup.FindHelp);
 
     public static readonly NavDestination Programs =
-        new("Assistance Programs", "/patient/programs", "heart", NavGroup.FindHelp);
+        new("Assistance programs", "/patient/programs", "heart", NavGroup.FindHelp);
 
     public static readonly NavDestination Documents =
-        new("Document Checklist", "/patient/documents", "clipboard-check", NavGroup.FindHelp);
+        new("Document checklist", "/patient/documents", "clipboard-check", NavGroup.FindHelp);
 
     public static readonly NavDestination Runner =
-        new("Runner Assistance", "/patient/runner", "route", NavGroup.FindHelp);
+        new("Runner assistance", "/patient/runner", "route", NavGroup.FindHelp);
 
     public static readonly NavDestination Notifications =
         new("Notifications", "/patient/notifications", "bell", NavGroup.Account, ShortLabel: "Alerts");
 
     public static readonly NavDestination Settings =
-        new("Profile & Settings", "/patient/settings", "user-circle", NavGroup.Account);
+        new("Profile and settings", "/patient/settings", "user-circle", NavGroup.Account);
 
     public static IReadOnlyList<NavDestination> All { get; } =
     [
@@ -110,7 +110,7 @@ public static class PortalNavigation
     {
         var path = Normalize(relativePath);
         if (path.StartsWith(NewApplicationHref, StringComparison.OrdinalIgnoreCase))
-            return new("New Application", NewApplicationHref, "plus", NavGroup.Overview);
+            return new("New application", NewApplicationHref, "plus", NavGroup.Overview);
 
         return All
             .Where(d => IsActive(d, path))

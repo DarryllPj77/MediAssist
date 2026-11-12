@@ -122,13 +122,26 @@
 }
 
 /* ---- Navigation ---- */
+/*
+  Back and Continue stay in reach: the bar sticks to the bottom of the viewport while the form
+  is taller than the screen, and settles at the end of the form once it is reached. It spans the
+  form's padding so its white ground meets the card edges.
+*/
 .wizard__nav {
+    --wizard-nav-offset: 0px;
+    position: sticky;
+    inset-block-end: var(--wizard-nav-offset);
+    z-index: var(--z-sticky);
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
     gap: var(--space-3);
-    padding-block-start: var(--space-5);
+    margin: 0 calc(-1 * var(--space-6)) calc(-1 * var(--space-6));
+    padding: var(--space-4) var(--space-6);
     border-block-start: 1px solid var(--color-border);
+    border-end-start-radius: var(--radius-lg);
+    border-end-end-radius: var(--radius-lg);
+    background: var(--color-surface);
 }
 
 .wizard__nav ::deep .btn:only-child {
@@ -145,14 +158,24 @@
         padding: var(--space-5) var(--space-4);
     }
 
+    /* Phones: the bar sits just above the bottom navigation, Back and Continue on one row. */
     .wizard__nav {
+        --wizard-nav-offset: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
         display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: var(--space-2);
+        margin: 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-5));
+        padding: var(--space-3) var(--space-4);
     }
 
     .wizard__nav ::deep .btn,
     .wizard__nav ::deep .btn:only-child {
         width: 100%;
         margin-inline-start: 0;
+    }
+
+    .wizard__nav ::deep .btn:only-child {
+        grid-column: 1 / -1;
     }
 
     .review__list > div {

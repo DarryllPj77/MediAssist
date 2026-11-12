@@ -12,8 +12,9 @@ public enum StepState
 public sealed record StepperStep(string Label, string LabelFilipino, StepState State);
 
 /// <summary>
-/// Display-only builders for the three journeys the stepper shows. They read a status and
-/// describe it; they never decide or change one.
+/// The single source of journey stages for both progress visuals (ChevronStepper and StepMeter),
+/// plus the wizard and runner journeys. Display only: they read a status and describe it;
+/// they never decide or change one. Stage names follow the Phase 1 status vocabulary.
 /// </summary>
 public static class StepperSteps
 {
@@ -21,8 +22,8 @@ public static class StepperSteps
     [
         ("Draft", "Borador"),
         ("Submitted", "Naisumite"),
-        ("In review", "Sinusuri"),
-        ("Ready", "Handa na"),
+        ("Under review", "Sinusuri"),
+        ("Ready for processing", "Handa nang iproseso"),
         ("Completed", "Tapos na"),
     ];
 
@@ -43,17 +44,26 @@ public static class StepperSteps
         ("Completed", "Natapos"),
     ];
 
+    public static int ApplicationStageCount => ApplicationStages.Length;
+
+    /// <summary>Zero-based stage of an application status, or -1 when cancelled.</summary>
+    public static int ApplicationStageIndex(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.Draft => 0,
+        ApplicationStatus.Submitted => 1,
+        ApplicationStatus.UnderReview or ApplicationStatus.NeedsCorrection => 2,
+        ApplicationStatus.ReadyForProcessing => 3,
+        ApplicationStatus.Completed => 4,
+        _ => -1
+    };
+
+    /// <summary>"Step 3 of 5", or "Stopped" for a cancelled application.</summary>
+    public static string ApplicationStepText(ApplicationStatus status) =>
+        ApplicationStageIndex(status) is var i and >= 0 ? $"Step {i + 1} of {ApplicationStageCount}" : "Stopped";
+
     public static IReadOnlyList<StepperStep> ForApplication(ApplicationStatus status)
     {
-        var current = status switch
-        {
-            ApplicationStatus.Draft => 0,
-            ApplicationStatus.Submitted => 1,
-            ApplicationStatus.UnderReview or ApplicationStatus.NeedsCorrection => 2,
-            ApplicationStatus.ReadyForProcessing => 3,
-            ApplicationStatus.Completed => 4,
-            _ => -1
-        };
+        var current = ApplicationStageIndex(status);
 
         return ApplicationStages.Select((s, i) =>
         {

@@ -1,9 +1,11 @@
 @*
     One featured program with its photograph (4:3) beside the details, then the other programs
     as a compact list. Only the featured program carries an image, so cards never repeat.
+    Compact (the dashboard): a narrower photograph and no document list; the requirements are
+    one click away on the Programs page.
 *@
 
-<div class="featured @Class">
+<div class="featured @(Compact ? "featured--compact" : null) @Class">
     <article class="featured__main" aria-labelledby="@($"featured-{Featured.Id}")">
         <ImageSlot Key="@($"program-feature-{Featured.Id}")" />
         <div class="featured__text">
@@ -14,13 +16,16 @@
             </h3>
             <p class="featured__summary">@Featured.Summary</p>
             <p class="featured__covers"><span>Covers:</span> @Featured.Covers</p>
-            <p class="featured__docs-title">Documents to prepare</p>
-            <ul class="featured__docs">
-                @foreach (var doc in Featured.RequiredDocuments)
-                {
-                    <li>@doc</li>
-                }
-            </ul>
+            @if (!Compact)
+            {
+                <p class="featured__docs-title">Documents to prepare</p>
+                <ul class="featured__docs">
+                    @foreach (var doc in Featured.RequiredDocuments)
+                    {
+                        <li>@doc</li>
+                    }
+                </ul>
+            }
             <div>
                 <AppButton Variant="AppButton.ButtonVariant.Secondary"
                            Href="@($"{PortalNavigation.Programs.Href}?program={Featured.Id}")"
@@ -51,5 +56,6 @@
 @code {
     [Parameter, EditorRequired] public AssistanceProgram Featured { get; set; } = default!;
     [Parameter] public IReadOnlyList<AssistanceProgram> Others { get; set; } = [];
+    [Parameter] public bool Compact { get; set; }
     [Parameter] public string? Class { get; set; }
 }

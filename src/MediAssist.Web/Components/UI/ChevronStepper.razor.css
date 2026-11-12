@@ -136,6 +136,103 @@
     }
 }
 
+/* ---- Compact (wizard) ---- */
+.stepper--compact .stepper__step:not([aria-current]) .stepper__fil,
+.stepper--compact .stepper__step:not([aria-current]) .stepper__state,
+.stepper--compact .stepper__step:not([aria-current]) .stepper__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Narrow: one row; the other steps are numbers, the current step takes the remaining width. */
+.stepper--compact .stepper__list {
+    display: flex;
+    gap: 4px;
+}
+
+.stepper--compact .stepper__step {
+    flex: 0 0 auto;
+    grid-template-columns: 1.75rem;
+    min-height: 2.75rem;
+    padding: var(--space-1);
+}
+
+.stepper--compact .stepper__num {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+/* min-width 0 lets the current step shrink to the row; its label wraps instead of overflowing. */
+.stepper--compact .stepper__step[aria-current] {
+    flex: 1 1 0;
+    min-width: 0;
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+    gap: var(--space-2);
+    padding-inline-end: var(--space-2);
+}
+
+/* Narrow: the page eyebrow already says "Step N of 5", so the state word is for screen readers. */
+@container stepper (max-width: 39.99rem) {
+    .stepper--compact .stepper__step[aria-current] .stepper__state {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+}
+
+/* Wide: every step keeps its English label; the band is 4rem tall. */
+@container stepper (min-width: 40rem) {
+    .stepper--compact .stepper__list {
+        display: grid;
+    }
+
+    .stepper--compact .stepper__step,
+    .stepper--compact .stepper__step[aria-current] {
+        grid-template-columns: 1fr;
+        gap: 2px;
+        min-height: 4rem;
+        padding: var(--space-2) calc(var(--notch) + var(--space-2));
+    }
+
+    .stepper--compact .stepper__step:not([aria-current]) .stepper__label {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+    }
+
+    .stepper--compact .stepper__num {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    /* The current step names its state beside its label rather than below it. */
+    .stepper--compact .stepper__step[aria-current] .stepper__text {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        column-gap: var(--space-2);
+    }
+
+    .stepper--compact .stepper__step[aria-current] .stepper__label {
+        flex-basis: 100%;
+    }
+}
+
 @media (forced-colors: active) {
     .stepper__step {
         border: 1px solid CanvasText;

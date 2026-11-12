@@ -97,3 +97,17 @@
         padding-inline: var(--space-9);
     }
 }
+
+/*
+  The independence notice is said once: the expanded sidebar carries it, so the top bar's copy
+  shows only beside the rail. The top bar then holds just the section name and the account.
+*/
+.portal[data-sidebar="expanded"] ::deep .masthead__notice {
+    display: none;
+}
+
+@media (min-width: 75em) {
+    .portal[data-sidebar="auto"] ::deep .masthead__notice {
+        display: none;
+    }
+}

@@ -1,11 +1,14 @@
+/* Text and actions share a row while both fit; on a narrow screen the actions drop below. */
 .section-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: var(--space-4);
+    gap: var(--space-3) var(--space-4);
 }
 
 .section-header__text {
+    flex: 1 1 14rem;
     min-width: 0;
 }
 
@@ -15,6 +18,7 @@
 
 .section-header__en {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3);
 }

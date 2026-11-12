@@ -20,19 +20,19 @@ every slot's key and size on top of it.
 
 | Slot key | Where | Ratio (phone) | Deliver at | Subject and notes |
 |---|---|---|---|---|
-| `hero-patient-home` | Patient dashboard hero | 3:2 (4:3) | 2400×1600 | A family with a health worker; subject left of centre |
+| `hero-patient-home` | Patient dashboard hero (cropped to 16:9 when stacked: keep the subject in the middle band) | 3:2 (4:3) | 2400×1600 | A family with a health worker; subject left of centre |
 | `hero-admin` | Administrator dashboard hero | 3:2 (4:3) | 1800×1200 | Review work; no readable patient data |
 | `hero-runner` | Runner dashboard hero | 3:2 (4:3) | 1800×1200 | A runner arriving at a hospital entrance |
 | `hero-programs` | Programs page | 3:2 (4:3) | 2400×1600 | Family with a hospital social worker |
 | `hero-documents` | Documents page | 3:2 (4:3) | 2400×1600 | Hands sorting forms; no readable personal details |
 | `hero-notifications` | Notifications page | 3:2 (4:3) | 2400×1600 | Three generations looking at a phone |
 | `hero-default` | Any page without its own hero file | 3:2 (4:3) | 2400×1600 | Family and health worker at a community health centre |
-| `hero-patient-hospitals`, `hero-patient-patients`, `hero-patient-runner`, `hero-patient-settings`, `hero-patient-applications`, `hero-admin-reviews`, `hero-admin-runners`, … | Pages still being built (key = `hero-` + first two URL segments) | 3:2 (4:3) | 2400×1600 | Optional; otherwise `hero-default` |
-| `program-feature` / `program-feature-<id>` | Featured program on the dashboard | 4:3 | 1600×1200 | Ids: `hospital-bill`, `medicine-cost`, `dialysis`, `diagnostics` |
+| `hero-patient-hospitals`, `hero-patient-patients`, `hero-patient-runner`, `hero-patient-settings`, `hero-patient-applications`, `hero-admin-reviews`, `hero-admin-runners`, … | Pages still being built: the compact hero beside the status message, wide screens only (key = `hero-` + first two URL segments) | 3:2 (4:3) | 2400×1600 | Optional; otherwise `hero-default` |
+| `program-feature` / `program-feature-<id>` | Featured program on the dashboard (cropped to 16:9 when stacked) | 4:3 | 1600×1200 | Ids: `hospital-bill`, `medicine-cost`, `dialysis`, `diagnostics` |
 | `banner-notice` | Dashboard "Latest notices" | 16:9 | 1920×1080 | Health worker explaining a form to an older patient |
 | `aside-runner` | Runner help card | 1:1 | 800×800 | Runner handing an envelope to a clerk |
-| `aside-household` | Household panel (hidden on phones) | 4:3 | 1200×900 | Family reviewing papers at home |
-| `notice-illustration` | Notice card on pages still being built | 1:1 | 480×480 | **Illustration** (SVG/PNG), navy and gold; decorative |
+| `aside-household` | Not placed (kept for later use) | 4:3 | 1200×900 | Family reviewing papers at home |
+| `notice-illustration` | Not placed (NoticeCard is kept for later use) | 1:1 | 480×480 | **Illustration** (SVG/PNG), navy and gold; decorative |
 | `og-share` | Link previews (future public pages) | 1.91:1 | 1200×630 | Brand image |
 
 ## Rules for every image
