@@ -48,11 +48,3 @@ export function initDrawer(dialog, dotNetRef) {
         if (e.matches && dialog.open) dialog.close();
     });
 }
-
-export function openDrawer(dialog) {
-    if (dialog && !dialog.open) dialog.showModal();
-}
-
-export function closeDrawer(dialog) {
-    if (dialog && dialog.open) dialog.close();
-}

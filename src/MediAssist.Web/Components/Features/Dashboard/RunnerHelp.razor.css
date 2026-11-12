@@ -1,15 +1,26 @@
 /* The one warm surface on the page: gold-tinted, with the woven edge of the masthead. */
 .runner {
-    display: grid;
-    gap: var(--space-2);
+    container: runner / inline-size;
     padding: var(--space-5) var(--space-6);
     background: var(--color-gold-subtle);
     border-radius: var(--radius-lg);
     border-inline-start: 4px solid var(--color-gold);
 }
 
+.runner__grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.runner__body {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+/* Narrow: a 16:9 band cropped from the square slot (object-fit and its focal point keep the subject). */
 .runner ::deep .runner__image {
-    margin-block-end: var(--space-2);
+    aspect-ratio: 16 / 9;
 }
 
 .runner__title {
@@ -17,6 +28,7 @@
 }
 
 .runner__text {
+    max-width: 60ch;
     color: var(--color-text);
     font-size: var(--text-sm);
 }
@@ -26,4 +38,17 @@
     align-items: center;
     justify-self: start;
     min-height: var(--tap-target);
+}
+
+/* Wide: the photograph becomes a 9rem square beside the text. */
+@container runner (min-width: 32rem) {
+    .runner__grid {
+        grid-template-columns: 9rem minmax(0, 1fr);
+        align-items: center;
+        gap: var(--space-6);
+    }
+
+    .runner ::deep .runner__image {
+        aspect-ratio: 1;
+    }
 }

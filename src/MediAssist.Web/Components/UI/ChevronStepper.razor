@@ -2,9 +2,9 @@
     Chevron step indicator (from the reference): an ordered list of stages, each saying its
     state in words ("Done", "Current", "Action needed"), with aria-current="step" on the
     current one. In a narrow container it becomes a vertical list.
-    Compact (the wizard): a shorter band. Only the current step shows its Filipino label and
-    state; the others keep them for screen readers. In a narrow container the other steps
-    shrink to their numbers so the band stays one row.
+    Compact (the wizard and the dashboard): a shorter band. Only the current step shows its
+    Filipino label; every state word, and the other steps' Filipino labels, stay for screen
+    readers. In a narrow container the other steps shrink to their numbers so the band stays one row.
 *@
 
 <div class="stepper @(Compact ? "stepper--compact" : null) @Class">

@@ -4,6 +4,8 @@
     and needs-correction rows carry a red side line and a reviewer note; status is always in words.
     NeedsActionOnly (the dashboard): only the rows the user must act on, then one line counting the
     rest with a link to the full list.
+    ShowContext=false (also the dashboard, where the section above already names the program,
+    patient and reference): the heading is just "Documents for this application".
 *@
 
 <section class="checklist @Class" aria-labelledby="@HeadingId">
@@ -40,10 +42,10 @@
                 </div>
 
                 <p class="row__status row__status--@item.Status.ToString().ToLowerInvariant()">
-                    <Icon Name="@StatusIcon(item.Status)" Size="16" />
+                    <Icon Name="@DocumentStatusDisplay.Icon(item.Status)" Size="16" />
                     <span>
-                        <span lang="fil" class="row__status-fil">@StatusFilipino(item.Status)</span>
-                        <span class="row__status-en">@StatusEnglish(item.Status)</span>
+                        <span lang="fil" class="row__status-fil">@DocumentStatusDisplay.LabelFilipino(item.Status)</span>
+                        <span class="row__status-en">@DocumentStatusDisplay.Label(item.Status)</span>
                     </span>
                 </p>
 
@@ -82,15 +84,22 @@
     /// <summary>2 when the checklist sits directly under the page h1; 3 under a section h2.</summary>
     [Parameter] public int HeadingLevel { get; set; } = 3;
 
-    private RenderFragment Title => @<text>
-        @Checklist.ProgramName
-        <span class="visually-hidden">. </span><span class="checklist__for">for @Checklist.PatientName · <span class="ref">@Checklist.ApplicationReference</span></span>
-    </text>;
+    /// <summary>Name the program, patient and reference in the heading (off when the page already says them).</summary>
+    [Parameter] public bool ShowContext { get; set; } = true;
+
+    private RenderFragment Title => ShowContext
+        ? @<text>
+            @Checklist.ProgramName
+            <span class="visually-hidden">. </span><span class="checklist__for">for @Checklist.PatientName · <span class="ref">@Checklist.ApplicationReference</span></span>
+          </text>
+        : @<text>
+            Documents for this application
+            <span class="visually-hidden">. </span><span class="checklist__for" lang="fil">Ihanda ang mga papeles</span>
+          </text>;
     [Parameter] public string? Class { get; set; }
 
     // A draft's reference can be words ("New application"); an id must not contain spaces.
-    private static bool NeedsAction(ChecklistItem item) =>
-        item.Status is DocumentStatus.Missing or DocumentStatus.NeedsCorrection;
+    private static bool NeedsAction(ChecklistItem item) => DocumentStatusDisplay.NeedsAction(item.Status);
 
     private IEnumerable<ChecklistItem> VisibleItems =>
         NeedsActionOnly ? Checklist.Items.Where(NeedsAction) : Checklist.Items;
@@ -105,31 +114,5 @@
         var n when n.Contains("bill") || n.Contains("quotation") => "receipt",
         var n when n.Contains("valid id") => "id-card",
         _ => "folder"
-    };
-
-    private static string StatusIcon(DocumentStatus status) => status switch
-    {
-        DocumentStatus.Complete => "check-circle",
-        DocumentStatus.PendingReview => "clock",
-        DocumentStatus.NotApplicable => "circle",
-        _ => "alert-triangle"
-    };
-
-    private static string StatusFilipino(DocumentStatus status) => status switch
-    {
-        DocumentStatus.Complete => "Ok na",
-        DocumentStatus.PendingReview => "Sinusuri",
-        DocumentStatus.NeedsCorrection => "Ayusin",
-        DocumentStatus.NotApplicable => "Hindi kailangan",
-        _ => "Kailangan pa"
-    };
-
-    private static string StatusEnglish(DocumentStatus status) => status switch
-    {
-        DocumentStatus.Complete => "Ready",
-        DocumentStatus.PendingReview => "Being reviewed",
-        DocumentStatus.NeedsCorrection => "Needs correction",
-        DocumentStatus.NotApplicable => "Not needed",
-        _ => "Required"
     };
 }

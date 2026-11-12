@@ -99,17 +99,4 @@ public static class StepperSteps
             : i == current ? StepState.Current
             : StepState.Upcoming)).ToList();
     }
-
-    public static string RunnerStatusLabel(RunnerTaskStatus status) => status switch
-    {
-        RunnerTaskStatus.Requested => "Requested",
-        RunnerTaskStatus.PendingAssignment => "Waiting for a runner",
-        RunnerTaskStatus.Assigned => "Assigned",
-        RunnerTaskStatus.Accepted => "Accepted",
-        RunnerTaskStatus.InProgress => "In progress",
-        RunnerTaskStatus.Completed => "Completed",
-        RunnerTaskStatus.Declined => "Declined, needs a new runner",
-        RunnerTaskStatus.Cancelled => "Cancelled",
-        _ => status.ToString()
-    };
 }

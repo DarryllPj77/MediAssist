@@ -75,21 +75,6 @@
     color: var(--color-navy);
 }
 
-.ga--on-navy .ga__btn--secondary {
-    background: transparent;
-    border-color: var(--color-on-navy-muted);
-    color: var(--color-on-navy);
-}
-
-.ga--on-navy .ga__btn--secondary:hover {
-    background: var(--color-navy-soft);
-    border-color: var(--color-on-navy);
-}
-
-.ga--on-navy .ga__btn:focus-visible {
-    box-shadow: var(--focus-ring-on-navy);
-}
-
 @media (max-width: 47.99em) {
     .ga {
         display: grid;

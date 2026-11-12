@@ -32,7 +32,7 @@
                             <input type="radio" name="patient" value="@p.Id" aria-invalid="@Invalid" checked="@(p.Id.ToString() == (PatientId ?? _patients[0].Id.ToString()))" />
                             <span class="choice__text">
                                 <span class="choice__title">@p.FullName</span>
-                                <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? " · authorization being reviewed" : "")</span>
+                                <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? $" · authorization {AuthorizationStatusDisplay.Label(p.Authorization).ToLowerInvariant()}" : "")</span>
                             </span>
                         </label>
                     }

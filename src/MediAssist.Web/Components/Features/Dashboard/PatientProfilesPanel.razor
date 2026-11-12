@@ -18,17 +18,15 @@
                     <p class="person__name">@patient.FullName</p>
                     <p class="person__relation">@patient.Relationship</p>
                 </div>
-                @switch (patient.Authorization)
+                @if (patient.Authorization == AuthorizationStatus.Self)
                 {
-                    case AuthorizationStatus.Authorized:
-                        <Badge Text="Authorized" Tone="Badge.BadgeTone.Success" IconName="shield-check" />
-                        break;
-                    case AuthorizationStatus.PendingReview:
-                        <Badge Text="Being reviewed" Tone="Badge.BadgeTone.Info" IconName="clock" />
-                        break;
-                    default:
-                        <span class="person__self">Account holder</span>
-                        break;
+                    <span class="person__self">@AuthorizationStatusDisplay.Label(patient.Authorization)</span>
+                }
+                else
+                {
+                    <Badge Text="@AuthorizationStatusDisplay.Label(patient.Authorization)"
+                           Tone="AuthorizationStatusDisplay.Tone(patient.Authorization)"
+                           IconName="@AuthorizationStatusDisplay.Icon(patient.Authorization)" />
                 }
             </li>
         }

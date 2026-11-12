@@ -36,14 +36,9 @@
     /* ---- Action ---- */
     --color-primary: #2455A4;           /* Philippine Blue, 7.2:1 on white */
     --color-primary-hover: #1D4688;
-    --color-primary-active: #173A72;
     --color-primary-subtle: #EAF0F9;    /* blue text on it: 6.3:1 */
-    --color-primary-subtle-hover: #DCE6F5;
-    --color-on-primary: #FFFFFF;
+    --color-on-primary: var(--color-on-navy);
 
-    --color-secondary: var(--color-primary);
-    --color-secondary-hover: var(--color-primary-hover);
-    --color-secondary-subtle: var(--color-primary-subtle);
 
     /* ---- Grounds and ink ---- */
     --color-bg: #F6EFE1;                /* Warm cream (reference ground) */
@@ -64,13 +59,8 @@
     --color-red-subtle: #FBEEEF;        /* red text on it: 5.1:1 */
     --color-success: #2E6B3F;           /* 5.6:1 on its tint */
     --color-success-subtle: #EAF3EC;
-    --color-warning: var(--color-red);
-    --color-warning-subtle: var(--color-red-subtle);
     --color-danger: #9A2F39;
-    --color-danger-subtle: var(--color-red-subtle);
-    --color-info: var(--color-primary);
-    --color-info-subtle: var(--color-primary-subtle);
-    --color-neutral: #4E5965;
+    --color-neutral: var(--color-text-muted);
     --color-neutral-subtle: #EFEDE7;
     --color-scrim: rgb(16 35 61 / 0.5);
 
@@ -88,7 +78,6 @@
     /* ---- Type ---- */
     --font-sans: "Public Sans", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
     --font-serif: "Source Serif 4", Georgia, Cambria, "Times New Roman", serif;
-    --font-display: var(--font-sans);
     --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
 
     --text-xs: 0.8125rem;   /* 13: labels, meta (the floor) */
@@ -134,17 +123,12 @@
     --radius-full: 999px;
 
     /* ---- Elevation: none at rest ---- */
-    --shadow-sm: none;
-    --shadow-hover: 0 10px 24px rgb(32 44 57 / 0.08);
     --shadow-md: 0 12px 32px rgb(16 35 61 / 0.18), 0 2px 6px rgb(16 35 61 / 0.08);
 
     /* ---- Motion (Taste motion tokens) ---- */
     --duration-in: 150ms;
     --duration-out: 120ms;
     --duration-press: 90ms;
-    --duration-panel: 200ms;
-    --duration-fast: 120ms;
-    --duration-base: 180ms;
     --duration-slow: 240ms;
     --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 
@@ -152,7 +136,6 @@
     --masthead-height: 4rem;
     --masthead-weave: 6px;
     --sidebar-weave: 8px;
-    --header-height: var(--masthead-height);
     --sidebar-width-expanded: 17rem;
     --sidebar-width-rail: 4.75rem;
     --bottom-nav-height: 4.25rem;
@@ -171,9 +154,6 @@
         --duration-in: 0ms;
         --duration-out: 0ms;
         --duration-press: 0ms;
-        --duration-panel: 0ms;
-        --duration-fast: 0ms;
-        --duration-base: 0ms;
         --duration-slow: 0ms;
     }
 }

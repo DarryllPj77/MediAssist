@@ -1,6 +1,6 @@
 /* One button pair, pill-shaped as in the reference:
    filled gold (the one main action in a view) and outlined navy.
-   OnNavy = the outlined button on the navy hero band. Quiet = text action. */
+   Quiet = text action. */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -63,24 +63,6 @@
 
 .btn--primary:active {
     background: var(--color-gold-action-active);
-}
-
-.btn--onnavy {
-    background: transparent;
-    color: var(--color-on-navy);
-    border-color: var(--color-on-navy-muted);
-}
-
-.btn--onnavy:hover {
-    background: var(--color-navy-soft);
-    border-color: var(--color-on-navy);
-    color: var(--color-on-navy);
-    text-decoration: none;
-}
-
-.btn--onnavy:focus-visible,
-.btn--primary.btn--on-dark:focus-visible {
-    box-shadow: var(--focus-ring-on-navy);
 }
 
 .btn--secondary {

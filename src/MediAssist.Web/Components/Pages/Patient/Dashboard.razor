@@ -59,16 +59,16 @@ else
                     <SectionHeader Id="current-title"
                                    Title="Your current application"
                                    Filipino="Dadaanang hakbang"
-                                   Description="@($"{_focus.ProgramName} for {_focus.PatientName}. {_focus.NextStep}.")" />
+                                   Description="@($"{_focus.ProgramName} for {_focus.PatientName} · {_focus.ReferenceNumber}. {_focus.NextStep}.")" />
                     <ChevronStepper Steps="StepperSteps.ForApplication(_focus.Status)"
                                     AriaLabel="@($"Progress of application {_focus.ReferenceNumber}")" Compact="true" />
-                    @if (ActionRequiredList.Reassurance(_focus.Status) is string note)
+                    @if (ApplicationStatusDisplay.Reassurance(_focus.Status) is string note)
                     {
                         <p class="current__note serif">@note</p>
                     }
                     @if (_focusChecklist is not null)
                     {
-                        <DocumentChecklist Checklist="_focusChecklist" NeedsActionOnly="true"
+                        <DocumentChecklist Checklist="_focusChecklist" NeedsActionOnly="true" ShowContext="false"
                                            FullListHref="@($"{PortalNavigation.Applications.Href}/{_focus.ReferenceNumber}")" />
                     }
                 </section>

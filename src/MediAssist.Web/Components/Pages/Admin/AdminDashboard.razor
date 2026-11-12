@@ -86,7 +86,7 @@ else
                             <p class="req__meta">@r.Place · needed by @DisplayFormat.ShortDate(r.NeededBy) · <span class="ref">@r.ApplicationReference</span></p>
                         </div>
                         <p class="req__status">
-                            @StepperSteps.RunnerStatusLabel(r.Status)@(r.RunnerName is null ? "" : $" · {r.RunnerName}")
+                            @RunnerTaskStatusDisplay.Label(r.Status)@(r.RunnerName is null ? "" : $" · {r.RunnerName}")
                         </p>
                         @if (needsRunner)
                         {

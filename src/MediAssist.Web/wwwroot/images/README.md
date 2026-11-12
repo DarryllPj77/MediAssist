@@ -29,10 +29,8 @@ every slot's key and size on top of it.
 | `hero-default` | Any page without its own hero file | 3:2 (4:3) | 2400×1600 | Family and health worker at a community health centre |
 | `hero-patient-hospitals`, `hero-patient-patients`, `hero-patient-runner`, `hero-patient-settings`, `hero-patient-applications`, `hero-admin-reviews`, `hero-admin-runners`, … | Pages still being built: the compact hero beside the status message, wide screens only (key = `hero-` + first two URL segments) | 3:2 (4:3) | 2400×1600 | Optional; otherwise `hero-default` |
 | `program-feature` / `program-feature-<id>` | Featured program on the dashboard (cropped to 16:9 when stacked) | 4:3 | 1600×1200 | Ids: `hospital-bill`, `medicine-cost`, `dialysis`, `diagnostics` |
-| `banner-notice` | Dashboard "Latest notices" | 16:9 | 1920×1080 | Health worker explaining a form to an older patient |
+| `banner-notice` | Dashboard "Latest notifications" | 16:9 | 1920×1080 | Health worker explaining a form to an older patient |
 | `aside-runner` | Runner help card | 1:1 | 800×800 | Runner handing an envelope to a clerk |
-| `aside-household` | Not placed (kept for later use) | 4:3 | 1200×900 | Family reviewing papers at home |
-| `notice-illustration` | Not placed (NoticeCard is kept for later use) | 1:1 | 480×480 | **Illustration** (SVG/PNG), navy and gold; decorative |
 | `og-share` | Link previews (future public pages) | 1.91:1 | 1200×630 | Brand image |
 
 ## Rules for every image

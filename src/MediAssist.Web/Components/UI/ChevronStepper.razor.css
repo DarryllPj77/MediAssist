@@ -191,7 +191,7 @@
     }
 }
 
-/* Wide: every step keeps its English label; the band is 4rem tall. */
+/* Wide: every step keeps its English label; the band is about 4rem tall. */
 @container stepper (min-width: 40rem) {
     .stepper--compact .stepper__list {
         display: grid;
@@ -220,16 +220,24 @@
         height: 1.5rem;
     }
 
-    /* The current step names its state beside its label rather than below it. */
-    .stepper--compact .stepper__step[aria-current] .stepper__text {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        column-gap: var(--space-2);
+    /* Long stage names ("Ready for processing") break evenly over two short lines. */
+    .stepper--compact .stepper__label {
+        line-height: 1.2;
+        text-wrap: balance;
     }
 
-    .stepper--compact .stepper__step[aria-current] .stepper__label {
-        flex-basis: 100%;
+    /*
+      The current step's state word is for screen readers: its gold fill (or red, whose label
+      already reads "Needs correction") shows it, so the band stays one label tall.
+    */
+    .stepper--compact .stepper__step[aria-current] .stepper__state {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 }
 

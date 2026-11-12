@@ -32,6 +32,13 @@ public static class ApplicationStatusDisplay
         _ => Badge.BadgeTone.Neutral
     };
 
+    /// <summary>How the process continues (Phase 1 rules), stated plainly; never a promise of approval.</summary>
+    public static string? Reassurance(ApplicationStatus status) => status switch
+    {
+        ApplicationStatus.NeedsCorrection => "Once you upload the corrected copy, your application goes back to review.",
+        _ => null
+    };
+
     public static string Icon(ApplicationStatus status) => status switch
     {
         ApplicationStatus.Draft => "pencil",

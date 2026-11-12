@@ -46,11 +46,6 @@ public static class ImageSlots
             "A health worker explaining a form to an older patient"),
         ["aside-runner"] = new("aside-runner", "1 / 1", null, 800, 800,
             "A runner handing an envelope to a hospital clerk"),
-        ["aside-household"] = new("aside-household", "4 / 3", null, 1200, 900,
-            "A family at home reviewing papers together"),
-        ["notice-illustration"] = new("notice-illustration", "1 / 1", null, 480, 480,
-            "", Kind: "illustration",
-            Note: "Illustration (SVG or PNG): clipboard and clock, drawn in navy and gold. Decorative."),
         ["og-share"] = new("og-share", "1.91 / 1", null, 1200, 630,
             "MediAssist", Note: "Link-preview image for public pages (not used inside the portal yet)."),
     };

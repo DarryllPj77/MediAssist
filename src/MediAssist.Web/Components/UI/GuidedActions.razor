@@ -3,7 +3,7 @@
     outlined pill, each with an English label and a Filipino helper line. Verb + object labels.
 *@
 
-<div class="ga @(OnNavy ? "ga--on-navy" : null) @Class">
+<div class="ga @Class">
     <a class="ga__btn ga__btn--primary" href="@PrimaryHref">
         <span class="ga__label">
             @if (PrimaryIcon is not null)
@@ -45,7 +45,5 @@
     [Parameter] public string? SecondaryLabel { get; set; }
     [Parameter] public string? SecondaryFilipino { get; set; }
     [Parameter] public string? SecondaryIcon { get; set; }
-    /// <summary>Use inside the navy hero band.</summary>
-    [Parameter] public bool OnNavy { get; set; }
     [Parameter] public string? Class { get; set; }
 }
