@@ -1,21 +1,21 @@
 # MediAssist Development Progress
 
-MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is committed as `d9fd22a` and pushed. D5 (hospital directory and search) is committed as `b42be6d` and pushed. D6 (optional runner requests) is implemented and verified but not yet committed.**
+MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is committed as `d9fd22a` and pushed. D5 (hospital directory and search) is committed as `b42be6d` and pushed. D6 (optional runner requests) is committed as `5ecfb68` and pushed. D7 (notification read/unread and links) is implemented and verified but not yet committed.**
 
 ## Current snapshot
 
 | Field | Verified state |
 |---|---|
-| Reviewed | 13 November 2026, Asia/Manila (D6 implementation review) |
+| Reviewed | 13 November 2026, Asia/Manila (D7 implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `b42be6d` — feat(patient): implement hospital directory and search (pushed; `origin/design/premium-civic-imagery` in sync) |
-| Latest application commit | `b42be6df58a1c6d9241ec271df271209ba0f5df6` — D5 |
-| Latest implementation | D6 — Optional Medical Runner Requests (**implemented, uncommitted**) |
-| Application changes awaiting commit | D6: 15 application files (10 modified, 5 new) — see “D6 Optional Medical Runner Requests” below |
-| Documentation awaiting commit | (1) the post-commit D5 hash/push record, preserved; (2) this D6 status, features, verification and log update |
+| Branch HEAD | `5ecfb68` — feat(patient): implement optional runner requests (pushed; `origin/design/premium-civic-imagery` in sync) |
+| Latest application commit | `5ecfb68aa55c2b496368bf700820801249f0ecad` — D6 |
+| Latest implementation | D7 — In-App Notifications & Read/Unread Management (**implemented, uncommitted**) |
+| Application changes awaiting commit | D7: 10 application files (all modified) — see “D7 In-App Notifications” below |
+| Documentation awaiting commit | (1) the post-commit D6 hash/push record, preserved; (2) this D7 status, features, verification and log update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 in progress; A–C and D1–D5 committed and pushed; D6 implemented and verified, awaiting commit approval |
-| Next development task | Commit D6 (with this document) once approved; then D7 — In-App Notifications & Read/Unread Management (efficient mode) |
+| Overall status | Milestone 2 in progress; A–C and D1–D6 committed and pushed; D7 implemented and verified, awaiting commit approval |
+| Next development task | Commit D7 (with this document) once approved; then D8 — User Profile & Settings (efficient mode) |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -32,6 +32,7 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 - D4 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **276 of 276** page checks (69 routes × 320, 768, 1024 and 1440 px, with stored profiles, requests, drafts, submissions and uploads present): overflow, 44 px targets, 13 px text, one h1, at most one filled button, duplicate IDs, ARIA references, heading order and AA contrast. Flow checks are listed under D4 below.
 - D5 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **272 of 272** page checks (68 routes × 320, 768, 1024 and 1440 px) with the same accessibility and layout checks as D4. Flow checks are listed under D5 below.
 - D6 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **232 of 232** page checks (58 routes × 320, 768, 1024 and 1440 px, with own and seeded runner requests stored), same checks as D4–D5 plus textarea target size. Flow checks are listed under D6 below. The version 3 → 4 snapshot upgrade uses the same generic upgrade path verified with real older builds in D3 and D4; it was not re-run with a D5 build.
+- D7 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **224 of 224** page checks (56 routes × 320, 768, 1024 and 1440 px, with stored read states and a new local notification). Flow checks are listed under D7 below. The version 4 → 5 snapshot upgrade uses the same generic upgrade path verified with real older builds in D3 and D4.
 - No dedicated test project exists in the tracked solution. The browser checks above are scripted in the review session, not committed tests.
 
 To repeat verification from the repository root in PowerShell, without stopping a running app:
@@ -57,8 +58,9 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | Milestone 2 as a whole | In Progress | Partially delivered | Remaining modules and integration defects below |
 | D4 — Patient Profile Management & Authorization Requests | Completed | **Committed** | `d9fd22a`; profile list/details/add/edit, reusable profiles in the wizard, simulated authorization requests, D9-ready request data |
 | D5 — Hospital Directory & Search | Completed | **Committed** | `b42be6d`; searchable directory, hospital details, wizard and Programs integration |
-| D6 — Optional Medical Runner Requests | Implemented and verified | **Uncommitted** | Request list, request form, cancel before assignment, detail-page links and history; application status untouched |
-| D7–D10 | Pending | Agreed roadmap | Some read-only foundations exist; remaining workflows are not complete |
+| D6 — Optional Medical Runner Requests | Completed | **Committed** | `5ecfb68`; request list, request form, cancel before assignment, detail-page links and history; application status untouched |
+| D7 — In-App Notifications & Read/Unread Management | Implemented and verified | **Uncommitted** | Read/unread per notification, mark all read, All/Unread filters, links to related items; bell and dashboard follow |
+| D8–D10 | Pending | Agreed roadmap | Some read-only foundations exist; remaining workflows are not complete |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -82,6 +84,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-13 | `8c0554e` | feat(patient): implement simulated document uploads and corrections |
 | 2026-11-13 | `d9fd22a` | feat(patient): implement patient profiles and authorization requests |
 | 2026-11-13 | `b42be6d` | feat(patient): implement hospital directory and search |
+| 2026-11-13 | `5ecfb68` | feat(patient): implement optional runner requests |
 
 ## Completed features and workflows
 
@@ -176,7 +179,9 @@ Built in the owner's efficient mode (short plan and build in one turn). Choices 
 
 **Flow checks performed (browser, 13 November 2026):** all six hospitals; `dialysis` (2 results); `pasig` + Diagnostic Procedure Aid (2); no-match empty state; unknown program ignored; details for San Isidro (3 programs, 3 household applications, office facts); a hospital with no applications; unknown id; wizard from `?hospital=riverbend-kidney` with the hospital pre-selected and “not listed at” notes on step 3; Programs “Handled at”. Fixed during verification: missing spaces after the “Handles:”/“Handled at:” labels, and the search row's fields misaligned at desktop widths (the hint now sits on its own row, and under its field on phones).
 
-### D6 Optional Medical Runner Requests (uncommitted)
+### D6 Optional Medical Runner Requests
+
+Committed on 13 November 2026 as `5ecfb68aa55c2b496368bf700820801249f0ecad` with message `feat(patient): implement optional runner requests` (15 application files and the progress document, which also carried the D5 hash record), then pushed: `b42be6d..5ecfb68`. `git pull --rebase` beforehand reported the branch up to date.
 
 Built in efficient mode. Choices made, open to change: **one open request per application**, and seeded requests (staff data) **cannot be cancelled** by the patient.
 
@@ -188,6 +193,18 @@ Built in efficient mode. Choices made, open to change: **one open request per ap
 **Data and services:** `Models/RunnerRequests.cs` (`RunnerErrand`, `RunnerRules`). `RunnerRequestItem` gains optional kind, time window, notes, requested and closed times (appended, so seeds and older data still read). Workspace snapshot **version 4** adds runner requests. `ApplicationWorkspace` adds `RunnerRequests` (merged), `RequestRunnerAsync`, `CancelRunnerRequestAsync` and `RunnerEvents`; `IPatientPortalDataService.GetRunnerRequestsAsync` was added. `RunnerTaskStatusDisplay` gains badge tone and icon. Staff views still read seeded requests only.
 
 **Flow checks performed (browser, 13 November 2026):** seeded list (declined and accepted, no cancel button); empty-form errors (5); request refused for an application with an open request and for today's date; date beyond 30 days refused; valid request for MA-2026-00418 (confirmation, own request listed first, bell +1, cancel button); detail page shows the request and hides “Request runner help” while it is open; eligible application without a request links to the form; declined-only application offers a new request; draft shows the general runner panel; `?application=` pre-selection; cancel with confirmation; history shows requested and cancelled; application status unchanged; admin runner requests unchanged. Fixed during verification: own requests were listed after seeded ones (seeded requests have no request time), and the D1 detail page showed future “needed by” dates as “Today” — it now shows the date.
+
+### D7 In-App Notifications & Read/Unread Management (uncommitted)
+
+Built in efficient mode. Decisions: read state covers **seeded and the user's own** notifications; every notification links to the related **application, patient profile or runner page**.
+
+1. `/patient/notifications`: All / Unread filter links (`?show=unread`, counts announced as “notifications”), “Mark all as read” (shown only while something is unread), and per notification “Mark as read” / “Mark as unread”. Each title links to its item; opening it marks it read and still navigates. Every change is announced (“… marked as read.”); a failed save says so and changes nothing. An empty Unread view shows “You're all caught up”.
+2. The bell count and the dashboard's latest notifications follow the read state; dashboard titles link to their item and mark it read on open.
+3. Links: seeded notifications carry links; new ones (submission, correction, authorization, runner request) store theirs; notifications saved before D7 get a link worked out from their id.
+
+**Data:** `PortalNotification` gains optional `Href`; new `NotificationReadState`. Workspace snapshot **version 5** adds the user's read/unread choices, which override each notification's default (`ApplicationWorkspace.WithReadState`, `SetReadAsync`). `FilterChips` gains a `Noun` parameter so screen-reader counts name what they count.
+
+**Flow checks performed (browser, 13 November 2026):** initial 3 unread (bell 3); mark one read (bell 2, Unread chip 2, row moves down); mark a read one unread (bell 3); mark all read (bell cleared, “You are up to date.”); Unread filter with one item and the active chip; opening that item's link navigated to MA-2026-00431 and cleared it (“You're all caught up”); state kept across reloads; dashboard shows read state and links; a new runner-request notification arrived unread with its link. Fixed during verification: filter chips announced “applications” instead of “notifications”.
 
 ## Current architecture
 
@@ -232,8 +249,8 @@ The following findings are source-verified unless explicitly described as build 
 | ~~Resumed seed draft can retain stale checklist context~~ — **fixed in D3 (`8c0554e`)** | The seed checklist is reused only while the program is unchanged | None |
 | Local submissions, uploads, profiles, authorization and runner requests are not visible to administrators | Staff service reads only `MockPortalStore`; everything the user creates (D2–D4) lives in their browser. The D3 correction return-to-review happens on the user's local copy without a reviewer; D4 requests stay “Being reviewed” and D6 runner requests stay “Waiting for a runner” | Choose shared workflow persistence before D9 administrator reviews |
 | Upload reviews are not decided | D3 uploads stay `Pending`; nothing marks a document accepted or rejected, so “Ready” counts only change in seed data | D9: reviewer accept/reject with reason, using `UploadReviewState` and `ReviewNote` |
-| Management pages are placeholders | Patient profiles (D4, `d9fd22a`), hospitals (D5, `b42be6d`) and runner requests (D6, uncommitted) are implemented. The settings page and staff management/task routes still use placeholder components; `/admin/authorizations` awaits D9 | Implement the pending modules below |
-| Notification read state cannot be changed | UI displays read/unread records and D2 adds local submission notices, but exposes no mark-read operation | Add recipient-scoped read-state updates |
+| Management pages are placeholders | Patient profiles (D4, `d9fd22a`), hospitals (D5, `b42be6d`) and runner requests (D6, `5ecfb68`) are implemented. The settings page and staff management/task routes still use placeholder components; `/admin/authorizations` awaits D9 | Implement the pending modules below |
+| ~~Notification read state cannot be changed~~ — **fixed in D7 (uncommitted)** | Read/unread per notification and mark-all, saved in the user's browser. Staff notification pages remain placeholders | Staff notifications with D9/D10 |
 | Persistence and recovery are limited | Browser storage has no account isolation, multi-device sync or cross-tab conflict handling. D3 now reports save failures to the user and rolls back uploads/submissions that were not saved | Idempotency and eventual database persistence |
 | Stored data is tied to the app's build location | Observed during D3 verification: ASP.NET Core Data Protection isolates keys per application location by default, so a build run from a different folder could not decrypt data saved by another (the workspace safely reset). Moving or republishing the app to a new folder would reset users' stored drafts | Set a fixed Data Protection application name and key location before any shared deployment (would reset existing prototype data once) |
 | References are local | Generator considers known seed/local references only | Enforce unique references transactionally when adding shared persistence |
@@ -246,13 +263,13 @@ Only fictional records and simulated documents belong in this prototype. Real me
 
 ## Remaining Phase D checklist
 
-**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is committed (`d9fd22a`); D5 is committed (`b42be6d`); D6 is implemented but not yet committed.
+**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is committed (`d9fd22a`); D5 is committed (`b42be6d`); D6 is committed (`5ecfb68`); D7 is implemented but not yet committed.
 
 - [x] **D3 — Simulated Document Uploads & Correction Workflow:** implemented and committed as `8c0554e`. Upload metadata, validation, replacement/versions, history, counts and correction return-to-review; fictional sample files only. Handoff to D9: `UploadReviewState` and `ReviewNote` are reserved for reviewer decisions.
 - [x] **D4 — Patient Profile Management & Authorization Requests:** implemented, verified and committed as `d9fd22a` (pushed). Profile list/details/add/edit, reusable profiles in the wizard (add-and-return, pre-selection, authorization gate), simulated authorization requests with a supporting sample document. Handoff to D9: `AuthorizationRequest` status/decision/note fields and `IStaffPortalDataService.GetAuthorizationRequestsAsync`.
 - [x] **D5 — Hospital Directory & Search:** implemented, verified and committed as `b42be6d` (pushed). Searchable directory and hospital details; the wizard uses the directory (pre-selection, “not listed at” notes) and Programs lists where each program is handled.
-- [x] **D6 — Optional Medical Runner Requests (Patient Portal):** implemented and verified (**uncommitted**, awaiting approval). Request list and form for permitted errands on eligible applications, cancel before assignment, detail-page integration and history; runner and application statuses stay independent. Assignment remains D9, execution D10.
-- [ ] **D7 — In-App Notifications & Read/Unread Management:** extend the existing patient notification list, bell counts and D2 submission notices with persisted read/unread actions and event links. Staff notification pages remain placeholders.
+- [x] **D6 — Optional Medical Runner Requests (Patient Portal):** implemented, verified and committed as `5ecfb68` (pushed). Request list and form for permitted errands on eligible applications, cancel before assignment, detail-page integration and history; runner and application statuses stay independent. Assignment remains D9, execution D10.
+- [x] **D7 — In-App Notifications & Read/Unread Management:** implemented and verified (**uncommitted**, awaiting approval). Read/unread and mark-all for seeded and own notifications, All/Unread filters, links to the related item; bell and dashboard follow. Staff notification pages remain placeholders.
 - [ ] **D8 — User Profile & Settings:** replace settings placeholders with the agreed profile/settings flows. Seed account names and sidebar preferences exist; account/profile editing does not.
 - [ ] **D9 — Administrator Workflows: Review Queue, Document Reviews, Authorization Approval & Runner Assignment:** extend the seeded dashboard into actionable reviews, correction reasons, authorization approval, readiness transitions and manual runner assignment/reassignment. Management routes remain placeholders; choose shared workflow persistence first.
 - [ ] **D10 — Medical Runner Workflows: Assignments, Task Details, Status Updates & History:** replace runner task/history placeholders with assigned-task details, accept/decline, progress, completion and history. The dashboard currently displays seeded tasks; runner and application statuses must remain independent.
@@ -261,16 +278,14 @@ Integration testing, mobile/accessibility checks and the known-issue fixes apply
 
 ## Next development task and prerequisites
 
-**Next step: commit D6** (application changes and this document, including the preserved D5 hash record) once the owner approves. Then **D7 — In-App Notifications & Read/Unread Management**, in efficient mode.
+**Next step: commit D7** (application changes and this document, including the preserved D6 hash record) once the owner approves. Then **D8 — User Profile & Settings**, in efficient mode.
 
-D6 decisions recorded:
+D7 decisions recorded:
 
-- [x] Requests stay browser-only (snapshot version 4) until D9 shared persistence; staff see seeded requests only.
-- [x] One open request per application; a new one is allowed after a decline or cancellation.
-- [x] The patient may cancel only their own request, and only while it waits for a runner.
-- [x] Runner status never changes application status.
+- [x] Read state is the user's choice, saved in their browser (snapshot version 5), and applies to seeded and own notifications.
+- [x] Opening a notification marks it read; notifications link to their application, profile or runner page.
 
-Before D7: decide whether read/unread state covers seeded notifications as well as the user's own, and whether notifications link to the related application or profile.
+Before D8: decide which account fields are editable in a prototype without authentication, and whether settings include notification and language preferences.
 
 ## Updating this document
 
@@ -294,4 +309,6 @@ After each phase:
 | 2026-11-13 | Committed D4 and progress documentation (exact message: `feat(patient): implement patient profiles and authorization requests`), then pushed the branch (`57c4ee0..d9fd22a`) | `d9fd22aad6d0c7704e1ef5692ef075bdf83b8868` | D4 committed and pushed; this actual-hash update is uncommitted |
 | 2026-11-13 | D5 implemented and verified (efficient mode): hospital directory and search, hospital details, wizard and Programs integration | `d9fd22a` + working tree | Committed as `b42be6d` |
 | 2026-11-13 | Committed D5 and progress documentation (exact message: `feat(patient): implement hospital directory and search`), then pushed (`d9fd22a..b42be6d`) | `b42be6df58a1c6d9241ec271df271209ba0f5df6` | D5 committed and pushed; this actual-hash update is uncommitted |
-| 2026-11-13 | D6 implemented and verified (efficient mode): optional runner requests, cancel before assignment, detail-page links and history; D1 needed-by date display fixed | `b42be6d` + working tree | Uncommitted, awaiting approval |
+| 2026-11-13 | D6 implemented and verified (efficient mode): optional runner requests, cancel before assignment, detail-page links and history; D1 needed-by date display fixed | `b42be6d` + working tree | Committed as `5ecfb68` |
+| 2026-11-13 | Committed D6 and progress documentation (exact message: `feat(patient): implement optional runner requests`), then pushed (`b42be6d..5ecfb68`) | `5ecfb68aa55c2b496368bf700820801249f0ecad` | D6 committed and pushed; this actual-hash update is uncommitted |
+| 2026-11-13 | D7 implemented and verified (efficient mode): notification read/unread, mark all, filters and links | `5ecfb68` + working tree | Uncommitted, awaiting approval |

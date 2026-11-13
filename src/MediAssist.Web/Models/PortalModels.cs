@@ -95,9 +95,17 @@ public sealed record ActionItem(
     string ActionHref,
     DateTimeOffset? DueBy = null);
 
+/// <summary>
+/// An in-app notification. <see cref="Href"/> (added in D7, optional so older records still read)
+/// points at what it is about: an application, a patient profile or the runner page.
+/// </summary>
 public sealed record PortalNotification(
     string Id,
     string Title,
     string Message,
     DateTimeOffset CreatedAt,
-    bool IsRead);
+    bool IsRead,
+    string? Href = null);
+
+/// <summary>The user's own read/unread choice for one notification (D7), overriding its default.</summary>
+public sealed record NotificationReadState(string Id, bool IsRead);

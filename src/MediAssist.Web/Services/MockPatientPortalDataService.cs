@@ -33,7 +33,8 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
     }
 
     public Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<PortalNotification>>([.. workspace.Notifications, .. store.Notifications()]);
+        Task.FromResult<IReadOnlyList<PortalNotification>>(
+            [.. workspace.Notifications.Concat(store.Notifications()).Select(workspace.WithReadState)]);
 
     /// <summary>A household patient's authorization requests, newest first (empty for anyone else).</summary>
     public Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(Guid patientId, CancellationToken cancellationToken = default) =>

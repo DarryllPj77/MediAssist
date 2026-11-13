@@ -1,6 +1,7 @@
 @*
     "Latest notifications": a wide banner image beside the two newest notifications,
-    with a link to the full Notifications page. The image is never captioned.
+    with a link to the full Notifications page. The image is never captioned. Each title links to
+    what it is about and marks the notification read (D7).
 *@
 
 <section class="latest" aria-labelledby="latest-title">
@@ -25,7 +26,16 @@
                         }
                         <time datetime="@DisplayFormat.Machine(n.CreatedAt)">@DisplayFormat.Relative(n.CreatedAt, Now)</time>
                     </p>
-                    <p class="latest__title">@n.Title</p>
+                    <p class="latest__title">
+                        @if (n.Href is not null)
+                        {
+                            <a class="latest__link" href="@n.Href" @onclick="() => OpenAsync(n)">@n.Title</a>
+                        }
+                        else
+                        {
+                            @n.Title
+                        }
+                    </p>
                     <p class="latest__message">@n.Message</p>
                 </li>
             }
@@ -36,4 +46,12 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<PortalNotification> Notifications { get; set; } = [];
     [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+
+    [Inject] private ApplicationWorkspace Workspace { get; set; } = default!;
+
+    /// <summary>Opening a notification marks it read (D7); the link still navigates.</summary>
+    private async Task OpenAsync(PortalNotification n)
+    {
+        if (!n.IsRead) await Workspace.SetReadAsync([n.Id], true);
+    }
 }

@@ -16,7 +16,7 @@
                     @if (chip.Count is int count)
                     {
                         <span class="stage__count tabular">@count</span>
-                        <span class="visually-hidden">@(count == 1 ? "application" : "applications")</span>
+                        <span class="visually-hidden">@(count == 1 ? Noun : $"{Noun}s")</span>
                     }
                 </a>
             </li>
@@ -29,5 +29,7 @@
 
     [Parameter, EditorRequired] public IReadOnlyList<Chip> Chips { get; set; } = [];
     [Parameter, EditorRequired] public string AriaLabel { get; set; } = "";
+    /// <summary>What the counts count, for screen readers ("application" → "3 applications").</summary>
+    [Parameter] public string Noun { get; set; } = "application";
     [Parameter] public string? Class { get; set; }
 }

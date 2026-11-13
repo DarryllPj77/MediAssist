@@ -3,6 +3,13 @@
 @inject IPatientPortalDataService Data
 @inject TimeProvider Clock
 
+@*
+    Notifications (D7): All / Unread filter links (?show=unread), "Mark all as read", and per
+    notification a link to what it is about (opening it marks it read) and "Mark as read/unread".
+    Read choices are saved in the user's workspace and override each notification's default, so the
+    bell and the dashboard follow them. Each change is announced.
+*@
+
 <PageTitle>Notifications · MediAssist</PageTitle>
 
 <div class="page page--wide">
@@ -14,7 +21,9 @@
         <Eyebrow>Account</Eyebrow>
     </SplitHero>
 
-    @if (_items.Count == 0)
+    <p class="notices__status" role="status">@_status</p>
+
+    @if (_all.Count == 0)
     {
         <Panel>
             <EmptyState IconName="bell" Title="No notifications yet"
@@ -24,55 +33,119 @@
     else
     {
         <section aria-labelledby="notice-list-title" class="notices">
-            <h2 id="notice-list-title" class="notices__title">All notifications</h2>
-            <ol role="list" class="notices__list">
-                @foreach (var n in _items)
+            <div class="notices__head">
+                <h2 id="notice-list-title" class="notices__title">@(UnreadOnly ? "Unread notifications" : "All notifications")</h2>
+                @if (Unread > 0)
                 {
-                    <li class="notice-row @(n.IsRead ? null : "notice-row--new")">
-                        <span class="notice-row__dot" aria-hidden="true"></span>
-                        <div class="notice-row__text">
-                            <p class="notice-row__meta">
-                                @if (!n.IsRead)
-                                {
-                                    <span class="notice-row__new">New</span>
-                                }
-                                <time datetime="@DisplayFormat.Machine(n.CreatedAt)">@DisplayFormat.Relative(n.CreatedAt, _now)</time>
-                            </p>
-                            <h3 class="notice-row__title">@n.Title</h3>
-                            <p class="notice-row__message">@n.Message</p>
-                        </div>
-                    </li>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="check" OnClick="MarkAllReadAsync">Mark all as read</AppButton>
                 }
-            </ol>
+            </div>
+
+            <FilterChips Chips="Chips" AriaLabel="Show notifications" Noun="notification" />
+
+            @if (_items.Count == 0)
+            {
+                <Panel>
+                    <EmptyState IconName="check-circle" Title="You're all caught up"
+                                Message="There are no unread notifications.">
+                        <Action>
+                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Notifications.Href">Show all notifications</AppButton>
+                        </Action>
+                    </EmptyState>
+                </Panel>
+            }
+            else
+            {
+                <ol role="list" class="notices__list">
+                    @foreach (var n in _items)
+                    {
+                        <li class="notice-row @(n.IsRead ? null : "notice-row--new")">
+                            <span class="notice-row__dot" aria-hidden="true"></span>
+                            <div class="notice-row__text">
+                                <p class="notice-row__meta">
+                                    @if (!n.IsRead)
+                                    {
+                                        <span class="notice-row__new">New</span>
+                                    }
+                                    <time datetime="@DisplayFormat.Machine(n.CreatedAt)">@DisplayFormat.Relative(n.CreatedAt, _now)</time>
+                                </p>
+                                <h3 class="notice-row__title">
+                                    @if (n.Href is not null)
+                                    {
+                                        <a class="notice-row__link" href="@n.Href" @onclick="() => OpenAsync(n)">@n.Title</a>
+                                    }
+                                    else
+                                    {
+                                        @n.Title
+                                    }
+                                </h3>
+                                <p class="notice-row__message">@n.Message</p>
+                            </div>
+                            <div class="notice-row__actions">
+                                <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="@(n.IsRead ? "bell" : "check")"
+                                           OnClick="() => ToggleAsync(n)">
+                                    @(n.IsRead ? "Mark as unread" : "Mark as read")<span class="visually-hidden">: @n.Title</span>
+                                </AppButton>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
         </section>
     }
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
+
+    private IReadOnlyList<PortalNotification> _all = [];
     private IReadOnlyList<PortalNotification> _items = [];
     private DateTimeOffset _now;
+    private string? _status;
 
-    private string LeadText
+    private bool UnreadOnly => string.Equals(Show, "unread", StringComparison.OrdinalIgnoreCase);
+    private int Unread => _all.Count(n => !n.IsRead);
+
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+    [
+        new("All", PortalNavigation.Notifications.Href, _all.Count, Active: !UnreadOnly),
+        new("Unread", $"{PortalNavigation.Notifications.Href}?show=unread", Unread, Active: UnreadOnly),
+    ];
+
+    private string LeadText => Unread switch
     {
-        get
-        {
-            var unread = _items.Count(n => !n.IsRead);
-            return unread switch
-            {
-                0 => "You are up to date.",
-                1 => "1 notification you haven't read yet.",
-                _ => $"{unread} notifications you haven't read yet."
-            };
-        }
-    }
+        0 => "You are up to date.",
+        1 => "1 notification you haven't read yet.",
+        _ => $"{Unread} notifications you haven't read yet."
+    };
 
     protected override async Task LoadAsync()
     {
         _now = Clock.GetLocalNow();
         // Unread first, newest first within each group.
-        _items = (await Data.GetNotificationsAsync())
+        _all = (await Data.GetNotificationsAsync())
             .OrderBy(n => n.IsRead)
             .ThenByDescending(n => n.CreatedAt)
             .ToList();
+        _items = UnreadOnly ? _all.Where(n => !n.IsRead).ToList() : _all;
+    }
+
+    private async Task ToggleAsync(PortalNotification n)
+    {
+        var saved = await Workspace.SetReadAsync([n.Id], !n.IsRead);
+        _status = !saved ? "We couldn’t save that change in this browser. Try again."
+            : n.IsRead ? $"“{n.Title}” marked as unread." : $"“{n.Title}” marked as read.";
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        var saved = await Workspace.SetReadAsync(_all.Where(n => !n.IsRead).Select(n => n.Id), true);
+        _status = saved ? "All notifications marked as read." : "We couldn’t save that change in this browser. Try again.";
+    }
+
+    /// <summary>Opening a notification's link marks it read; the link still navigates.</summary>
+    private async Task OpenAsync(PortalNotification n)
+    {
+        if (!n.IsRead) await Workspace.SetReadAsync([n.Id], true);
     }
 }

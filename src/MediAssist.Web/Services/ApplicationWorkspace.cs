@@ -35,6 +35,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     private IReadOnlyList<PatientProfile> LocalProfiles => _snapshot.Profiles ?? [];
     private IReadOnlyList<AuthorizationRequest> LocalRequests => _snapshot.AuthorizationRequests ?? [];
     private IReadOnlyList<RunnerRequestItem> LocalRunnerRequests => _snapshot.RunnerRequests ?? [];
+    private IReadOnlyList<NotificationReadState> NotificationStates => _snapshot.NotificationStates ?? [];
 
     /// <summary>Read the user's saved workspace once; later calls return the same task.</summary>
     public Task EnsureLoadedAsync() => _loading ??= LoadAsync();
@@ -131,7 +132,8 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             file!.FileName, file.ContentType, file.SizeBytes, now);
         var updated = patient with { Authorization = AuthorizationStatus.PendingReview };
         var notification = new PortalNotification($"n-auth-{request.Id}", "Authorization requested",
-            $"Your request to act for {patient.FullName} is being reviewed.", now, false);
+            $"Your request to act for {patient.FullName} is being reviewed.", now, false,
+            $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, Household)}");
 
         var before = _snapshot;
         _snapshot = _snapshot with
@@ -147,6 +149,49 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             return AuthorizationResult.SaveFailed();
         }
         return AuthorizationResult.Saved(request);
+    }
+
+    // ---- Notifications: read/unread and links (D7) ----
+
+    /// <summary>
+    /// A notification as this user sees it: their read/unread choice overrides its default, and a
+    /// notification stored before D7 (no link) gets one from its id.
+    /// </summary>
+    public PortalNotification WithReadState(PortalNotification notification)
+    {
+        var state = NotificationStates.FirstOrDefault(s => s.Id == notification.Id);
+        return notification with
+        {
+            IsRead = state?.IsRead ?? notification.IsRead,
+            Href = notification.Href ?? FallbackHref(notification.Id),
+        };
+    }
+
+    /// <summary>Links for notifications saved before D7, from their id ("n-MA-2026-00453", "n-auth-…", "n-rr-…").</summary>
+    private static string? FallbackHref(string id) =>
+        id.StartsWith("n-MA-", StringComparison.Ordinal) ? $"/patient/applications/{id[2..].Replace("-corrected", "")}"
+        : id.StartsWith("n-auth-", StringComparison.Ordinal) ? "/patient/patients"
+        : id.StartsWith("n-rr-", StringComparison.Ordinal) ? "/patient/runner"
+        : null;
+
+    /// <summary>Mark notifications read or unread. Returns false when the choice could not be saved (nothing changes).</summary>
+    public async Task<bool> SetReadAsync(IEnumerable<string> ids, bool isRead)
+    {
+        var changed = ids.ToHashSet();
+        if (changed.Count == 0) return true;
+
+        var before = _snapshot;
+        _snapshot = _snapshot with
+        {
+            NotificationStates = [.. NotificationStates.Where(s => !changed.Contains(s.Id)), .. changed.Select(id => new NotificationReadState(id, isRead))],
+        };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return false;
+        }
+        return true;
     }
 
     // ---- Optional runner requests (D6) ----
@@ -195,7 +240,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             neededBy, RunnerTaskStatus.PendingAssignment, null,
             errand, window, string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), now);
         var notification = new PortalNotification($"n-{request.Id}", "Runner help requested",
-            $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false);
+            $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false, "/patient/runner");
 
         var before = _snapshot;
         _snapshot = _snapshot with
@@ -306,7 +351,8 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         ];
 
         var notification = new PortalNotification(
-            $"n-{reference}", "Application submitted", $"{reference} was sent for review.", now, false);
+            $"n-{reference}", "Application submitted", $"{reference} was sent for review.", now, false,
+            $"/patient/applications/{reference}");
 
         var before = _snapshot;
         _snapshot = _snapshot with
@@ -457,7 +503,8 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
                 ApplicationStatus.UnderReview),
         ];
         var notification = new PortalNotification($"n-{reference}-corrected", "Correction sent",
-            $"{reference} is back in review with your corrected document.", now, false);
+            $"{reference} is back in review with your corrected document.", now, false,
+            $"/patient/applications/{reference}");
 
         _snapshot = _snapshot with
         {

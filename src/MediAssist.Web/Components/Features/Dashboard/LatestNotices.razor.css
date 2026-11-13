@@ -55,3 +55,11 @@
         align-items: start;
     }
 }
+
+.latest__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    margin-block: calc(-1 * var(--space-2));
+    color: var(--color-navy);
+}

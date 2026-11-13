@@ -320,10 +320,14 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
         var t = Today;
         return
         [
-            new("n-1", "Correction requested", "MA-2026-00418 needs a clearer medical abstract.", t.AddHours(-3), false),
-            new("n-2", "Review started", "MA-2026-00431 is now under review.", t.AddDays(-1).AddHours(10), false),
-            new("n-3", "Authorization received", "Lia Santos's authorization request is being reviewed.", t.AddDays(-4), false),
-            new("n-4", "Application completed", "Internal processing for MA-2026-00317 is finished.", t.AddDays(-21), true),
+            new("n-1", "Correction requested", "MA-2026-00418 needs a clearer medical abstract.", t.AddHours(-3), false,
+                "/patient/applications/MA-2026-00418"),
+            new("n-2", "Review started", "MA-2026-00431 is now under review.", t.AddDays(-1).AddHours(10), false,
+                "/patient/applications/MA-2026-00431"),
+            new("n-3", "Authorization received", "Lia Santos's authorization request is being reviewed.", t.AddDays(-4), false,
+                "/patient/patients/lia"),
+            new("n-4", "Application completed", "Internal processing for MA-2026-00317 is finished.", t.AddDays(-21), true,
+                "/patient/applications/MA-2026-00317"),
         ];
     }
 

@@ -28,7 +28,8 @@ public sealed record LocalApplication(
 /// <summary>
 /// Everything stored for one user. Version 2 (D3) added <see cref="Uploads"/>; version 3 (D4)
 /// added <see cref="Profiles"/> (new patients and edits to seeded ones, keyed by id) and
-/// <see cref="AuthorizationRequests"/>; version 4 (D6) added <see cref="RunnerRequests"/>. Older
+/// <see cref="AuthorizationRequests"/>; version 4 (D6) added <see cref="RunnerRequests"/>; version 5
+/// (D7) added <see cref="NotificationStates"/> (read/unread choices). Older
 /// snapshots are upgraded on load, never discarded.
 /// </summary>
 public sealed record WorkspaceSnapshot(
@@ -39,11 +40,12 @@ public sealed record WorkspaceSnapshot(
     IReadOnlyList<DocumentUpload>? Uploads = null,
     IReadOnlyList<PatientProfile>? Profiles = null,
     IReadOnlyList<AuthorizationRequest>? AuthorizationRequests = null,
-    IReadOnlyList<RunnerRequestItem>? RunnerRequests = null)
+    IReadOnlyList<RunnerRequestItem>? RunnerRequests = null,
+    IReadOnlyList<NotificationReadState>? NotificationStates = null)
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
-    public static WorkspaceSnapshot Empty { get; } = new(CurrentVersion, [], [], [], [], [], [], []);
+    public static WorkspaceSnapshot Empty { get; } = new(CurrentVersion, [], [], [], [], [], [], [], []);
 
     /// <summary>Bring an older snapshot up to <see cref="CurrentVersion"/>; null if it cannot be.</summary>
     public WorkspaceSnapshot? Upgrade() => Version is >= 1 and <= CurrentVersion
@@ -54,6 +56,7 @@ public sealed record WorkspaceSnapshot(
             Profiles = Profiles ?? [],
             AuthorizationRequests = AuthorizationRequests ?? [],
             RunnerRequests = RunnerRequests ?? [],
+            NotificationStates = NotificationStates ?? [],
         }
         : null;
 }
