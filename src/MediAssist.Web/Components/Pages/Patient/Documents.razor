@@ -2,7 +2,14 @@
 @inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
 
-<PageTitle>Document checklist · MediAssist</PageTitle>
+@*
+    Document checklist: every open application and the documents it still needs. With
+    ?upload=<document>&application=<reference> (the checklists' Upload, Upload a new copy and
+    Replace links) the simulated upload panel (D3) opens above the lists; ?return= brings the user
+    back to where they started (for example the wizard's documents step).
+*@
+
+<PageTitle>@(Upload is null ? "Document checklist" : $"Upload {Upload}") · MediAssist</PageTitle>
 
 <div class="page page--wide">
     <SplitHero TitleId="documents-title" ImageKey="hero-documents"
@@ -13,15 +20,44 @@
         <Eyebrow>Find help</Eyebrow>
     </SplitHero>
 
-    @if (Upload is not null)
+    @if (_result is { } done)
     {
-        <p class="prototype-note" role="status">
-            <Icon Name="info" Size="20" />
-            <span>
-                Uploading “@Upload” isn’t available in this prototype yet. When it is, you will choose a
-                photo or file here, and the reviewer will see it on @(Application ?? "your application").
-            </span>
-        </p>
+        <div class="uploaded" role="status">
+            <Icon Name="check-circle" Size="22" />
+            <div class="uploaded__text">
+                <p>
+                    <strong>@done.Upload!.DocumentName uploaded.</strong>
+                    @(done.CorrectionSent
+                        ? $"Every correction is in, so {done.Upload.ApplicationReference} is back in review."
+                        : "A reviewer will check it. You can replace it until then.")
+                </p>
+                <a class="uploaded__back" href="@BackHref">@BackLabel</a>
+            </div>
+        </div>
+    }
+    else if (Upload is not null)
+    {
+        @if (!Workspace.IsLoaded)
+        {
+            <p class="prototype-note" role="status">
+                <Icon Name="info" Size="20" />
+                <span>Loading this document…</span>
+            </p>
+        }
+        else if (_target is { } target && _item is { } item && CanUpload)
+        {
+            <UploadPanel Application="target" Item="item" CancelHref="@BackHref" OnUploaded="OnUploaded" />
+        }
+        else
+        {
+            <p class="prototype-note" role="status">
+                <Icon Name="info" Size="20" />
+                <span>
+                    “@Upload” can’t be uploaded here@(Application is null ? "" : $" for {Application}"): it may already be accepted,
+                    or the application isn’t one of yours. Choose a document from the lists below.
+                </span>
+            </p>
+        }
     }
 
     @if (_checklists.Count == 0)
@@ -45,9 +81,51 @@
 @code {
     [SupplyParameterFromQuery] public string? Upload { get; set; }
     [SupplyParameterFromQuery] public string? Application { get; set; }
+    /// <summary>A same-site page to return to after uploading (for example the wizard's step 4).</summary>
+    [SupplyParameterFromQuery(Name = "return")] public string? Return { get; set; }
 
     private IReadOnlyList<ApplicationChecklist> _checklists = [];
+    private AssistanceApplication? _target;
+    private ChecklistItem? _item;
+    private UploadResult? _result;
+    private string? _resultFor;
 
-    protected override async Task LoadAsync() =>
+    /// <summary>A missing or sent-back document, or one the user uploaded that is still being reviewed.</summary>
+    private bool CanUpload => _item is not null && _target is not null
+        && (DocumentStatusDisplay.NeedsAction(_item.Status)
+            || (_item.Status == DocumentStatus.PendingReview && Workspace.LatestUpload(_target.ReferenceNumber, _item.Name) is not null));
+
+    /// <summary>Only paths inside the patient portal are followed; anything else returns to this page.</summary>
+    private string? SafeReturn =>
+        Return is { } r && r.StartsWith("/patient/", StringComparison.Ordinal) && !r.StartsWith("//", StringComparison.Ordinal) ? r : null;
+
+    private string BackHref => SafeReturn
+        ?? (_target is null ? PortalNavigation.Documents.Href : ApplicationsHref.Detail(_target.ReferenceNumber));
+
+    private string BackLabel => SafeReturn is not null ? "Back to your application"
+        : _target is null ? "Back to the document checklist" : $"See application {_target.ReferenceNumber}";
+
+    private string QueryKey => $"{Upload}|{Application}";
+
+    protected override async Task LoadAsync()
+    {
         _checklists = await Data.GetDocumentChecklistsAsync();
+
+        if (_resultFor != QueryKey) _result = null;   // a new upload link: show its panel again
+        _target = null;
+        _item = null;
+        if (Upload is null || Application is null) return;
+
+        if (await Data.GetApplicationAsync(Application) is { } detail)
+        {
+            _target = detail.Application;
+            _item = detail.Checklist?.Items.FirstOrDefault(i => i.Name == Upload);
+        }
+    }
+
+    private void OnUploaded(UploadResult result)
+    {
+        _result = result;
+        _resultFor = QueryKey;
+    }
 }

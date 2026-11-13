@@ -107,9 +107,10 @@
                     {
                         <p class="wizard__lead">
                             These are the documents @(SelectedProgram?.Name ?? "this program") asks for.
-                            You can submit before they are all ready and add the rest later.
+                            Upload the ones you have now; you can submit before they are all ready and add the rest later.
                         </p>
-                        <DocumentChecklist Checklist="checklist" ShowActions="false" HeadingLevel="2" />
+                        <DocumentChecklist Checklist="checklist" HeadingLevel="2" ShowActions="@(_draft is not null)"
+                                           ReturnUrl="@(_draft is null ? null : StepUrl(4))" />
                     }
                     break;
 
@@ -189,6 +190,8 @@
 @code {
     [SupplyParameterFromQuery(Name = "step")] public int? Step { get; set; }
     [SupplyParameterFromQuery(Name = "draft")] public string? DraftKey { get; set; }
+    /// <summary>A program chosen on the Programs page: pre-selected on a new application.</summary>
+    [SupplyParameterFromQuery(Name = "program")] public string? ProgramQuery { get; set; }
 
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
@@ -239,11 +242,23 @@
     private ApplicationChecklist? CurrentChecklist =>
         _programId is null ? null : Workspace.DraftChecklist(Current with { Id = _draft?.Id ?? "new" });
 
-    private string DocumentsSummary => CurrentChecklist is { } c
-        ? (c.ReadyCount == c.Items.Count ? $"All {c.Items.Count} ready" : $"{c.ReadyCount} of {c.Items.Count} ready · you can add the rest after you submit")
-        : "None listed";
+    private string DocumentsSummary
+    {
+        get
+        {
+            if (CurrentChecklist is not { } c) return "None listed";
+            if (c.ReadyCount == c.Items.Count) return $"All {c.Items.Count} ready";
+            var uploaded = c.Items.Count(i => i.Status == DocumentStatus.PendingReview);
+            var toAdd = c.Items.Count(i => DocumentStatusDisplay.NeedsAction(i.Status));
+            return $"{c.ReadyCount} of {c.Items.Count} ready"
+                + (uploaded > 0 ? $" · {uploaded} uploaded for review" : "")
+                + (toAdd > 0 ? " · you can add the rest after you submit" : "");
+        }
+    }
 
-    private string SaveStatus => _draft is null || !Workspace.Drafts.Any(d => d.Id == _draft.Id)
+    private string SaveStatus => Workspace.LastSaveFailed
+        ? "Not saved: this browser’s storage is unavailable. Your answers stay only in this tab."
+        : _draft is null || !Workspace.Drafts.Any(d => d.Id == _draft.Id)
         ? "Your answers are saved as a draft when you continue."
         : $"{(_manualSave ? "Draft saved" : "Saved automatically")} at {_draft.UpdatedAt.ToString("h:mm tt", System.Globalization.CultureInfo.GetCultureInfo("en-PH"))}";
 
@@ -288,7 +303,9 @@
         {
             _resolvedKey = null;
             _draft = null;
-            (_patientId, _hospital, _programId, _confirmed) = (null, null, null, false);
+            // From the Programs page: the program is chosen; patient and hospital are still required first.
+            var preset = _programs.FirstOrDefault(p => p.Id == ProgramQuery)?.Id;
+            (_patientId, _hospital, _programId, _confirmed) = (null, null, preset, false);
             _loadingDraft = false;
             return;
         }
@@ -429,7 +446,12 @@
 
         _submitting = true;
         await PersistAsync();
-        var reference = await Workspace.SubmitAsync(_draft!);
+        if (await Workspace.SubmitAsync(_draft!) is not string reference)
+        {
+            _submitting = false;
+            Error = "We couldn’t save your application in this browser, so it was not submitted. Try again.";
+            return;
+        }
         Nav.NavigateTo($"{ApplicationsHref.Detail(reference)}?submitted=1");
     }
 

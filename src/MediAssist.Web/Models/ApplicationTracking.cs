@@ -12,6 +12,7 @@ public enum ApplicationEventKind
     ReviewStarted,
     DocumentUploaded,
     CorrectionRequested,
+    CorrectionSent,
     ReviewerNote,
     ReadyForProcessing,
     RunnerRequested,

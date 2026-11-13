@@ -48,3 +48,12 @@ export function initDrawer(dialog, dotNetRef) {
         if (e.matches && dialog.open) dialog.close();
     });
 }
+
+// Called from PortalLayoutInterop.OpenDrawerAsync / CloseDrawerAsync (MobileNavDrawer).
+export function openDrawer(dialog) {
+    if (dialog && !dialog.open) dialog.showModal();
+}
+
+export function closeDrawer(dialog) {
+    if (dialog && dialog.open) dialog.close();
+}

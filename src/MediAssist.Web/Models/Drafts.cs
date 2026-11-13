@@ -25,16 +25,28 @@ public sealed record LocalApplication(
     ApplicationChecklist? Checklist,
     IReadOnlyList<ApplicationEvent> Events);
 
-/// <summary>Everything stored for one user. <see cref="Version"/> lets a later format migrate or reset.</summary>
+/// <summary>
+/// Everything stored for one user. <see cref="Version"/> 2 (D3) added <see cref="Uploads"/>;
+/// a version 1 snapshot (D2) has none and is upgraded on load, never discarded.
+/// </summary>
 public sealed record WorkspaceSnapshot(
     int Version,
     IReadOnlyList<WizardDraft> Drafts,
     IReadOnlyList<LocalApplication> Submitted,
-    IReadOnlyList<PortalNotification> Notifications)
+    IReadOnlyList<PortalNotification> Notifications,
+    IReadOnlyList<DocumentUpload>? Uploads = null)
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
-    public static WorkspaceSnapshot Empty { get; } = new(CurrentVersion, [], [], []);
+    public static WorkspaceSnapshot Empty { get; } = new(CurrentVersion, [], [], [], []);
+
+    /// <summary>Bring an older snapshot up to <see cref="CurrentVersion"/>; null if it cannot be.</summary>
+    public WorkspaceSnapshot? Upgrade() => Version switch
+    {
+        1 => this with { Version = CurrentVersion, Uploads = [] },
+        CurrentVersion => this with { Uploads = Uploads ?? [] },
+        _ => null
+    };
 }
 
 /// <summary>Draft ids and application reference numbers for the mock.</summary>

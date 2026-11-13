@@ -7,6 +7,8 @@ namespace MediAssist.Web.Services;
 /// account holder's household) merged with this user's own <see cref="ApplicationWorkspace"/>
 /// (drafts and submissions kept in their browser). A local entry replaces a seed entry with the
 /// same reference, so a resumed or submitted seed draft shows its latest state everywhere.
+/// Simulated uploads (D3) are applied on top: checklists show uploaded documents as being
+/// reviewed, the history lists each upload, and the application's "updated" time follows them.
 /// </summary>
 public sealed class MockPatientPortalDataService(MockPortalStore store, ApplicationWorkspace workspace) : IPatientPortalDataService
 {
@@ -91,8 +93,14 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
         var local = LocalApplications();
         var seeded = store.Applications()
             .Where(a => store.IsHousehold(a.PatientId) && !local.ContainsKey(a.ReferenceNumber));
-        return [.. local.Values, .. seeded];
+        return [.. local.Values.Concat(seeded).Select(WithLatestUpload)];
     }
+
+    /// <summary>An upload is a change to the application: its "updated" time follows the newest one.</summary>
+    private AssistanceApplication WithLatestUpload(AssistanceApplication application) =>
+        workspace.UploadsFor(application.ReferenceNumber).MaxBy(u => u.UploadedAt) is { } latest && latest.UploadedAt > application.LastUpdated
+            ? application with { LastUpdated = latest.UploadedAt }
+            : application;
 
     private IReadOnlyList<ApplicationChecklist> Checklists()
     {
@@ -102,10 +110,13 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
         foreach (var d in workspace.Drafts)
             if (workspace.DraftChecklist(d) is { } c) local.TryAdd(c.ApplicationReference, c);
 
-        return [.. local.Values, .. store.Checklists.Where(c => !local.ContainsKey(c.ApplicationReference))];
+        return [.. local.Values.Concat(store.Checklists.Where(c => !local.ContainsKey(c.ApplicationReference))).Select(workspace.WithUploads)];
     }
 
-    private IReadOnlyList<ApplicationEvent> History(string reference)
+    private IReadOnlyList<ApplicationEvent> History(string reference) =>
+        [.. BaseHistory(reference).Concat(workspace.UploadEvents(reference)).OrderBy(e => e.At)];
+
+    private IReadOnlyList<ApplicationEvent> BaseHistory(string reference)
     {
         if (workspace.Submitted.FirstOrDefault(s => string.Equals(s.Application.ReferenceNumber, reference, StringComparison.OrdinalIgnoreCase)) is { } submitted)
             return submitted.Events.OrderBy(e => e.At).ToList();

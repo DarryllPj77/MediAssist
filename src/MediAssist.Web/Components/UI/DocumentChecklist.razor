@@ -6,7 +6,10 @@
     rest with a link to the full list.
     ShowContext=false (also the dashboard, where the section above already names the program,
     patient and reference): the heading is just "Documents for this application".
+    Simulated uploads (D3): a document the user uploaded shows its file and a Replace action;
+    "being reviewed" is counted separately from "ready", which only a reviewer can confirm.
 *@
+@inject ApplicationWorkspace Workspace
 
 <section class="checklist @Class" aria-labelledby="@HeadingId">
     <header class="checklist__head">
@@ -21,7 +24,7 @@
             }
         </div>
         <p class="checklist__count tabular">
-            <strong>@Checklist.ReadyCount of @Checklist.Items.Count</strong> ready
+            <strong>@Checklist.ReadyCount of @Checklist.Items.Count</strong> ready@(BeingReviewed > 0 ? $" · {BeingReviewed} being reviewed" : "")
         </p>
     </header>
 
@@ -29,6 +32,7 @@
         @foreach (var item in VisibleItems)
         {
             var needs = NeedsAction(item);
+            var upload = Workspace.LatestUpload(Checklist.ApplicationReference, item.Name);
             <li class="row @(needs ? "row--needs" : null)">
                 <span class="row__icon" aria-hidden="true"><Icon Name="@IconFor(item.Name)" Size="22" /></span>
 
@@ -38,6 +42,16 @@
                     @if (item.ReviewerNote is not null)
                     {
                         <p class="row__note"><span class="visually-hidden">Reviewer note: </span>@item.ReviewerNote</p>
+                    }
+                    @if (upload is not null)
+                    {
+                        <p class="row__file">
+                            <Icon Name="file-text" Size="16" />
+                            <span>
+                                @upload.FileName · @SimulatedFiles.FormatSize(upload.SizeBytes)@(upload.Version > 1 ? $" · version {upload.Version}" : "")
+                                <span class="row__file-when">uploaded <time datetime="@DisplayFormat.Machine(upload.UploadedAt)">@DisplayFormat.DateTime(upload.UploadedAt)</time></span>
+                            </span>
+                        </p>
                     }
                 </div>
 
@@ -49,12 +63,12 @@
                     </span>
                 </p>
 
-                @if (needs && ShowActions)
+                @if (ShowActions && (needs || (upload is not null && item.Status == DocumentStatus.PendingReview)))
                 {
-                    <a class="row__action" href="@($"/patient/documents?upload={Uri.EscapeDataString(item.Name)}&application={Checklist.ApplicationReference}")">
+                    <a class="row__action" href="@UploadHref(item)">
                         <Icon Name="upload" Size="16" />
-                        <span>@(item.Status == DocumentStatus.NeedsCorrection ? "Upload a new copy" : "Upload")</span>
-                        <span class="visually-hidden"> of @item.Name</span>
+                        <span>@(!needs ? "Replace" : item.Status == DocumentStatus.NeedsCorrection ? "Upload a new copy" : "Upload")</span>
+                        <span class="visually-hidden"> @(needs ? "of" : "the uploaded") @item.Name</span>
                     </a>
                 }
             </li>
@@ -81,6 +95,14 @@
     [Parameter] public bool ShowActions { get; set; } = true;
     [Parameter] public bool NeedsActionOnly { get; set; }
     [Parameter] public string? FullListHref { get; set; }
+    /// <summary>Where the upload page's "Back" link returns (for example the wizard's step 4).</summary>
+    [Parameter] public string? ReturnUrl { get; set; }
+
+    private int BeingReviewed => Checklist.Items.Count(i => i.Status == DocumentStatus.PendingReview);
+
+    private string UploadHref(ChecklistItem item) =>
+        $"/patient/documents?upload={Uri.EscapeDataString(item.Name)}&application={Uri.EscapeDataString(Checklist.ApplicationReference)}"
+        + (ReturnUrl is null ? "" : $"&return={Uri.EscapeDataString(ReturnUrl)}");
     /// <summary>2 when the checklist sits directly under the page h1; 3 under a section h2.</summary>
     [Parameter] public int HeadingLevel { get; set; } = 3;
 

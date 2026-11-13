@@ -1,0 +1,98 @@
+@*
+    Simulated upload of one required document (D3). The user picks one of a few fictional sample
+    files (nothing is read from their device); the choice is validated (PDF, JPG or PNG up to
+    10 MB) and saved to their workspace. Success is reported only after the save. The panel's
+    Upload button is the page's one filled button.
+*@
+@inject ApplicationWorkspace Workspace
+
+<section class="upload" aria-labelledby="upload-title">
+    <header class="upload__head">
+        <p class="upload__for">
+            @Application.ProgramName for @Application.PatientName · <span class="tabular">@Application.ReferenceNumber</span>
+        </p>
+        <h2 id="upload-title" class="upload__title">
+            @(Item.Status == DocumentStatus.NeedsCorrection ? "Upload a new copy of" : Replacing ? "Replace" : "Upload") @Lower(Item.Name)
+        </h2>
+        <p class="upload__where">Get it from: @Item.WhereToGet</p>
+    </header>
+
+    @if (Item.ReviewerNote is not null)
+    {
+        <blockquote class="upload__note">
+            <span class="visually-hidden">Reviewer note: </span>@Item.ReviewerNote
+        </blockquote>
+    }
+
+    <form class="upload__form" @onsubmit="UploadAsync" novalidate>
+        <fieldset class="files" aria-describedby="@(Error is null ? "upload-rules" : "upload-rules upload-error")">
+            <legend class="files__legend">Choose a file</legend>
+            <p id="upload-rules" class="files__rules">
+                @SimulatedFiles.RulesText. This prototype doesn’t read files from your device: choose one of these sample files.
+            </p>
+            @foreach (var file in _samples)
+            {
+                <label class="file">
+                    <input type="radio" name="sample" value="@file.Id" checked="@(_chosen?.Id == file.Id)"
+                           aria-invalid="@(Error is null ? null : "true")" @onchange="() => Choose(file)" />
+                    <Icon Name="file-text" Size="20" />
+                    <span class="file__text">
+                        <span class="file__name">@file.FileName</span>
+                        <span class="file__meta">@SimulatedFiles.TypeLabel(file.ContentType) · @SimulatedFiles.FormatSize(file.SizeBytes)</span>
+                    </span>
+                </label>
+            }
+        </fieldset>
+
+        @if (Error is not null)
+        {
+            <p id="upload-error" class="field__error" role="alert">
+                <Icon Name="alert-circle" Size="18" />
+                @Error
+            </p>
+        }
+
+        <div class="upload__actions">
+            <AppButton Type="submit" IconStart="upload" Disabled="_saving">@(Replacing ? "Upload replacement" : "Upload")</AppButton>
+            <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@CancelHref">Cancel</AppButton>
+        </div>
+    </form>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public AssistanceApplication Application { get; set; } = default!;
+    [Parameter, EditorRequired] public ChecklistItem Item { get; set; } = default!;
+    [Parameter, EditorRequired] public string CancelHref { get; set; } = "/patient/documents";
+    [Parameter] public EventCallback<UploadResult> OnUploaded { get; set; }
+
+    private IReadOnlyList<SampleFile> _samples = [];
+    private SampleFile? _chosen;
+    private bool _saving;
+    private string? Error { get; set; }
+
+    private bool Replacing => Workspace.LatestUpload(Application.ReferenceNumber, Item.Name) is not null
+                              && !DocumentStatusDisplay.NeedsAction(Item.Status);
+
+    protected override void OnParametersSet() => _samples = SimulatedFiles.SamplesFor(Item.Name);
+
+    private static string Lower(string name) => name.Length > 0 ? char.ToLowerInvariant(name[0]) + name[1..] : name;
+
+    private void Choose(SampleFile file)
+    {
+        _chosen = file;
+        Error = null;
+    }
+
+    private async Task UploadAsync()
+    {
+        _saving = true;
+        var result = await Workspace.UploadAsync(Application.ReferenceNumber, Item.Name, _chosen);
+        _saving = false;
+        if (!result.Succeeded)
+        {
+            Error = result.Error;
+            return;
+        }
+        await OnUploaded.InvokeAsync(result);
+    }
+}

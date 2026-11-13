@@ -2,3 +2,37 @@
     display: grid;
     gap: var(--space-6);
 }
+
+/* ---- After a simulated upload ---- */
+.uploaded {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    border-inline-start: 4px solid var(--color-success);
+    background: var(--color-success-subtle);
+    color: var(--color-text);
+}
+
+.uploaded ::deep .icon {
+    color: var(--color-success);
+}
+
+.uploaded strong {
+    color: var(--color-success);
+}
+
+.uploaded__text {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.uploaded__back {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--tap-target);
+    font-weight: var(--weight-semibold);
+}

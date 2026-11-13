@@ -1,0 +1,138 @@
+.upload {
+    display: grid;
+    gap: var(--space-5);
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-block-start: 4px solid var(--color-gold-action);
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+}
+
+.upload__head {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.upload__for {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.upload__title {
+    font-size: var(--text-xl);
+}
+
+.upload__where {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+/* The reviewer's request, in the gold-ruled serif note used for guidance. */
+.upload__note {
+    margin: 0;
+    max-width: 60ch;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-gold);
+    color: var(--color-navy);
+    font-family: var(--font-serif);
+    font-size: var(--text-md);
+    line-height: var(--leading-snug);
+}
+
+.upload__form {
+    display: grid;
+    gap: var(--space-4);
+}
+
+/* ---- The sample files: radio cards like the wizard's choices ---- */
+.files {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.files__legend {
+    padding: 0;
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.files__rules {
+    margin-block-end: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.file {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap-target);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--color-navy);
+    cursor: pointer;
+    transition: border-color var(--duration-out) var(--ease-out);
+}
+
+.file:hover {
+    border-color: var(--color-navy);
+    transition-duration: var(--duration-in);
+}
+
+.file:has(input:checked) {
+    border: 2px solid var(--color-navy);
+    background: var(--color-gold-subtle);
+}
+
+.file:has(input:focus-visible) {
+    box-shadow: var(--focus-ring);
+}
+
+.file input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    accent-color: var(--color-navy);
+}
+
+.file input:focus-visible {
+    box-shadow: none;
+}
+
+.file__text {
+    display: grid;
+    min-width: 0;
+}
+
+.file__name {
+    font-weight: var(--weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.file__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.upload__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+@media (max-width: 47.99em) {
+    .upload {
+        padding: var(--space-5) var(--space-4);
+    }
+
+    .upload__actions {
+        display: grid;
+    }
+}

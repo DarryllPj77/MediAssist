@@ -8,10 +8,11 @@ namespace MediAssist.Web.Services;
 /// <summary>Where one user's <see cref="WorkspaceSnapshot"/> is kept between visits.</summary>
 public interface IWorkspaceStorage
 {
-    /// <summary>The saved snapshot, or null when there is none or it cannot be read.</summary>
+    /// <summary>The saved snapshot (upgraded to the current version), or null when there is none or it cannot be read.</summary>
     Task<WorkspaceSnapshot?> LoadAsync();
 
-    Task SaveAsync(WorkspaceSnapshot snapshot);
+    /// <summary>Save the snapshot; false when it could not be saved (the caller must not report success).</summary>
+    Task<bool> SaveAsync(WorkspaceSnapshot snapshot);
 }
 
 /// <summary>
@@ -29,7 +30,8 @@ public sealed class ProtectedLocalWorkspaceStorage(ProtectedLocalStorage storage
         try
         {
             var result = await storage.GetAsync<WorkspaceSnapshot>(Key);
-            return result.Success && result.Value?.Version == WorkspaceSnapshot.CurrentVersion ? result.Value : null;
+            // Older snapshots (D2, version 1) are upgraded so drafts and submissions survive.
+            return result.Success ? result.Value?.Upgrade() : null;
         }
         catch (CryptographicException ex)
         {
@@ -48,15 +50,18 @@ public sealed class ProtectedLocalWorkspaceStorage(ProtectedLocalStorage storage
         }
     }
 
-    public async Task SaveAsync(WorkspaceSnapshot snapshot)
+    public async Task<bool> SaveAsync(WorkspaceSnapshot snapshot)
     {
         try
         {
             await storage.SetAsync(Key, snapshot);
+            return true;
         }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
         {
-            // The tab closed mid-save; the in-memory copy is gone with it.
+            // Storage full or blocked, the tab closed, or the page is not interactive yet.
+            logger.LogWarning(ex, "Workspace could not be saved.");
+            return false;
         }
     }
 }
