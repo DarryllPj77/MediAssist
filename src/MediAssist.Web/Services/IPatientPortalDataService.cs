@@ -19,8 +19,11 @@ public interface IPatientPortalDataService
     Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Hospitals an application can name (the wizard's hospital step).</summary>
-    Task<IReadOnlyList<string>> GetHospitalsAsync(CancellationToken cancellationToken = default);
+    /// <summary>The hospital directory (D5): hospitals an application can name, with the programs they handle.</summary>
+    Task<IReadOnlyList<Hospital>> GetHospitalsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>One hospital by id or exact name (applications store the name); null if unknown.</summary>
+    Task<Hospital?> GetHospitalAsync(string idOrName, CancellationToken cancellationToken = default);
     /// <summary>Checklists of the household's applications that still need documents.</summary>
     Task<IReadOnlyList<ApplicationChecklist>> GetDocumentChecklistsAsync(CancellationToken cancellationToken = default);
 

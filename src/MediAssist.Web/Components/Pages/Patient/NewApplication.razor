@@ -90,7 +90,7 @@
                             <option value="" selected="@(_hospital is null)">Choose a hospital</option>
                             @foreach (var h in _hospitals)
                             {
-                                <option value="@h" selected="@(h == _hospital)">@h</option>
+                                <option value="@h.Name" selected="@(h.Name == _hospital)">@h.Name</option>
                             }
                         </select>
                         <p id="hospital-hint" class="field__hint">Pick the hospital that will receive or bill the assistance.</p>
@@ -110,7 +110,7 @@
                                        checked="@(prog.Id == _programId)" @onchange="() => ChooseProgramAsync(prog.Id)" />
                                 <span class="choice__text">
                                     <span class="choice__title">@prog.Name</span>
-                                    <span class="choice__meta">@prog.Covers · run by @prog.RunBy.ToLowerInvariant()</span>
+                                    <span class="choice__meta">@prog.Covers · run by @prog.RunBy.ToLowerInvariant()@(NotListedAt(prog) is string where ? $" · not listed at {where}" : "")</span>
                                 </span>
                             </label>
                         }
@@ -209,10 +209,12 @@
     [SupplyParameterFromQuery(Name = "program")] public string? ProgramQuery { get; set; }
     /// <summary>A patient chosen elsewhere (profile page, program search, or after adding one): pre-selected.</summary>
     [SupplyParameterFromQuery(Name = "patient")] public string? PatientQuery { get; set; }
+    /// <summary>A hospital chosen in the directory (id or name): pre-selected on a new application.</summary>
+    [SupplyParameterFromQuery(Name = "hospital")] public string? HospitalQuery { get; set; }
 
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
-    private IReadOnlyList<string> _hospitals = [];
+    private IReadOnlyList<Hospital> _hospitals = [];
 
     // The wizard's working copy of the draft.
     private WizardDraft? _draft;
@@ -322,7 +324,10 @@
             _draft = null;
             // From the Programs page: the program is chosen; patient and hospital are still required first.
             var preset = _programs.FirstOrDefault(p => p.Id == ProgramQuery)?.Id;
-            (_patientId, _hospital, _programId, _confirmed) = (null, null, preset, false);
+            // From the hospital directory: the hospital is chosen; the patient is still required first.
+            var hospital = _hospitals.FirstOrDefault(h => string.Equals(h.Id, HospitalQuery, StringComparison.OrdinalIgnoreCase)
+                                                          || string.Equals(h.Name, HospitalQuery, StringComparison.OrdinalIgnoreCase))?.Name;
+            (_patientId, _hospital, _programId, _confirmed) = (null, hospital, preset, false);
             _loadingDraft = false;
             ApplyPatientQuery();
             return;
@@ -391,6 +396,10 @@
         patient.Authorization is AuthorizationStatus.Self or AuthorizationStatus.Authorized ? ""
         : AuthorizationStatusDisplay.Label(patient.Authorization).ToLowerInvariant() is var label && label.StartsWith("authorization")
             ? $" · {label}" : $" · authorization {label}";
+
+    /// <summary>The chosen hospital's name when it does not list <paramref name="program"/> (a note, not a block).</summary>
+    private string? NotListedAt(AssistanceProgram program) =>
+        _hospitals.FirstOrDefault(h => h.Name == _hospital) is { } h && !h.Offers(program.Id) ? h.Name : null;
 
     private static string NeedsAuthorization(PatientProfile patient) =>
         $"Request authorization for {patient.FullName} before applying for them.";

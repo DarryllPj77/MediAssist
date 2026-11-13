@@ -22,6 +22,17 @@
             </h2>
             <p class="selected__runby">Run by: @_selected.RunBy</p>
             <p>@_selected.Summary</p>
+            @if (_hospitals.Where(h => h.Offers(_selected.Id)).ToList() is { Count: > 0 } offeredAt)
+            {
+                <p class="selected__where">
+                    <span class="selected__where-label">Handled at: </span>
+                    @for (var i = 0; i < offeredAt.Count; i++)
+                    {
+                        var h = offeredAt[i];
+                        <a href="@h.Href">@h.Name</a>@(i < offeredAt.Count - 1 ? ", " : "")
+                    }
+                </p>
+            }
             <h3 class="selected__docs-title">Documents to prepare</h3>
             <ol class="selected__docs">
                 @foreach (var doc in _selected.RequiredDocuments)
@@ -76,6 +87,7 @@
 
     private IReadOnlyList<AssistanceProgram> _programs = [];
     private IReadOnlyList<PatientProfile> _patients = [];
+    private IReadOnlyList<Hospital> _hospitals = [];
     private AssistanceProgram? _selected;
 
     private IReadOnlyList<AssistanceProgram> Results =>
@@ -89,6 +101,7 @@
     {
         _programs = await Data.GetProgramsAsync();
         _patients = await Data.GetPatientProfilesAsync();
+        _hospitals = await Data.GetHospitalsAsync();
         _selected = _programs.FirstOrDefault(p => p.Id == ProgramId);
     }
 }

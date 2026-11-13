@@ -1,21 +1,21 @@
 # MediAssist Development Progress
 
-MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is implemented and verified but not yet committed.**
+MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is committed as `d9fd22a` and pushed. D5 (hospital directory and search) is implemented and verified but not yet committed.**
 
 ## Current snapshot
 
 | Field | Verified state |
 |---|---|
-| Reviewed | 13 November 2026, Asia/Manila (D4 implementation review) |
+| Reviewed | 13 November 2026, Asia/Manila (D5 implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `8c0554e` — feat(patient): implement simulated document uploads and corrections |
-| Latest application commit | `8c0554e866647fdf50897a2319788ee783566d78` — D3 including P1–P3 |
-| Latest implementation | D4 — Patient Profile Management & Authorization Requests (**implemented, uncommitted**) |
-| Application changes awaiting commit | D4: 29 application files (17 modified, 12 new) — see “D4 Patient Profile Management” below |
-| Documentation awaiting commit | (1) the earlier post-commit D3 hash/status record, preserved; (2) this D4 status, features, verification, known issues and log update |
+| Branch HEAD | `d9fd22a` — feat(patient): implement patient profiles and authorization requests (pushed; `origin/design/premium-civic-imagery` in sync) |
+| Latest application commit | `d9fd22aad6d0c7704e1ef5692ef075bdf83b8868` — D4 |
+| Latest implementation | D5 — Hospital Directory & Search (**implemented, uncommitted**) |
+| Application changes awaiting commit | D5: 12 application files (7 modified, 5 new) — see “D5 Hospital Directory & Search” below |
+| Documentation awaiting commit | (1) the post-commit D4 hash/push record, preserved; (2) this D5 status, features, verification and log update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 in progress; A–C and D1–D3 committed; D4 implemented and verified, awaiting commit approval |
-| Next development task | Commit D4 (with this document) once approved; then plan D5 — Hospital Directory & Search |
+| Overall status | Milestone 2 in progress; A–C and D1–D4 committed and pushed; D5 implemented and verified, awaiting commit approval |
+| Next development task | Commit D5 (with this document) once approved; then D6 — Optional Medical Runner Requests (efficient mode: short plan and build) |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -30,6 +30,7 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 - D3 verification (12 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**. A scripted browser suite passed **248 of 248** page checks (62 routes × 320, 768, 1024 and 1440 px, with stored drafts, submissions and uploads present): no horizontal overflow, 44 px targets, 13 px minimum text, one h1, at most one filled button, no duplicate IDs or broken ARIA references, heading order and AA text contrast. Flow checks are listed under D3 below.
 - D3 commit verification (13 November 2026): fresh `dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo -p:OutputPath=<temporary-directory>` passed with **0 errors, 0 warnings**; staged diff check passed and the exact 16 application files plus this document were committed. Prior browser results above were retained as historical evidence, not rerun during this commit task.
 - D4 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **276 of 276** page checks (69 routes × 320, 768, 1024 and 1440 px, with stored profiles, requests, drafts, submissions and uploads present): overflow, 44 px targets, 13 px text, one h1, at most one filled button, duplicate IDs, ARIA references, heading order and AA contrast. Flow checks are listed under D4 below.
+- D5 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **272 of 272** page checks (68 routes × 320, 768, 1024 and 1440 px) with the same accessibility and layout checks as D4. Flow checks are listed under D5 below.
 - No dedicated test project exists in the tracked solution. The browser checks above are scripted in the review session, not committed tests.
 
 To repeat verification from the repository root in PowerShell, without stopping a running app:
@@ -53,8 +54,9 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | D2 — Wizard and Draft Management | Completed | Committed | `8a98432`; validation, save/resume, browser persistence and simulated submission |
 | D3 — Simulated Document Uploads & Correction Workflow | Completed | **Committed** | `8c0554e`; simulated uploads, validation, replacement/versions, history, counts, correction return-to-review; prerequisite fixes P1–P3 |
 | Milestone 2 as a whole | In Progress | Partially delivered | Remaining modules and integration defects below |
-| D4 — Patient Profile Management & Authorization Requests | Implemented and verified | **Uncommitted** | Profile list/details/add/edit, reusable profiles in the wizard, simulated authorization requests, D9-ready request data |
-| D5–D10 | Pending | Agreed roadmap | Some read-only foundations exist; remaining workflows are not complete |
+| D4 — Patient Profile Management & Authorization Requests | Completed | **Committed** | `d9fd22a`; profile list/details/add/edit, reusable profiles in the wizard, simulated authorization requests, D9-ready request data |
+| D5 — Hospital Directory & Search | Implemented and verified | **Uncommitted** | Searchable directory, hospital details, wizard and Programs integration |
+| D6–D10 | Pending | Agreed roadmap | Some read-only foundations exist; remaining workflows are not complete |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -75,6 +77,8 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-12 | `7df1c28` | feat(patient): implement application tracking and status history |
 | 2026-11-12 | `8a98432` | feat(patient): implement application wizard drafts and submission |
 | 2026-11-12 | `6b5791e` | docs: add MediAssist development progress tracker |
+| 2026-11-13 | `8c0554e` | feat(patient): implement simulated document uploads and corrections |
+| 2026-11-13 | `d9fd22a` | feat(patient): implement patient profiles and authorization requests |
 
 ## Completed features and workflows
 
@@ -137,7 +141,9 @@ Committed on 13 November 2026 as `8c0554e866647fdf50897a2319788ee783566d78` with
 
 **Flow checks performed (browser, 12 November 2026):** each validation error; a valid upload and reload; replacement (version 2); draft upload carried to `MA-2026-00453` on submit; correcting `MA-2026-00418` returned it to Under review with history, notification and dashboard updates; upload refused for an accepted document and for another household's application; unsafe `return=` values ignored; a snapshot saved by the D2 build (`8a98432`) opened in D3 with its draft intact; the drawer and Programs pre-selection.
 
-### D4 Patient Profile Management & Authorization Requests (uncommitted)
+### D4 Patient Profile Management & Authorization Requests
+
+Committed on 13 November 2026 as `d9fd22aad6d0c7704e1ef5692ef075bdf83b8868` with message `feat(patient): implement patient profiles and authorization requests` (29 application files and the progress document), then pushed: `origin/design/premium-civic-imagery` moved from `57c4ee0` to `d9fd22a`, which also published the previously unpushed Phase A–C and D1–D3 commits. `git pull --rebase` beforehand reported the branch up to date, so no commit was rewritten.
 
 **Workflows**
 
@@ -151,6 +157,19 @@ Committed on 13 November 2026 as `8c0554e866647fdf50897a2319788ee783566d78` with
 **Data and services:** `Models/Profiles.cs` (`AuthorizationRequest`, `AuthorizationBasis`, `AuthorizationRequestStatus` — Approved/Rejected, `DecidedAt` and `ReviewerNote` reserved for D9 — and `ProfileRules`). `PatientProfile` gains optional `DateOfBirth`, `City`, `CreatedAt`; `AuthorizationStatus` gains `NotRequested` and `Rejected` (appended). Workspace snapshot **version 3** adds local profiles (new and edited seed profiles) and requests; versions 1–2 are upgraded. `ApplicationWorkspace.Household` merges seed and local profiles and replaced the five direct seed-household reads (submission, scoping, draft display/checklists). Seeded requests: Jose (approved, with reviewer note) and Lia (pending). `IStaffPortalDataService.GetAuthorizationRequestsAsync` returns seeded requests for D9; the admin queue's authorization flag now derives from them.
 
 **Flow checks performed (browser, 13 November 2026):** list; add with empty/future-date errors and a valid save; wizard blocks an unauthorized patient and pre-selects from `?patient=`; authorization request errors (no basis/confirmation, minor basis for an adult, HEIC file) and a valid request (badge, request history, bell +1); application submitted for an added patient (`MA-2026-00453`) and shown on the profile and under its My applications chip; relationship lock and an edit saved; account holder relationship fixed; “Add a patient” from the wizard returning with the patient selected; duplicate first name key (`jose-a3e5`) with `?patient=jose` still the seeded Jose; Lia's and Jose's seeded requests; admin flag unchanged (MA-2026-00395); a snapshot saved by the D3 build (`8c0554e`, draft with an upload) opened in D4 intact.
+
+### D5 Hospital Directory & Search (uncommitted)
+
+Built in the owner's efficient mode (short plan and build in one turn). Choices made, open to change: the directory **replaces** the wizard's seed-derived hospital list, and a program a hospital does not list is shown as a **note, not a block** (flexible submission).
+
+1. `/patient/hospitals`: a plain GET search (`?q=` for name, place, type or service; `?program=` for programs handled), so it works before the live connection and can be shared. Every word of the query must match; an unknown program means “any”. Results show type, district, city and the programs handled; each card links (whole card) to the hospital. An empty search offers “Show all hospitals”.
+2. `/patient/hospitals/{id}`: “Start an application here” (the view's one filled action), programs handled (linked to Programs), the household's applications at the hospital (shared D1 table), the social service office's hours and location with a “confirm before you go” note, and services. Unknown ids show a recovery state.
+3. Wizard: step 2 lists the directory (6 hospitals); `?hospital=` (id or name) pre-selects a hospital on a new application; step 3 adds “not listed at <hospital>” to programs that hospital does not handle.
+4. Programs: the selected program lists “Handled at:” with links to each hospital.
+
+**Data:** `Models/Hospitals.cs` (`Hospital` with type, district, city, services, program ids, office hours/location; search matching). `MockPortalStore.Hospitals` seeds six fictional hospitals; the first three are the hospitals named in the seeded applications, so every existing application has a directory entry. `IPatientPortalDataService.GetHospitalsAsync` now returns `Hospital` records (was names) and `GetHospitalAsync(idOrName)` was added; applications still store the hospital **name**, so existing drafts and submissions are unaffected.
+
+**Flow checks performed (browser, 13 November 2026):** all six hospitals; `dialysis` (2 results); `pasig` + Diagnostic Procedure Aid (2); no-match empty state; unknown program ignored; details for San Isidro (3 programs, 3 household applications, office facts); a hospital with no applications; unknown id; wizard from `?hospital=riverbend-kidney` with the hospital pre-selected and “not listed at” notes on step 3; Programs “Handled at”. Fixed during verification: missing spaces after the “Handles:”/“Handled at:” labels, and the search row's fields misaligned at desktop widths (the hint now sits on its own row, and under its field on phones).
 
 ## Current architecture
 
@@ -191,11 +210,11 @@ The following findings are source-verified unless explicitly described as build 
 | Finding | Evidence and impact | Follow-up |
 |---|---|---|
 | ~~Mobile drawer interop mismatch~~ — **fixed in D3 (`8c0554e`)** | Both exports were removed as "unused" in `3130302`; restored and verified (open, close, Escape, navigation) | None |
-| ~~Patient context from program search is dropped~~ — **fixed in D4 (uncommitted)** | Programs now passes the search's patient into the wizard with the program | None after commit |
+| ~~Patient context from program search is dropped~~ — **fixed in D4 (`d9fd22a`)** | Programs now passes the search's patient into the wizard with the program | None |
 | ~~Resumed seed draft can retain stale checklist context~~ — **fixed in D3 (`8c0554e`)** | The seed checklist is reused only while the program is unchanged | None |
 | Local submissions, uploads, profiles and authorization requests are not visible to administrators | Staff service reads only `MockPortalStore`; everything the user creates (D2–D4) lives in their browser. The D3 correction return-to-review happens on the user's local copy without a reviewer; D4 requests stay “Being reviewed” | Choose shared workflow persistence before D9 administrator reviews |
 | Upload reviews are not decided | D3 uploads stay `Pending`; nothing marks a document accepted or rejected, so “Ready” counts only change in seed data | D9: reviewer accept/reject with reason, using `UploadReviewState` and `ReviewNote` |
-| Management pages are placeholders | Patient profiles are implemented in D4 (uncommitted). Hospitals/runner/settings and staff management/task routes still use placeholder components; `/admin/authorizations` awaits D9 | Implement the pending modules below |
+| Management pages are placeholders | Patient profiles (D4, `d9fd22a`) and hospitals (D5, uncommitted) are implemented. Runner and settings pages and staff management/task routes still use placeholder components; `/admin/authorizations` awaits D9 | Implement the pending modules below |
 | Notification read state cannot be changed | UI displays read/unread records and D2 adds local submission notices, but exposes no mark-read operation | Add recipient-scoped read-state updates |
 | Persistence and recovery are limited | Browser storage has no account isolation, multi-device sync or cross-tab conflict handling. D3 now reports save failures to the user and rolls back uploads/submissions that were not saved | Idempotency and eventual database persistence |
 | Stored data is tied to the app's build location | Observed during D3 verification: ASP.NET Core Data Protection isolates keys per application location by default, so a build run from a different folder could not decrypt data saved by another (the workspace safely reset). Moving or republishing the app to a new folder would reset users' stored drafts | Set a fixed Data Protection application name and key location before any shared deployment (would reset existing prototype data once) |
@@ -203,16 +222,17 @@ The following findings are source-verified unless explicitly described as build 
 | Verification is not automated | No dedicated test project; D3 and D4 were verified with scripted browser checks in the review session (not committed). The owner's running app can lock the default build output | Add focused behavioral tests (validation, versioning, migration, references, profile rules); repeat vulnerability audit with connectivity |
 | Profiles cannot be removed | D4 adds and edits profiles; there is no archive/remove flow, and an added patient with applications must stay for history | Decide archive rules (D8 or later) |
 | Authorization is not identity verification | Requests use fictional sample files; nothing verifies a real relationship or identity, and approvals only exist in seed data until D9 | D9 review actions; real verification needs authentication and shared persistence |
+| Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
 
 Only fictional records and simulated documents belong in this prototype. Real medical records, official submissions, payment processing, real dispatch, AI/OCR, SMS/email and production compliance readiness are outside the delivered scope.
 
 ## Remaining Phase D checklist
 
-**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is implemented but not yet committed.
+**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is committed (`d9fd22a`); D5 is implemented but not yet committed.
 
 - [x] **D3 — Simulated Document Uploads & Correction Workflow:** implemented and committed as `8c0554e`. Upload metadata, validation, replacement/versions, history, counts and correction return-to-review; fictional sample files only. Handoff to D9: `UploadReviewState` and `ReviewNote` are reserved for reviewer decisions.
-- [x] **D4 — Patient Profile Management & Authorization Requests:** implemented and verified (**uncommitted**, awaiting approval). Profile list/details/add/edit, reusable profiles in the wizard (add-and-return, pre-selection, authorization gate), simulated authorization requests with a supporting sample document. Handoff to D9: `AuthorizationRequest` status/decision/note fields and `IStaffPortalDataService.GetAuthorizationRequestsAsync`.
-- [ ] **D5 — Hospital Directory & Search:** replace `/patient/hospitals` with a searchable directory and hospital details. The wizard currently offers names derived from seed applications; the existing Programs search is not a hospital directory.
+- [x] **D4 — Patient Profile Management & Authorization Requests:** implemented, verified and committed as `d9fd22a` (pushed). Profile list/details/add/edit, reusable profiles in the wizard (add-and-return, pre-selection, authorization gate), simulated authorization requests with a supporting sample document. Handoff to D9: `AuthorizationRequest` status/decision/note fields and `IStaffPortalDataService.GetAuthorizationRequestsAsync`.
+- [x] **D5 — Hospital Directory & Search:** implemented and verified (**uncommitted**, awaiting approval). Searchable directory and hospital details; the wizard uses the directory (pre-selection, “not listed at” notes) and Programs lists where each program is handled.
 - [ ] **D6 — Optional Medical Runner Requests (Patient Portal):** replace `/patient/runner` with request creation and tracking, scoped to the patient's applications and permitted errands. Runner help cards and seeded request displays exist; assignment belongs to D9 and runner execution to D10.
 - [ ] **D7 — In-App Notifications & Read/Unread Management:** extend the existing patient notification list, bell counts and D2 submission notices with persisted read/unread actions and event links. Staff notification pages remain placeholders.
 - [ ] **D8 — User Profile & Settings:** replace settings placeholders with the agreed profile/settings flows. Seed account names and sidebar preferences exist; account/profile editing does not.
@@ -223,16 +243,15 @@ Integration testing, mobile/accessibility checks and the known-issue fixes apply
 
 ## Next development task and prerequisites
 
-**Next step: commit D4** (application changes and this document, including the preserved D3 hash record) once the owner approves. Then plan **D5 — Hospital Directory & Search**.
+**Next step: commit D5** (application changes and this document, including the preserved D4 hash record) once the owner approves. Then **D6 — Optional Medical Runner Requests (Patient Portal)**, in efficient mode.
 
-D4 decisions recorded:
+D5 decisions recorded:
 
-- [x] Storage: profiles and authorization requests stay browser-only in the user's workspace (snapshot version 3); staff see seeded requests only until D9 chooses shared persistence.
-- [x] The program search's patient choice now carries into the wizard (with the program).
-- [x] Applications are allowed for patients whose authorization is being reviewed (matches the seeded Lia case); blocked when it is needed or not approved.
-- [x] Relationship changes are locked while authorization is approved or being reviewed; profile removal is out of scope.
+- [x] The directory replaces the wizard's hospital list; applications keep storing the hospital name.
+- [x] Programs not listed at a hospital are noted, not blocked.
+- [x] Directory data is fictional, seeded and read-only; staff editing is out of scope.
 
-Before D5: decide whether the hospital directory replaces the wizard's seed-derived hospital list, and whether hospitals carry program availability.
+Before D6: runner requests must stay optional, use permitted errands only, and keep runner status independent of application status; like D2–D5 user data, they stay browser-only until D9 shared persistence.
 
 ## Updating this document
 
@@ -252,4 +271,6 @@ After each phase:
 | 2026-11-12 | Snapshot refresh: branch HEAD `6b5791e`, docs commit added to history, drawer regression traced to `3130302`, D3 plan proposed for review | `8a98432` (app), `6b5791e` (HEAD) | Uncommitted (included with D3) |
 | 2026-11-12 | D3 implemented and verified: simulated uploads, correction workflow, prerequisite fixes P1–P3; known issues updated (drawer, stale checklist fixed; Data Protection location finding added) | `6b5791e` + working tree | Uncommitted, awaiting approval |
 | 2026-11-13 | Committed D3, P1–P3 and progress documentation; build passed with 0 warnings/errors; exact message: `feat(patient): implement simulated document uploads and corrections` | `8c0554e866647fdf50897a2319788ee783566d78` | D3 committed; this actual-hash/status update is uncommitted |
-| 2026-11-13 | D4 implemented and verified: patient profiles, wizard reuse, simulated authorization requests, D9 request data; program-search patient carried into the wizard; known issues updated | `8c0554e` + working tree | Uncommitted, awaiting approval |
+| 2026-11-13 | D4 implemented and verified: patient profiles, wizard reuse, simulated authorization requests, D9 request data; program-search patient carried into the wizard; known issues updated | `8c0554e` + working tree | Committed as `d9fd22a` |
+| 2026-11-13 | Committed D4 and progress documentation (exact message: `feat(patient): implement patient profiles and authorization requests`), then pushed the branch (`57c4ee0..d9fd22a`) | `d9fd22aad6d0c7704e1ef5692ef075bdf83b8868` | D4 committed and pushed; this actual-hash update is uncommitted |
+| 2026-11-13 | D5 implemented and verified (efficient mode): hospital directory and search, hospital details, wizard and Programs integration | `d9fd22a` + working tree | Uncommitted, awaiting approval |

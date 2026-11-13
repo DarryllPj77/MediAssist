@@ -1,0 +1,132 @@
+/* Phones and tablets: one column. From 75em: main column | 22rem side column. */
+.hosp {
+    gap: var(--space-6);
+}
+
+.hosp__back {
+    margin-block-end: calc(-1 * var(--space-4));
+}
+
+.hosp__place {
+    color: var(--color-text-muted);
+}
+
+.hosp__grid,
+.hosp__main,
+.hosp__aside {
+    display: grid;
+    gap: var(--space-8);
+    min-width: 0;
+}
+
+.hosp__aside {
+    gap: var(--space-7);
+    align-content: start;
+}
+
+@media (min-width: 75em) {
+    .hosp__grid {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+        align-items: start;
+        gap: var(--space-9);
+    }
+}
+
+/* ---- Apply here: the page's one action ---- */
+.hosp-apply {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-block-start: 4px solid var(--color-gold-action);
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+}
+
+.hosp-apply__title,
+.hosp-section__title {
+    font-size: var(--text-lg);
+}
+
+.hosp-section,
+.hosp-facts {
+    display: grid;
+    gap: var(--space-3);
+}
+
+/* ---- Programs handled here ---- */
+.hosp-programs {
+    margin: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+}
+
+.hosp-program {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3) var(--space-5);
+}
+
+.hosp-program + .hosp-program {
+    border-block-start: 1px solid var(--color-border);
+}
+
+.hosp-program__name {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--tap-target);
+    font-weight: var(--weight-semibold);
+}
+
+.hosp-program__meta {
+    margin-block-start: calc(-1 * var(--space-2));
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+/* ---- Office and services ---- */
+.hosp-facts__list {
+    display: grid;
+    margin: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+}
+
+.hosp-facts__list > div {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3) var(--space-5);
+}
+
+.hosp-facts__list > div + div {
+    border-block-start: 1px solid var(--color-border);
+}
+
+.hosp-facts__list dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+}
+
+.hosp-facts__list dd {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+.hosp-facts__note {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.hosp-services {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding-inline-start: var(--space-5);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}

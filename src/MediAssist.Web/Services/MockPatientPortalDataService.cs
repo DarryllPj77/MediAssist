@@ -42,8 +42,13 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
     public Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(store.Programs);
 
-    public Task<IReadOnlyList<string>> GetHospitalsAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<string>>(store.Applications().Select(a => a.HospitalName).Distinct().Order().ToList());
+    public Task<IReadOnlyList<Hospital>> GetHospitalsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(store.Hospitals);
+
+    public Task<Hospital?> GetHospitalAsync(string idOrName, CancellationToken cancellationToken = default) =>
+        Task.FromResult(store.Hospitals.FirstOrDefault(h =>
+            string.Equals(h.Id, idOrName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(h.Name, idOrName, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>Checklists that still need something: the household's applications with documents left to prepare.</summary>
     public Task<IReadOnlyList<ApplicationChecklist>> GetDocumentChecklistsAsync(CancellationToken cancellationToken = default)

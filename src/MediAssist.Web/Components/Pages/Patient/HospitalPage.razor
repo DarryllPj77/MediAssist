@@ -1,0 +1,128 @@
+@page "/patient/hospitals/{Id}"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+@*
+    One hospital (D5): start an application here (the view's one filled button), the programs its
+    social service office handles, services, the office's hours and location, and the household's
+    applications that name this hospital.
+*@
+
+<PageTitle>@(_hospital?.Name ?? "Hospital") · MediAssist</PageTitle>
+
+<div class="page page--wide hosp">
+    <div class="hosp__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Hospitals.Href" IconStart="chevron-left">Hospitals</AppButton>
+    </div>
+
+    @if (_hospital is not { } h)
+    {
+        <header class="page__head">
+            <h1 class="page__title serif" tabindex="-1">Hospital not found</h1>
+        </header>
+        <Panel>
+            <EmptyState IconName="search" Title="We couldn’t find that hospital"
+                        Message="Choose a hospital from the directory.">
+                <Action>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Hospitals.Href">See all hospitals</AppButton>
+                </Action>
+            </EmptyState>
+        </Panel>
+    }
+    else
+    {
+        <header class="page__head">
+            <p class="eyebrow">@h.Type</p>
+            <h1 class="page__title serif" tabindex="-1">@h.Name</h1>
+            <p class="hosp__place">@h.District, @h.City</p>
+        </header>
+
+        <div class="hosp__grid">
+            <div class="hosp__main">
+                <section class="hosp-apply" aria-labelledby="apply-title">
+                    <h2 id="apply-title" class="hosp-apply__title">Apply for help here</h2>
+                    <p>The social service office handles @_offered.Count @(_offered.Count == 1 ? "program" : "programs"). Choose one when you start your application.</p>
+                    <div>
+                        <AppButton Href="@($"{PortalNavigation.NewApplicationHref}?hospital={h.Id}")" IconStart="plus">
+                            Start an application here
+                        </AppButton>
+                    </div>
+                </section>
+
+                <section class="hosp-section" aria-labelledby="programs-here-title">
+                    <h2 id="programs-here-title" class="hosp-section__title">Programs handled here</h2>
+                    <ul role="list" class="hosp-programs">
+                        @foreach (var p in _offered)
+                        {
+                            <li class="hosp-program">
+                                <a class="hosp-program__name" href="@($"{PortalNavigation.Programs.Href}?program={p.Id}")">@p.Name</a>
+                                <p class="hosp-program__meta">@p.Covers · run by @p.RunBy.ToLowerInvariant()</p>
+                            </li>
+                        }
+                    </ul>
+                </section>
+
+                <section class="hosp-section" aria-labelledby="apps-here-title">
+                    <h2 id="apps-here-title" class="hosp-section__title">Your applications at this hospital</h2>
+                    @if (_applications.Count == 0)
+                    {
+                        <Panel>
+                            <EmptyState IconName="file-text" Title="No applications here yet"
+                                        Message="Applications you start for this hospital will show here." />
+                        </Panel>
+                    }
+                    else
+                    {
+                        <ApplicationTable Applications="_applications" Now="_now" />
+                    }
+                </section>
+            </div>
+
+            <aside class="hosp__aside" aria-label="About this hospital">
+                <section class="hosp-facts" aria-labelledby="office-title">
+                    <h2 id="office-title" class="hosp-section__title">Social service office</h2>
+                    <dl class="hosp-facts__list">
+                        <div><dt>Hours</dt><dd>@h.SocialServiceHours</dd></div>
+                        <div><dt>Where</dt><dd>@h.SocialServiceLocation</dd></div>
+                        <div><dt>District</dt><dd>@h.District, @h.City</dd></div>
+                    </dl>
+                    <p class="hosp-facts__note">Hours can change. Confirm with the office before you go.</p>
+                </section>
+
+                <section class="hosp-facts" aria-labelledby="services-title">
+                    <h2 id="services-title" class="hosp-section__title">Services</h2>
+                    <ul class="hosp-services">
+                        @foreach (var s in h.Services)
+                        {
+                            <li>@s</li>
+                        }
+                    </ul>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private Hospital? _hospital;
+    private IReadOnlyList<AssistanceProgram> _offered = [];
+    private IReadOnlyList<AssistanceApplication> _applications = [];
+    private DateTimeOffset _now;
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _hospital = await Data.GetHospitalAsync(Id);
+        if (_hospital is null) return;
+
+        var programs = await Data.GetProgramsAsync();
+        _offered = programs.Where(p => _hospital.Offers(p.Id)).ToList();
+        _applications = (await Data.GetApplicationsAsync())
+            .Where(a => string.Equals(a.HospitalName, _hospital.Name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(a => a.LastUpdated)
+            .ToList();
+    }
+}

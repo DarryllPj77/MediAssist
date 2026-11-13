@@ -89,6 +89,40 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
             ["Doctor's request", "Quotation", "Valid ID"]),
     ];
 
+    // ---- Hospital directory (D5; fictional names, districts and hours) ----
+
+    /// <summary>
+    /// Hospitals and the programs their social service office handles. The first three are the
+    /// hospitals named in the seeded applications, so every existing application has a directory entry.
+    /// </summary>
+    public IReadOnlyList<Hospital> Hospitals { get; } =
+    [
+        new("san-isidro-general", "San Isidro General Hospital", "Public general hospital", "San Isidro", "Quezon City",
+            ["Emergency care", "Surgery", "Internal medicine", "Dialysis unit", "Pharmacy"],
+            ["hospital-bill", "medicine-cost", "dialysis"],
+            "Monday to Friday, 8:00 AM to 5:00 PM", "Ground floor, beside the billing office"),
+        new("bayview-medical", "Bayview Medical Center", "Private general hospital", "Bayview district", "Pasig City",
+            ["Emergency care", "Laboratory", "Imaging", "Pharmacy", "Outpatient clinics"],
+            ["hospital-bill", "medicine-cost", "diagnostics"],
+            "Monday to Saturday, 8:00 AM to 4:00 PM", "Second floor, patient relations"),
+        new("northridge-childrens", "Northridge Children's Hospital", "Specialty hospital for children", "Northridge", "Quezon City",
+            ["Pediatrics", "Laboratory", "Imaging", "Neonatal care"],
+            ["hospital-bill", "diagnostics"],
+            "Monday to Friday, 7:30 AM to 4:30 PM", "Main lobby, information desk"),
+        new("malinis-district", "Malinis District Hospital", "Public district hospital", "Malinis", "Marikina City",
+            ["Emergency care", "Maternity", "Internal medicine", "Pharmacy"],
+            ["hospital-bill", "medicine-cost"],
+            "Monday to Friday, 8:00 AM to 5:00 PM", "Ground floor, room 104"),
+        new("riverbend-kidney", "Riverbend Kidney and Dialysis Center", "Specialty center", "Riverbend", "Pasig City",
+            ["Dialysis", "Nephrology clinic", "Laboratory"],
+            ["dialysis", "diagnostics"],
+            "Monday to Saturday, 6:00 AM to 6:00 PM", "Reception, ground floor"),
+        new("eastgate-diagnostics", "Eastgate Diagnostic Center", "Outpatient diagnostic center", "Eastgate", "Mandaluyong City",
+            ["Laboratory", "X-ray", "CT scan", "MRI"],
+            ["diagnostics"],
+            "Monday to Friday, 8:00 AM to 5:00 PM", "Cashier and patient services counter"),
+    ];
+
     // ---- Applications (all accounts; services filter to the household) ----
 
     public IReadOnlyList<AssistanceApplication> Applications()

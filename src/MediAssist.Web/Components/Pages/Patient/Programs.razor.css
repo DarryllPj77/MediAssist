@@ -75,3 +75,14 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+/* Where the selected program is handled (D5): links to the hospital directory. */
+.selected__where {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+.selected__where-label {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}

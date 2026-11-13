@@ -1,0 +1,109 @@
+@page "/patient/hospitals"
+@inject IPatientPortalDataService Data
+
+@*
+    Hospital directory (D5): a plain GET search (?q=…&program=…) so it works with or without the
+    live connection and results can be shared. Each card links (whole card) to the hospital's page
+    and lists the assistance programs its social service office handles.
+*@
+
+<PageTitle>Hospitals · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="hospitals-title" ImageKey="hero-patient-hospitals" Compact="true"
+               Title="Hospitals"
+               TitleFilipino="Mga ospital"
+               Lead="Find a hospital and see which assistance programs its social service office handles. Hours and requirements can change, so confirm with the office before you go."
+               LeadFilipino="Hanapin ang ospital na tumatanggap ng programang kailangan mo.">
+        <Eyebrow>Find help</Eyebrow>
+    </SplitHero>
+
+    <form class="hsearch" role="search" method="get" action="@PortalNavigation.Hospitals.Href" aria-labelledby="hsearch-title">
+        <h2 id="hsearch-title" class="hsearch__title">Search hospitals</h2>
+        <div class="field">
+            <label class="field__label" for="hsearch-q">Name, place or service</label>
+            <input id="hsearch-q" name="q" type="search" class="input" value="@Q" autocomplete="off" aria-describedby="hsearch-q-hint" />
+        </div>
+        <div class="field hsearch__program">
+            <label class="field__label" for="hsearch-program">Handles this program</label>
+            <select id="hsearch-program" name="program" class="select">
+                <option value="" selected="@(SelectedProgram is null)">Any program</option>
+                @foreach (var p in _programs)
+                {
+                    <option value="@p.Id" selected="@(p.Id == SelectedProgram?.Id)">@p.Name</option>
+                }
+            </select>
+        </div>
+        <AppButton Type="submit" Variant="AppButton.ButtonVariant.Secondary" IconStart="search" Class="hsearch__submit">Search</AppButton>
+        <p id="hsearch-q-hint" class="field__hint hsearch__hint">For example: dialysis, Pasig, children.</p>
+    </form>
+
+    <section class="hresults" aria-labelledby="hresults-title">
+        <h2 id="hresults-title" class="hresults__title">
+            @ResultsTitle
+            <span class="hresults__count tabular">@_results.Count</span>
+        </h2>
+
+        @if (_results.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="search" Title="No hospitals match that search"
+                            Message="Try a shorter word, or choose “Any program”.">
+                    <Action>
+                        <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Hospitals.Href">Show all hospitals</AppButton>
+                    </Action>
+                </EmptyState>
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="hlist">
+                @foreach (var h in _results)
+                {
+                    <li class="hcard">
+                        <span class="hcard__icon" aria-hidden="true"><Icon Name="hospital" Size="22" /></span>
+                        <div class="hcard__text">
+                            <a class="hcard__name" href="@h.Href">@h.Name</a>
+                            <p class="hcard__meta">@h.Type · @h.District, @h.City</p>
+                            <p class="hcard__programs">
+                                <span class="hcard__label">Handles: </span>
+                                @string.Join(", ", h.ProgramIds.Select(ProgramName))
+                            </p>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Q { get; set; }
+    [SupplyParameterFromQuery(Name = "program")] public string? ProgramId { get; set; }
+
+    private IReadOnlyList<Hospital> _hospitals = [];
+    private IReadOnlyList<AssistanceProgram> _programs = [];
+    private IReadOnlyList<Hospital> _results = [];
+
+    private AssistanceProgram? SelectedProgram => _programs.FirstOrDefault(p => p.Id == ProgramId);
+
+    private string ProgramName(string id) => _programs.FirstOrDefault(p => p.Id == id)?.Name ?? id;
+
+    private string ResultsTitle =>
+        (string.IsNullOrWhiteSpace(Q), SelectedProgram) switch
+        {
+            (true, null) => "All hospitals",
+            (true, { } p) => $"Hospitals that handle {p.Name}",
+            (false, null) => $"Hospitals matching “{Q!.Trim()}”",
+            (false, { } p) => $"Hospitals matching “{Q!.Trim()}” that handle {p.Name}",
+        };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _hospitals = await Data.GetHospitalsAsync();
+        _programs = await Data.GetProgramsAsync();
+        _results = _hospitals
+            .Where(h => h.Matches(Q) && (SelectedProgram is null || h.Offers(SelectedProgram.Id)))
+            .ToList();
+    }
+}
