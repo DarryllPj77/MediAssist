@@ -1,0 +1,83 @@
+@*
+    Display preferences (D8), shared by every role's Settings page: sidebar layout and Filipino
+    helper text. A choice applies at once (the layout listens to UiPreferences) and is kept in this
+    browser; each change is announced. Disabled until the saved choices are read after load.
+*@
+@implements IDisposable
+@inject UiPreferences Prefs
+
+<div class="prefs">
+    <fieldset class="option-list" aria-describedby="prefs-sidebar-hint">
+        <legend class="option-list__legend">Navigation sidebar</legend>
+        <p id="prefs-sidebar-hint" class="prefs__hint">For tablets and computers. Phones always use the menu at the bottom.</p>
+        @foreach (var option in SidebarOptions)
+        {
+            <label class="option-card">
+                <input type="radio" name="prefs-sidebar" checked="@(Prefs.Sidebar == option.Value)" disabled="@(!Prefs.IsLoaded)"
+                       @onchange="() => SetSidebarAsync(option.Value, option.Title)" />
+                <span class="option-card__text">
+                    <span class="option-card__title">@option.Title</span>
+                    <span class="option-card__meta">@option.Meta</span>
+                </span>
+            </label>
+        }
+    </fieldset>
+
+    <fieldset class="option-list">
+        <legend class="option-list__legend">Filipino helper text</legend>
+        <label class="option-card">
+            <input type="radio" name="prefs-fil" checked="@Prefs.ShowFilipino" disabled="@(!Prefs.IsLoaded)"
+                   @onchange="() => SetFilipinoAsync(true)" />
+            <span class="option-card__text">
+                <span class="option-card__title">Show Filipino lines</span>
+                <span class="option-card__meta">A short Filipino line under headings and main buttons.</span>
+            </span>
+        </label>
+        <label class="option-card">
+            <input type="radio" name="prefs-fil" checked="@(!Prefs.ShowFilipino)" disabled="@(!Prefs.IsLoaded)"
+                   @onchange="() => SetFilipinoAsync(false)" />
+            <span class="option-card__text">
+                <span class="option-card__title">English only</span>
+                <span class="option-card__meta">Fewer lines on each page.</span>
+            </span>
+        </label>
+    </fieldset>
+
+    <p class="prefs__status" role="status">@_status</p>
+</div>
+
+@code {
+    private sealed record SidebarOption(SidebarPreference Value, string Title, string Meta);
+
+    private static readonly SidebarOption[] SidebarOptions =
+    [
+        new(SidebarPreference.Auto, "Automatic", "Full on wide screens, icons only on tablets."),
+        new(SidebarPreference.Expanded, "Always full", "Icons with their names."),
+        new(SidebarPreference.Collapsed, "Always compact", "Icons only, more room for each page."),
+    ];
+
+    private string? _status;
+
+    protected override void OnInitialized() => Prefs.Changed += OnChanged;
+
+    protected override Task OnAfterRenderAsync(bool firstRender) =>
+        firstRender ? Prefs.EnsureLoadedAsync() : Task.CompletedTask;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task SetSidebarAsync(SidebarPreference value, string title)
+    {
+        var kept = await Prefs.SetSidebarAsync(value);
+        _status = kept ? $"Sidebar set to {title.ToLowerInvariant()}." : NotKept;
+    }
+
+    private async Task SetFilipinoAsync(bool show)
+    {
+        var kept = await Prefs.SetShowFilipinoAsync(show);
+        _status = !kept ? NotKept : show ? "Filipino helper text is shown." : "Filipino helper text is hidden.";
+    }
+
+    private const string NotKept = "Changed for now, but this browser couldn’t keep it for your next visit.";
+
+    public void Dispose() => Prefs.Changed -= OnChanged;
+}

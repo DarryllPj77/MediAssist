@@ -83,6 +83,9 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             return ProfileResult.Failed(new() { ["name"] = "That patient isn't in your household." });
 
         var isSelf = existing?.Authorization == AuthorizationStatus.Self;
+        // The account holder's name belongs to the account: it changes in Settings (D8), which
+        // updates this profile too, so the two never disagree.
+        if (isSelf) fullName = existing!.FullName;
         var errors = ProfileRules.Validate(fullName, relationship, dateOfBirth, city, isSelf, DateOnly.FromDateTime(now.Date));
         if (existing is not null && !isSelf && relationship != existing.Relationship
             && existing.Authorization is AuthorizationStatus.Authorized or AuthorizationStatus.PendingReview)
@@ -149,6 +152,57 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             return AuthorizationResult.SaveFailed();
         }
         return AuthorizationResult.Saved(request);
+    }
+
+    // ---- Account details and saved data (D8) ----
+
+    /// <summary>The account holder's own details from Settings, or null while the seeded ones apply.</summary>
+    public AccountDetails? Account => _snapshot.Account;
+
+    /// <summary>
+    /// Change the account holder's name and optional email. Validates at this boundary; the "You"
+    /// patient profile takes the same name in the same save. Nothing changes unless it is saved.
+    /// </summary>
+    public async Task<AccountResult> SaveAccountAsync(string? firstName, string? lastName, string? email)
+    {
+        var errors = AccountRules.Validate(firstName, lastName, email);
+        if (errors.Count > 0) return AccountResult.Failed(errors);
+
+        var account = new AccountDetails(firstName!.Trim(), lastName!.Trim(),
+            string.IsNullOrWhiteSpace(email) ? null : email.Trim());
+        var self = Household.FirstOrDefault(p => p.Authorization == AuthorizationStatus.Self);
+
+        var before = _snapshot;
+        _snapshot = _snapshot with
+        {
+            Account = account,
+            Profiles = self is null ? LocalProfiles
+                : [.. LocalProfiles.Where(p => p.Id != self.Id), self with { FullName = $"{account.FirstName} {account.LastName}" }],
+        };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return AccountResult.SaveFailed();
+        }
+        return AccountResult.Saved(account);
+    }
+
+    /// <summary>
+    /// Remove everything this user saved in this browser (drafts, submissions, uploads, profiles,
+    /// requests, read states and account changes). Returns false when it could not be saved.
+    /// </summary>
+    public async Task<bool> ClearAsync()
+    {
+        var before = _snapshot;
+        _snapshot = WorkspaceSnapshot.Empty;
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return false;
+        }
+        return true;
     }
 
     // ---- Notifications: read/unread and links (D7) ----
@@ -597,6 +651,19 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         Changed?.Invoke();
         return saved;
     }
+}
+
+/// <summary>The outcome of saving the account form (D8): saved, field errors, or a save failure.</summary>
+public sealed record AccountResult(AccountDetails? Account, IReadOnlyDictionary<string, string> Errors, string? SaveError)
+{
+    public bool Succeeded => Account is not null;
+
+    public static AccountResult Saved(AccountDetails account) => new(account, new Dictionary<string, string>(), null);
+
+    public static AccountResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
+
+    public static AccountResult SaveFailed() =>
+        new(null, new Dictionary<string, string>(), "We couldn’t save your details in this browser. Try again.");
 }
 
 /// <summary>The outcome of a simulated upload: saved (and whether it completed a correction), or why not.</summary>

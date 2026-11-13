@@ -12,8 +12,11 @@ namespace MediAssist.Web.Services;
 /// </summary>
 public sealed class MockPatientPortalDataService(MockPortalStore store, ApplicationWorkspace workspace) : IPatientPortalDataService
 {
+    /// <summary>The seeded account with the user's own changes from Settings (D8).</summary>
     public Task<PortalUser> GetCurrentUserAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(store.CurrentUser);
+        Task.FromResult(workspace.Account is { } a
+            ? store.CurrentUser with { FirstName = a.FirstName, LastName = a.LastName, Email = a.Email }
+            : store.CurrentUser);
 
     public Task<IReadOnlyList<PatientProfile>> GetPatientProfilesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(workspace.Household);

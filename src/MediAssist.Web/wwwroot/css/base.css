@@ -84,6 +84,11 @@ button {
     letter-spacing: 0;
 }
 
+/* Settings (D8) can turn Filipino helper text off: every lang="fil" helper line goes. */
+.portal[data-fil="hide"] [lang="fil"] {
+    display: none !important;
+}
+
 /* Filipino helper line under an English heading; markup sets lang="fil". */
 .fil {
     display: block;

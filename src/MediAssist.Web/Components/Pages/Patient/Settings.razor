@@ -1,0 +1,225 @@
+@page "/patient/settings"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+
+@*
+    Patient settings (D8). Account: first and last name and an optional email, validated in
+    ApplicationWorkspace.SaveAccountAsync; the "You" patient profile takes the same name. Display:
+    sidebar layout and Filipino helper text (DisplayPreferences). Saved data: what this browser
+    holds, and clearing it behind a confirmation. Nothing here is shared with staff or other devices.
+*@
+
+<PageTitle>Settings · MediAssist</PageTitle>
+
+<div class="page settings">
+    <header class="page__head">
+        <p class="eyebrow">Account</p>
+        <h1 class="page__title serif" tabindex="-1">Settings</h1>
+        <p class="fil page__fil" lang="fil">Mga setting ng inyong account</p>
+    </header>
+
+    <Panel LabelledBy="account-title">
+        <h2 id="account-title" class="settings__title">Your account</h2>
+        <p class="settings__intro">Your name appears on your applications and on your own patient profile. Use fictional details in this prototype.</p>
+
+        <form class="settings__form" @onsubmit="SaveAsync" novalidate>
+            @if (_errors.Count > 0 || _saveError is not null)
+            {
+                <p class="field__error settings__summary" role="alert">
+                    <Icon Name="alert-circle" Size="18" />
+                    @(_saveError ?? (_errors.Count == 1 ? "Check the field marked below." : $"Check the {_errors.Count} fields marked below."))
+                </p>
+            }
+
+            <div class="settings__names">
+                <div class="field">
+                    <label class="field__label" for="st-first">First name</label>
+                    <input id="st-first" class="input" type="text" autocomplete="given-name" maxlength="@AccountRules.NameMax"
+                           @bind="_first" @bind:after="Edited" aria-invalid="@Invalid("first")" aria-describedby="@Described("first", null)" />
+                    <FieldError Id="st-first-error" Message="@ErrorFor("first")" />
+                </div>
+                <div class="field">
+                    <label class="field__label" for="st-last">Last name</label>
+                    <input id="st-last" class="input" type="text" autocomplete="family-name" maxlength="@AccountRules.NameMax"
+                           @bind="_last" @bind:after="Edited" aria-invalid="@Invalid("last")" aria-describedby="@Described("last", null)" />
+                    <FieldError Id="st-last-error" Message="@ErrorFor("last")" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="st-email">Email <span class="settings__optional">(optional)</span></label>
+                <input id="st-email" class="input" type="email" autocomplete="email" maxlength="@AccountRules.EmailMax"
+                       @bind="_email" @bind:after="Edited" aria-invalid="@Invalid("email")" aria-describedby="@Described("email", "st-email-hint")" />
+                <p id="st-email-hint" class="field__hint">MediAssist sends no email in this prototype. Use an address ending in example.com.</p>
+                <FieldError Id="st-email-error" Message="@ErrorFor("email")" />
+            </div>
+
+            <div class="settings__actions">
+                <AppButton Type="submit" IconStart="check" Disabled="_saving">Save details</AppButton>
+                <p class="settings__status" role="status">@_accountStatus</p>
+            </div>
+        </form>
+    </Panel>
+
+    <Panel LabelledBy="display-title">
+        <h2 id="display-title" class="settings__title">Display</h2>
+        <p class="settings__intro">These choices are kept in this browser and apply as soon as you pick them.</p>
+        <DisplayPreferences />
+    </Panel>
+
+    <Panel LabelledBy="data-title">
+        <h2 id="data-title" class="settings__title" tabindex="-1" @ref="_dataTitle">Data saved in this browser</h2>
+        <p class="settings__intro">
+            Your drafts, applications you sent, uploads, added patients, requests, notification choices and account
+            changes are kept only in this browser. Staff and other devices can’t see them in this prototype.
+        </p>
+        <p class="settings__held">@HeldSummary</p>
+
+        @if (!_confirming)
+        {
+            <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="x-circle" Class="settings__clear"
+                       Disabled="@(!Workspace.IsLoaded)" OnClick="AskToClearAsync">Clear my saved data</AppButton>
+        }
+        else
+        {
+            <div class="settings__confirm" role="group" aria-labelledby="clear-question">
+                <p id="clear-question" class="settings__confirm-text" tabindex="-1" @ref="_question">
+                    <Icon Name="alert-triangle" Size="20" />
+                    <span>Clear everything saved in this browser? This can’t be undone. The sample applications stay.</span>
+                </p>
+                <div class="settings__confirm-actions">
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Class="settings__clear" IconStart="x-circle" OnClick="ClearAsync">Yes, clear my data</AppButton>
+                    <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="CancelClearAsync">Keep my data</AppButton>
+                </div>
+            </div>
+        }
+        <p class="settings__status" role="status">@_dataStatus</p>
+    </Panel>
+</div>
+
+@code {
+    private string? _first;
+    private string? _last;
+    private string? _email;
+    private bool _edited;
+    private bool _saving;
+    private IReadOnlyDictionary<string, string> _errors = new Dictionary<string, string>();
+    private string? _saveError;
+    private string? _accountStatus;
+
+    private bool _confirming;
+    private bool _focusQuestion;
+    private bool _focusDataTitle;
+    private string? _dataStatus;
+    private ElementReference _question;
+    private ElementReference _dataTitle;
+
+    private string HeldSummary
+    {
+        get
+        {
+            if (!Workspace.IsLoaded) return "Checking what this browser holds…";
+            var parts = new[]
+            {
+                Count(Workspace.Drafts.Count, "draft"),
+                Count(Workspace.Submitted.Count, "application you sent", "applications you sent"),
+                Count(Workspace.Uploads.Count, "upload"),
+                Count(Workspace.Household.Count(p => p.CreatedAt is not null), "added patient"),
+            };
+            return $"Now in this browser: {string.Join(", ", parts)}.";
+        }
+    }
+
+    private static string Count(int n, string one, string? many = null) => $"{n} {(n == 1 ? one : many ?? one + "s")}";
+
+    protected override async Task LoadAsync()
+    {
+        // Fill the fields from the account until the user starts typing, so the stored details
+        // arrive after load without overwriting an edit.
+        if (_edited) return;
+        var user = await Data.GetCurrentUserAsync();
+        _first = user.FirstName;
+        _last = user.LastName;
+        _email = user.Email;
+    }
+
+    private void Edited()
+    {
+        _edited = true;
+        _accountStatus = null;
+    }
+
+    private string? ErrorFor(string field) => _errors.TryGetValue(field, out var e) ? e : null;
+    private string? Invalid(string field) => _errors.ContainsKey(field) ? "true" : null;
+
+    private string? Described(string field, string? hintId)
+    {
+        var ids = new[] { hintId, _errors.ContainsKey(field) ? $"st-{field}-error" : null }.Where(i => i is not null);
+        var joined = string.Join(' ', ids);
+        return joined.Length == 0 ? null : joined;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _accountStatus = null;
+        var result = await Workspace.SaveAccountAsync(_first, _last, _email);
+        _saving = false;
+        _errors = result.Errors;
+        _saveError = result.SaveError;
+        if (result.Account is { } saved)
+        {
+            _edited = false;
+            _first = saved.FirstName;
+            _last = saved.LastName;
+            _email = saved.Email;
+            _accountStatus = "Your details are saved.";
+        }
+    }
+
+    private Task AskToClearAsync()
+    {
+        _confirming = true;
+        _focusQuestion = true;
+        _dataStatus = null;
+        return Task.CompletedTask;
+    }
+
+    private Task CancelClearAsync()
+    {
+        _confirming = false;
+        _focusDataTitle = true;
+        _dataStatus = "Nothing was cleared.";
+        return Task.CompletedTask;
+    }
+
+    private async Task ClearAsync()
+    {
+        var cleared = await Workspace.ClearAsync();
+        _confirming = false;
+        _focusDataTitle = true;
+        if (cleared)
+        {
+            _edited = false;
+            _errors = new Dictionary<string, string>();
+            _saveError = null;
+            _accountStatus = null;
+            await LoadAsync();
+        }
+        _dataStatus = cleared ? "Your saved data was cleared from this browser." : "We couldn’t clear your data in this browser. Try again.";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusQuestion)
+        {
+            _focusQuestion = false;
+            await _question.FocusAsync();
+        }
+        else if (_focusDataTitle)
+        {
+            _focusDataTitle = false;
+            await _dataTitle.FocusAsync();
+        }
+    }
+}

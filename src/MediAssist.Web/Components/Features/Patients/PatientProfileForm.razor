@@ -15,13 +15,25 @@
         </p>
     }
 
-    <div class="field">
-        <label class="field__label" for="pf-name">Full name</label>
-        <input id="pf-name" class="input" type="text" autocomplete="off" maxlength="80"
-               @bind="_name" aria-invalid="@Invalid("name")" aria-describedby="@Described("name", "pf-name-hint")" />
-        <p id="pf-name-hint" class="field__hint">As it appears on the patient's documents. Use fictional details in this prototype.</p>
-        <FieldError Id="pf-name-error" Message="@ErrorFor("name")" />
-    </div>
+    @if (IsSelf)
+    {
+        @* The account holder's name belongs to the account (D8): it changes in Settings. *@
+        <div class="field">
+            <p class="field__label">Full name</p>
+            <p class="profile-form__fixed">@_name</p>
+            <p class="field__hint">Your name is part of your account. <a href="/patient/settings">Change it in Settings</a>.</p>
+        </div>
+    }
+    else
+    {
+        <div class="field">
+            <label class="field__label" for="pf-name">Full name</label>
+            <input id="pf-name" class="input" type="text" autocomplete="off" maxlength="80"
+                   @bind="_name" aria-invalid="@Invalid("name")" aria-describedby="@Described("name", "pf-name-hint")" />
+            <p id="pf-name-hint" class="field__hint">As it appears on the patient's documents. Use fictional details in this prototype.</p>
+            <FieldError Id="pf-name-error" Message="@ErrorFor("name")" />
+        </div>
+    }
 
     @if (IsSelf)
     {

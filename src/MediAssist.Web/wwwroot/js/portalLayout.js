@@ -2,6 +2,7 @@
 // Kept intentionally small: persistence, one media-query watcher, and native <dialog> control.
 
 const SIDEBAR_KEY = "mediassist.sidebar";
+const FILIPINO_KEY = "mediassist.filipino";
 const WIDE_QUERY = "(min-width: 75em)";
 const TABLET_QUERY = "(min-width: 48em)";
 const watchers = new Map();
@@ -11,8 +12,18 @@ export function getSidebarPreference() {
     try { return localStorage.getItem(SIDEBAR_KEY); } catch { return null; }
 }
 
+// Returns false when the browser would not store it (private mode, storage full).
 export function setSidebarPreference(value) {
-    try { localStorage.setItem(SIDEBAR_KEY, value); } catch { /* storage unavailable: ignore */ }
+    try { localStorage.setItem(SIDEBAR_KEY, value); return true; } catch { return false; }
+}
+
+// "hide" when the user turned Filipino helper text off (D8); anything else shows it.
+export function getFilipinoPreference() {
+    try { return localStorage.getItem(FILIPINO_KEY); } catch { return null; }
+}
+
+export function setFilipinoPreference(value) {
+    try { localStorage.setItem(FILIPINO_KEY, value); return true; } catch { return false; }
 }
 
 export function watchWideViewport(dotNetRef) {

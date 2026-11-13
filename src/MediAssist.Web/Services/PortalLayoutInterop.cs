@@ -19,8 +19,14 @@ public sealed class PortalLayoutInterop(IJSRuntime js) : IAsyncDisposable
     public async ValueTask<string?> GetSidebarPreferenceAsync() =>
         await (await Module).InvokeAsync<string?>("getSidebarPreference");
 
-    public async ValueTask SetSidebarPreferenceAsync(string value) =>
-        await (await Module).InvokeVoidAsync("setSidebarPreference", value);
+    public async ValueTask<bool> SetSidebarPreferenceAsync(string value) =>
+        await (await Module).InvokeAsync<bool>("setSidebarPreference", value);
+
+    public async ValueTask<string?> GetFilipinoPreferenceAsync() =>
+        await (await Module).InvokeAsync<string?>("getFilipinoPreference");
+
+    public async ValueTask<bool> SetFilipinoPreferenceAsync(string value) =>
+        await (await Module).InvokeAsync<bool>("setFilipinoPreference", value);
 
     public async ValueTask<ViewportWatch> WatchWideViewportAsync<T>(DotNetObjectReference<T> target) where T : class =>
         await (await Module).InvokeAsync<ViewportWatch>("watchWideViewport", target);

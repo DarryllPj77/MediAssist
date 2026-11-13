@@ -34,7 +34,7 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
 
     // ---- People ----
 
-    public PortalUser CurrentUser { get; } = new(UserId, "Maria", "Santos");
+    public PortalUser CurrentUser { get; } = new(UserId, "Maria", "Santos", "maria.santos@example.com");
 
     /// <summary>The account holder's household: the patients this account applies for.</summary>
     public IReadOnlyList<PatientProfile> Household { get; } =

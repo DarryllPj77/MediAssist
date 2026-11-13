@@ -4,6 +4,8 @@
       >= 48em: sidebar (rail by default on tablet) + header + content
       >= 75em: sidebar expanded by default
     Sidebar mode: "auto" follows the breakpoints above; an explicit user choice is saved locally.
+    Display preferences (D8, UiPreferences): sidebar layout and Filipino helper text, changed from
+    the sidebar toggle or Settings; data-fil="hide" hides every lang="fil" helper line.
 *@
 @inherits LayoutComponentBase
 @implements IAsyncDisposable
@@ -13,10 +15,11 @@
 @inject NavigationManager Nav
 @inject PageSectionState PageSection
 @inject ApplicationWorkspace Workspace
+@inject UiPreferences Prefs
 
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
-<div class="portal" data-sidebar="@SidebarAttribute" data-role="@_set.Role.ToString().ToLowerInvariant()" @ref="_portal">
+<div class="portal" data-sidebar="@SidebarAttribute" data-fil="@(Prefs.ShowFilipino ? null : "hide")" data-role="@_set.Role.ToString().ToLowerInvariant()" @ref="_portal">
     @* Navy sidebar (brand at its top) beside a column of top bar, page and footer. *@
     <div class="portal__frame">
         <PortalSidebar Set="_set"
@@ -61,14 +64,11 @@
 </div>
 
 @code {
-    private enum SidebarMode { Auto, Expanded, Collapsed }
-
     private NavSet _set = RoleNavigation.Patient;
     private string? _userName;
     private int _unreadCount;
     private string _path = "";
 
-    private SidebarMode _sidebarMode = SidebarMode.Auto;
     private bool _isWideViewport = true;
     private ElementReference _portal;
     private int? _viewportWatchId;
@@ -77,12 +77,12 @@
     private MobileNavDrawer? _drawer;
     private bool _drawerOpen;
 
-    private string SidebarAttribute => _sidebarMode.ToString().ToLowerInvariant();
+    private string SidebarAttribute => Prefs.Sidebar.ToString().ToLowerInvariant();
 
-    private bool IsSidebarCollapsed => _sidebarMode switch
+    private bool IsSidebarCollapsed => Prefs.Sidebar switch
     {
-        SidebarMode.Expanded => false,
-        SidebarMode.Collapsed => true,
+        SidebarPreference.Expanded => false,
+        SidebarPreference.Collapsed => true,
         _ => !_isWideViewport
     };
 
@@ -97,6 +97,7 @@
         Nav.LocationChanged += OnLocationChanged;
         PageSection.Changed += OnPageSectionChanged;
         Workspace.Changed += OnWorkspaceChanged;
+        Prefs.Changed += OnPreferencesChanged;
         await LoadRoleAsync(RoleNavigation.ForPath(_path));
     }
 
@@ -140,12 +141,7 @@
         _viewportWatchId = watch.Id;
         _isWideViewport = watch.IsWide;
 
-        _sidebarMode = await Interop.GetSidebarPreferenceAsync() switch
-        {
-            "expanded" => SidebarMode.Expanded,
-            "collapsed" => SidebarMode.Collapsed,
-            _ => SidebarMode.Auto
-        };
+        await Prefs.EnsureLoadedAsync();
 
         _enableTransitionsAfterRender = true;
         StateHasChanged();
@@ -160,8 +156,7 @@
 
     private async Task ToggleSidebarAsync()
     {
-        _sidebarMode = IsSidebarCollapsed ? SidebarMode.Expanded : SidebarMode.Collapsed;
-        await Interop.SetSidebarPreferenceAsync(SidebarAttribute);
+        await Prefs.SetSidebarAsync(IsSidebarCollapsed ? SidebarPreference.Expanded : SidebarPreference.Collapsed);
     }
 
     private async Task OpenDrawerAsync()
@@ -173,11 +168,14 @@
 
     private void OnPageSectionChanged() => _ = InvokeAsync(StateHasChanged);
 
-    // A submission adds a notification: keep the bell's count current.
+    private void OnPreferencesChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // A submission adds a notification and Settings can rename the account: keep the bell and name current.
     private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
     {
         if (_set.Role == PortalRole.Patient)
         {
+            _userName = (await Data.GetCurrentUserAsync()).FullName;
             _unreadCount = (await Data.GetNotificationsAsync()).Count(n => !n.IsRead);
             StateHasChanged();
         }
@@ -203,6 +201,7 @@
         Nav.LocationChanged -= OnLocationChanged;
         PageSection.Changed -= OnPageSectionChanged;
         Workspace.Changed -= OnWorkspaceChanged;
+        Prefs.Changed -= OnPreferencesChanged;
         if (_viewportWatchId is int id)
         {
             try { await Interop.UnwatchWideViewportAsync(id); }

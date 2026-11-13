@@ -1,0 +1,30 @@
+.prefs {
+    display: grid;
+    gap: var(--space-6);
+}
+
+@media (min-width: 64em) {
+    .prefs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .prefs__status {
+        grid-column: 1 / -1;
+    }
+}
+
+.prefs__hint {
+    margin-block: calc(-1 * var(--space-1)) var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.prefs__status:empty {
+    display: none;
+}
+
+.prefs__status {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+}

@@ -60,3 +60,64 @@
 .page--wide {
     max-width: none;
 }
+
+/* ---- Settings (D8): patient, administrator and runner ---- */
+
+.settings {
+    display: grid;
+    gap: var(--space-6);
+}
+
+.settings__title {
+    color: var(--color-navy);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+}
+
+.settings__title:focus {
+    outline: none;
+}
+
+.settings__intro {
+    max-width: 62ch;
+    margin-block: var(--space-2) var(--space-5);
+    color: var(--color-text-muted);
+}
+
+.settings__facts {
+    display: grid;
+    gap: var(--space-4);
+    margin-block: var(--space-4);
+}
+
+@media (min-width: 40em) {
+    .settings__facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.settings__facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.settings__facts dd {
+    margin: 0;
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.settings__note {
+    max-width: 62ch;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.settings__status:empty {
+    display: none;
+}
+
+.settings__status {
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+}

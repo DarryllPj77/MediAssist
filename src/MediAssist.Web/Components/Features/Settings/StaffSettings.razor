@@ -1,0 +1,46 @@
+@*
+    Settings for administrators and runners (D8). Staff accounts have no sign-in in this prototype,
+    so their details are read-only; display preferences are the same as the patient's.
+*@
+@inject IStaffPortalDataService Staff
+
+<div class="page settings">
+    <header class="page__head">
+        <p class="eyebrow">@RoleLabel</p>
+        <h1 class="page__title serif" tabindex="-1">Settings</h1>
+        <p class="fil page__fil" lang="fil">Mga setting ng inyong account</p>
+    </header>
+
+    <Panel LabelledBy="account-title">
+        <h2 id="account-title" class="settings__title">Your account</h2>
+        <dl class="settings__facts">
+            <div>
+                <dt>Name</dt>
+                <dd>@(_user?.FullName ?? "…")</dd>
+            </div>
+            <div>
+                <dt>Role</dt>
+                <dd>@RoleLabel</dd>
+            </div>
+        </dl>
+        <p class="settings__note">
+            Staff accounts are managed by an administrator. This prototype has no sign-in, so these details can’t be changed here.
+        </p>
+    </Panel>
+
+    <Panel LabelledBy="display-title">
+        <h2 id="display-title" class="settings__title">Display</h2>
+        <p class="settings__intro">These choices are kept in this browser and apply to every portal you open in it.</p>
+        <DisplayPreferences />
+    </Panel>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PortalRole Role { get; set; }
+
+    private StaffUser? _user;
+
+    private string RoleLabel => Role == PortalRole.Runner ? "Runner" : "Administrator";
+
+    protected override async Task OnParametersSetAsync() => _user = await Staff.GetUserAsync(Role);
+}

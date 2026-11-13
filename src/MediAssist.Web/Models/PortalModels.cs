@@ -46,7 +46,7 @@ public enum ActionPriority
 }
 
 /// <summary>The signed-in account holder (fictional; no authentication in this milestone).</summary>
-public sealed record PortalUser(Guid Id, string FirstName, string LastName)
+public sealed record PortalUser(Guid Id, string FirstName, string LastName, string? Email = null)
 {
     public string FullName => $"{FirstName} {LastName}";
 }
