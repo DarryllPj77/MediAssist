@@ -39,6 +39,10 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
     public Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(Guid patientId, CancellationToken cancellationToken = default) =>
         Task.FromResult(workspace.IsHousehold(patientId) ? workspace.RequestsFor(patientId) : (IReadOnlyList<AuthorizationRequest>)[]);
 
+    /// <summary>The household's runner requests (seeded and the user's own), newest first.</summary>
+    public Task<IReadOnlyList<RunnerRequestItem>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(workspace.RunnerRequests);
+
     public Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(store.Programs);
 
@@ -73,7 +77,7 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
             store.Programs.FirstOrDefault(p => p.Id == application.ProgramId),
             Checklists().FirstOrDefault(c => c.ApplicationReference == application.ReferenceNumber),
             History(application.ReferenceNumber),
-            store.RunnerRequests().Where(r => r.ApplicationReference == application.ReferenceNumber).ToList());
+            workspace.RunnerRequests.Where(r => string.Equals(r.ApplicationReference, application.ReferenceNumber, StringComparison.OrdinalIgnoreCase)).ToList());
         return Task.FromResult<ApplicationDetail?>(detail);
     }
 
@@ -123,7 +127,7 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
     }
 
     private IReadOnlyList<ApplicationEvent> History(string reference) =>
-        [.. BaseHistory(reference).Concat(workspace.UploadEvents(reference)).OrderBy(e => e.At)];
+        [.. BaseHistory(reference).Concat(workspace.UploadEvents(reference)).Concat(workspace.RunnerEvents(reference)).OrderBy(e => e.At)];
 
     private IReadOnlyList<ApplicationEvent> BaseHistory(string reference)
     {

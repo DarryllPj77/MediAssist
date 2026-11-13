@@ -1,0 +1,53 @@
+.rnew__back {
+    margin-block-end: calc(-1 * var(--space-4));
+}
+
+.rnew {
+    display: grid;
+    gap: var(--space-6);
+    max-width: 40rem;
+}
+
+.rnew__intro {
+    max-width: 60ch;
+    color: var(--color-text);
+}
+
+.rnew__loading {
+    color: var(--color-text-muted);
+}
+
+.rnew__when {
+    display: grid;
+    gap: var(--space-5);
+}
+
+@media (min-width: 48em) {
+    .rnew__when {
+        grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+        align-items: start;
+    }
+}
+
+.rnew__notes {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.rnew__optional {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+}
+
+.rnew__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+@media (max-width: 47.99em) {
+    .rnew__actions {
+        display: grid;
+    }
+}

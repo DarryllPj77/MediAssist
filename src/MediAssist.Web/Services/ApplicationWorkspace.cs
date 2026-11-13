@@ -34,6 +34,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public IReadOnlyList<DocumentUpload> Uploads => _snapshot.Uploads ?? [];
     private IReadOnlyList<PatientProfile> LocalProfiles => _snapshot.Profiles ?? [];
     private IReadOnlyList<AuthorizationRequest> LocalRequests => _snapshot.AuthorizationRequests ?? [];
+    private IReadOnlyList<RunnerRequestItem> LocalRunnerRequests => _snapshot.RunnerRequests ?? [];
 
     /// <summary>Read the user's saved workspace once; later calls return the same task.</summary>
     public Task EnsureLoadedAsync() => _loading ??= LoadAsync();
@@ -147,6 +148,100 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         }
         return AuthorizationResult.Saved(request);
     }
+
+    // ---- Optional runner requests (D6) ----
+
+    /// <summary>
+    /// The household's runner requests: seeded ones for the household's applications (staff data,
+    /// read-only here) and the ones this user made.
+    /// </summary>
+    public IReadOnlyList<RunnerRequestItem> RunnerRequests
+    {
+        get
+        {
+            var mine = LocalRunnerRequests.ToList();
+            var seeded = store.RunnerRequests().Where(r => CurrentApplication(r.ApplicationReference) is not null);
+            // The user's own requests first (newest first), then seeded ones by date needed.
+            return [.. mine.OrderByDescending(r => r.RequestedAt), .. seeded.OrderByDescending(r => r.NeededBy)];
+        }
+    }
+
+    /// <summary>True for requests this user made (they can cancel one before it is assigned).</summary>
+    public bool IsOwnRunnerRequest(string id) => LocalRunnerRequests.Any(r => r.Id == id);
+
+    /// <summary>
+    /// Ask for optional runner help with one errand. Validates at this boundary (eligible
+    /// application, one open request per application, permitted errand, date within 30 days, time
+    /// window, short notes, confirmation). The application's status does not change. Nothing is
+    /// recorded unless it is saved.
+    /// </summary>
+    public async Task<RunnerRequestResult> RequestRunnerAsync(string? reference, RunnerErrand? errand, DateOnly? date,
+        string? window, string? notes, bool confirmed)
+    {
+        var now = clock.GetLocalNow();
+        var application = reference is null ? null : CurrentApplication(reference);
+        var open = application is not null && RunnerRequests.Any(r =>
+            Same(r.ApplicationReference, application.ReferenceNumber) && RunnerRules.IsOpen(r.Status));
+        var errors = RunnerRules.Validate(application, open, errand, date, window, notes, confirmed, DateOnly.FromDateTime(now.Date));
+        if (errors.Count > 0) return RunnerRequestResult.Failed(errors);
+
+        var hospital = store.Hospitals.FirstOrDefault(h => h.Name == application!.HospitalName);
+        var startHour = window == RunnerRules.Windows[0] ? 8 : 13;
+        var neededBy = new DateTimeOffset(date!.Value.ToDateTime(new TimeOnly(startHour, 0)), now.Offset);
+        var request = new RunnerRequestItem(
+            $"rr-{Guid.NewGuid().ToString("N")[..8]}", application!.ReferenceNumber,
+            RunnerRules.ErrandLabel(errand!.Value),
+            hospital is null ? application.HospitalName : $"{hospital.Name}, social service office",
+            neededBy, RunnerTaskStatus.PendingAssignment, null,
+            errand, window, string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), now);
+        var notification = new PortalNotification($"n-{request.Id}", "Runner help requested",
+            $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false);
+
+        var before = _snapshot;
+        _snapshot = _snapshot with
+        {
+            RunnerRequests = [.. LocalRunnerRequests, request],
+            Notifications = [notification, .. _snapshot.Notifications],
+        };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return RunnerRequestResult.SaveFailed();
+        }
+        return RunnerRequestResult.Saved(request);
+    }
+
+    /// <summary>Cancel one of this user's requests while it is still waiting for a runner. False if not allowed or not saved.</summary>
+    public async Task<bool> CancelRunnerRequestAsync(string id)
+    {
+        var request = LocalRunnerRequests.FirstOrDefault(r => r.Id == id);
+        if (request is null || request.Status != RunnerTaskStatus.PendingAssignment) return false;
+
+        var before = _snapshot;
+        var cancelled = request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() };
+        _snapshot = _snapshot with { RunnerRequests = [.. LocalRunnerRequests.Select(r => r.Id == id ? cancelled : r)] };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>History entries for this user's runner requests on an application.</summary>
+    public IReadOnlyList<ApplicationEvent> RunnerEvents(string reference) =>
+    [
+        .. LocalRunnerRequests.Where(r => Same(r.ApplicationReference, reference)).SelectMany(r =>
+        {
+            var requested = new ApplicationEvent(reference, r.RequestedAt ?? r.NeededBy, ApplicationEventKind.RunnerRequested,
+                "Runner help requested", "You", $"{r.Errand} at {r.Place}.");
+            return r.Status == RunnerTaskStatus.Cancelled && r.ClosedAt is { } closed
+                ? new[] { requested, new ApplicationEvent(reference, closed, ApplicationEventKind.RunnerRequested, "Runner request cancelled", "You") }
+                : [requested];
+        }),
+    ];
 
     // ---- Drafts ----
 
@@ -490,5 +585,18 @@ public sealed record AuthorizationResult(AuthorizationRequest? Request, IReadOnl
     public static AuthorizationResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
 
     public static AuthorizationResult SaveFailed() =>
+        new(null, new Dictionary<string, string>(), "We couldn’t save this request in this browser. Try again.");
+}
+
+/// <summary>The outcome of a runner request: the saved request, or field errors / a save failure.</summary>
+public sealed record RunnerRequestResult(RunnerRequestItem? Request, IReadOnlyDictionary<string, string> Errors, string? SaveError)
+{
+    public bool Succeeded => Request is not null;
+
+    public static RunnerRequestResult Saved(RunnerRequestItem request) => new(request, new Dictionary<string, string>(), null);
+
+    public static RunnerRequestResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
+
+    public static RunnerRequestResult SaveFailed() =>
         new(null, new Dictionary<string, string>(), "We couldn’t save this request in this browser. Try again.");
 }

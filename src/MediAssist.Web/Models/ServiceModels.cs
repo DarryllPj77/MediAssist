@@ -63,6 +63,10 @@ public sealed record ReviewQueueItem(
     bool AuthorizationPending);
 
 /// <summary>An optional runner request as the administrator sees it.</summary>
+/// <summary>
+/// An optional runner request. The optional fields were added in D6 for requests made in the
+/// patient portal (they default, so seeded records and older snapshots still read).
+/// </summary>
 public sealed record RunnerRequestItem(
     string Id,
     string ApplicationReference,
@@ -70,7 +74,12 @@ public sealed record RunnerRequestItem(
     string Place,
     DateTimeOffset NeededBy,
     RunnerTaskStatus Status,
-    string? RunnerName);
+    string? RunnerName,
+    RunnerErrand? Kind = null,
+    string? TimeWindow = null,
+    string? Notes = null,
+    DateTimeOffset? RequestedAt = null,
+    DateTimeOffset? ClosedAt = null);
 
 /// <summary>A runner's assigned task: only the minimum information the errand needs (Phase 1 rule).</summary>
 public sealed record RunnerTask(

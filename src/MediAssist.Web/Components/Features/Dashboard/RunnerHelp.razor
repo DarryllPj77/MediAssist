@@ -17,7 +17,16 @@
                 A MediAssist runner can bring your documents to the hospital or program office for you.
                 It is optional; you can always go yourself.
             </p>
-            <a class="link runner__link" href="@PortalNavigation.Runner.Href">Request runner help</a>
+            <a class="link runner__link" href="@Href">Request runner help</a>
         </div>
     </div>
 </section>
+
+@code {
+    /// <summary>An application to request help for (its detail page); null opens the runner page.</summary>
+    [Parameter] public string? ApplicationReference { get; set; }
+
+    private string Href => ApplicationReference is null
+        ? PortalNavigation.Runner.Href
+        : $"{PortalNavigation.Runner.Href}/new?application={Uri.EscapeDataString(ApplicationReference)}";
+}

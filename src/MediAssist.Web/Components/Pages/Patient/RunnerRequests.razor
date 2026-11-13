@@ -1,0 +1,140 @@
+@page "/patient/runner"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+
+@*
+    Optional runner help (D6): the household's runner requests (seeded staff data and the user's
+    own), what runners can and cannot do, and "Request runner help" (the view's one filled button).
+    The user can cancel their own request while it waits for a runner; the application's status
+    never changes with the runner's.
+*@
+
+<PageTitle>Runner assistance · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="runner-page-title" ImageKey="hero-patient-runner" Compact="true"
+               Title="Runner assistance"
+               TitleFilipino="Tulong ng runner"
+               Lead="Can't go in person? A MediAssist runner can bring documents to the hospital or program office for you. It is optional; you can always go yourself."
+               LeadFilipino="Opsyonal ito. Maaari ka pa ring pumunta nang personal.">
+        <Eyebrow>Find help</Eyebrow>
+        <Actions>
+            <AppButton Href="@($"{PortalNavigation.Runner.Href}/new")" IconStart="plus">Request runner help</AppButton>
+        </Actions>
+    </SplitHero>
+
+    @if (_done is not null)
+    {
+        <div class="runner-done" role="status">
+            <Icon Name="check-circle" Size="22" />
+            <p>@_done</p>
+        </div>
+    }
+
+    <section class="limits" aria-labelledby="limits-title">
+        <h2 id="limits-title" class="limits__title">What runners do</h2>
+        <div class="limits__grid">
+            <ul class="limits__list limits__list--yes">
+                @foreach (var e in Enum.GetValues<RunnerErrand>())
+                {
+                    <li><Icon Name="check" Size="16" /> @RunnerRules.ErrandLabel(e)</li>
+                }
+            </ul>
+            <ul class="limits__list limits__list--no" aria-label="What runners never do">
+                @foreach (var n in RunnerRules.NotAllowed)
+                {
+                    <li><Icon Name="x" Size="16" /> Never: @n.ToLowerInvariant()</li>
+                }
+            </ul>
+        </div>
+    </section>
+
+    <section class="errands-page" aria-labelledby="my-errands-title">
+        <h2 id="my-errands-title" class="errands-page__title">Your runner requests</h2>
+        @if (_requests.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="route" Title="No runner requests yet"
+                            Message="Request help when you can't bring documents to the office yourself." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="rlist">
+                @foreach (var r in _requests)
+                {
+                    var app = _applications.FirstOrDefault(a => a.ReferenceNumber == r.ApplicationReference);
+                    <li class="rcard">
+                        <div class="rcard__head">
+                            <p class="rcard__errand">@r.Errand</p>
+                            <Badge Text="@RunnerTaskStatusDisplay.Label(r.Status)" Tone="RunnerTaskStatusDisplay.Tone(r.Status)"
+                                   IconName="@RunnerTaskStatusDisplay.Icon(r.Status)" />
+                        </div>
+                        <p class="rcard__meta">
+                            @r.Place<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>
+                            needed by <time datetime="@DisplayFormat.Machine(r.NeededBy)">@DisplayFormat.Date(r.NeededBy)</time>@(r.TimeWindow is null ? "" : $", {r.TimeWindow.Split(',')[0].ToLowerInvariant()}")
+                        </p>
+                        <p class="rcard__app">
+                            For <a href="@ApplicationsHref.Detail(r.ApplicationReference)">@(app?.ProgramName ?? "application") · @r.ApplicationReference</a>
+                            @if (app is not null) { <span> (@app.PatientName)</span> }
+                        </p>
+                        @if (r.RunnerName is not null)
+                        {
+                            <p class="rcard__runner">Runner: @r.RunnerName</p>
+                        }
+                        @if (r.Notes is not null)
+                        {
+                            <p class="rcard__notes"><span class="visually-hidden">Your notes: </span>“@r.Notes”</p>
+                        }
+                        @if (r.Status == RunnerTaskStatus.Declined)
+                        {
+                            <p class="rcard__note">The runner couldn't take this errand. An administrator will assign another runner.</p>
+                        }
+                        @if (Workspace.IsOwnRunnerRequest(r.Id) && r.Status == RunnerTaskStatus.PendingAssignment)
+                        {
+                            <div class="rcard__actions">
+                                @if (_confirmCancel == r.Id)
+                                {
+                                    <p class="rcard__confirm">Cancel this request?</p>
+                                    <AppButton Variant="AppButton.ButtonVariant.Secondary" OnClick="() => CancelAsync(r)">Yes, cancel it</AppButton>
+                                    <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="() => _confirmCancel = null">Keep it</AppButton>
+                                }
+                                else
+                                {
+                                    <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="x" OnClick="() => _confirmCancel = r.Id">
+                                        Cancel request<span class="visually-hidden"> for @r.ApplicationReference</span>
+                                    </AppButton>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "requested")] public string? Requested { get; set; }
+
+    private IReadOnlyList<RunnerRequestItem> _requests = [];
+    private IReadOnlyList<AssistanceApplication> _applications = [];
+    private string? _confirmCancel;
+    private string? _done;
+
+    protected override async Task LoadAsync()
+    {
+        _requests = await Data.GetRunnerRequestsAsync();
+        _applications = await Data.GetApplicationsAsync();
+        if (_done is null && Requested is not null && _requests.FirstOrDefault(r => r.Id == Requested) is { } made)
+            _done = $"Runner help requested for {made.ApplicationReference}. It is waiting for a runner; you can cancel it until one is assigned.";
+    }
+
+    private async Task CancelAsync(RunnerRequestItem request)
+    {
+        _confirmCancel = null;
+        _done = await Workspace.CancelRunnerRequestAsync(request.Id)
+            ? $"Runner request for {request.ApplicationReference} cancelled."
+            : "We couldn’t cancel that request. Try again.";
+    }
+}

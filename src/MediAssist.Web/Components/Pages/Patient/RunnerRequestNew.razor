@@ -1,0 +1,187 @@
+@page "/patient/runner/new"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject NavigationManager Nav
+@inject TimeProvider Clock
+
+@*
+    Request optional runner help (D6). One errand for one submitted, unfinished application;
+    validation runs in ApplicationWorkspace.RequestRunnerAsync and each error sits under its field.
+    ?application=<reference> pre-selects the application (from its detail page).
+*@
+
+<PageTitle>Request runner help · MediAssist</PageTitle>
+
+<div class="page">
+    <div class="rnew__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@BackHref" IconStart="chevron-left">@BackLabel</AppButton>
+    </div>
+
+    <header class="page__head">
+        <p class="eyebrow">Runner assistance</p>
+        <h1 class="page__title serif" tabindex="-1">Request runner help</h1>
+        <p class="fil page__fil" lang="fil">Humiling ng tulong ng runner</p>
+    </header>
+
+    @if (!Workspace.IsLoaded && _eligible.Count == 0)
+    {
+        <Panel><p class="rnew__loading" role="status">Loading your applications…</p></Panel>
+    }
+    else if (_eligible.Count == 0)
+    {
+        <Panel>
+            <EmptyState IconName="route" Title="No application can use runner help right now"
+                        Message="Runner help is for submitted applications that are not finished yet. Submit an application first.">
+                <Action>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Applications.Href">See my applications</AppButton>
+                </Action>
+            </EmptyState>
+        </Panel>
+    }
+    else
+    {
+        <Panel>
+            <form class="rnew" @onsubmit="SendAsync" novalidate>
+                <p class="rnew__intro">
+                    Runners only carry documents to and from the office. They never handle cash or medicine,
+                    and their errand doesn't change your application's status.
+                </p>
+
+                @if (_errors.Count > 0 || _saveError is not null)
+                {
+                    <p class="field__error" role="alert">
+                        <Icon Name="alert-circle" Size="18" />
+                        @(_saveError ?? (_errors.Count == 1 ? "Check the item marked below." : $"Check the {_errors.Count} items marked below."))
+                    </p>
+                }
+
+                <div class="field">
+                    <label class="field__label" for="rn-application">Application</label>
+                    <select id="rn-application" class="select" @bind="_reference"
+                            aria-invalid="@Inv("application")" aria-describedby="@Desc("application")">
+                        <option value="">Choose an application</option>
+                        @foreach (var a in _eligible)
+                        {
+                            <option value="@a.ReferenceNumber">@a.ProgramName for @a.PatientName · @a.ReferenceNumber</option>
+                        }
+                    </select>
+                    <FieldError Id="rn-application-error" Message="@Err("application")" />
+                </div>
+
+                <fieldset class="option-list" aria-describedby="@Desc("errand")">
+                    <legend class="option-list__legend">What should the runner do?</legend>
+                    @foreach (var e in Enum.GetValues<RunnerErrand>())
+                    {
+                        <label class="option-card">
+                            <input type="radio" name="errand" checked="@(_errand == e)" aria-invalid="@Inv("errand")" @onchange="() => _errand = e" />
+                            <span class="option-card__text">
+                                <span class="option-card__title">@RunnerRules.ErrandLabel(e)</span>
+                                <span class="option-card__meta">@RunnerRules.ErrandHint(e)</span>
+                            </span>
+                        </label>
+                    }
+                    <FieldError Id="rn-errand-error" Message="@Err("errand")" />
+                </fieldset>
+
+                <div class="rnew__when">
+                    <div class="field">
+                        <label class="field__label" for="rn-date">Needed by</label>
+                        <input id="rn-date" class="input" type="date" @bind="_date"
+                               min="@_today.AddDays(1).ToString("yyyy-MM-dd")" max="@_today.AddDays(RunnerRules.LatestDays).ToString("yyyy-MM-dd")"
+                               aria-invalid="@Inv("date")" aria-describedby="@Desc("date", "rn-date-hint")" />
+                        <p id="rn-date-hint" class="field__hint">From tomorrow, up to @RunnerRules.LatestDays days ahead.</p>
+                        <FieldError Id="rn-date-error" Message="@Err("date")" />
+                    </div>
+
+                    <fieldset class="option-list" aria-describedby="@Desc("window")">
+                        <legend class="option-list__legend">Time of day</legend>
+                        @foreach (var w in RunnerRules.Windows)
+                        {
+                            <label class="option-card">
+                                <input type="radio" name="window" checked="@(_window == w)" aria-invalid="@Inv("window")" @onchange="() => _window = w" />
+                                <span class="option-card__text"><span class="option-card__title">@w</span></span>
+                            </label>
+                        }
+                        <FieldError Id="rn-window-error" Message="@Err("window")" />
+                    </fieldset>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="rn-notes">Notes for the runner <span class="rnew__optional">(optional)</span></label>
+                    <textarea id="rn-notes" class="input rnew__notes" rows="3" maxlength="@RunnerRules.NotesMaxLength" @bind="_notes"
+                              aria-invalid="@Inv("notes")" aria-describedby="@Desc("notes", "rn-notes-hint")"></textarea>
+                    <p id="rn-notes-hint" class="field__hint">For example, which counter to go to. Don't include medical details.</p>
+                    <FieldError Id="rn-notes-error" Message="@Err("notes")" />
+                </div>
+
+                <div class="option-list">
+                    <label class="option-card">
+                        <input type="checkbox" checked="@_confirmed" @onchange="e => _confirmed = e.Value is true"
+                               aria-invalid="@Inv("confirm")" aria-describedby="@Desc("confirm")" />
+                        <span class="option-card__text">
+                            <span>I understand runner help is optional and that the office decides on my application, not the runner.</span>
+                        </span>
+                    </label>
+                    <FieldError Id="rn-confirm-error" Message="@Err("confirm")" />
+                </div>
+
+                <div class="rnew__actions">
+                    <AppButton Type="submit" IconStart="send" Disabled="_sending">Send request</AppButton>
+                    <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@BackHref">Cancel</AppButton>
+                </div>
+            </form>
+        </Panel>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "application")] public string? ApplicationQuery { get; set; }
+
+    private IReadOnlyList<AssistanceApplication> _eligible = [];
+    private string? _reference;
+    private RunnerErrand? _errand;
+    private DateOnly? _date;
+    private string? _window;
+    private string? _notes;
+    private bool _confirmed;
+    private bool _sending;
+    private bool _preselected;
+    private DateOnly _today;
+    private IReadOnlyDictionary<string, string> _errors = new Dictionary<string, string>();
+    private string? _saveError;
+
+    private string BackHref => ApplicationQuery is null ? PortalNavigation.Runner.Href : ApplicationsHref.Detail(ApplicationQuery);
+    private string BackLabel => ApplicationQuery is null ? "Runner assistance" : $"Application {ApplicationQuery}";
+
+    private string? Err(string f) => _errors.TryGetValue(f, out var e) ? e : null;
+    private string? Inv(string f) => _errors.ContainsKey(f) ? "true" : null;
+    private string? Desc(string f, string? hint = null)
+    {
+        var ids = string.Join(' ', new[] { hint, _errors.ContainsKey(f) ? $"rn-{f}-error" : null }.Where(i => i is not null));
+        return ids.Length == 0 ? null : ids;
+    }
+
+    protected override async Task LoadAsync()
+    {
+        _today = DateOnly.FromDateTime(Clock.GetLocalNow().Date);
+        _eligible = (await Data.GetApplicationsAsync())
+            .Where(a => RunnerRules.IsEligible(a.Status))
+            .OrderByDescending(a => a.LastUpdated)
+            .ToList();
+        if (!_preselected && ApplicationQuery is not null && _eligible.Any(a => a.ReferenceNumber == ApplicationQuery))
+        {
+            _reference = ApplicationQuery;
+            _preselected = true;
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        _sending = true;
+        var result = await Workspace.RequestRunnerAsync(string.IsNullOrEmpty(_reference) ? null : _reference, _errand, _date, _window, _notes, _confirmed);
+        _sending = false;
+        _errors = result.Errors;
+        _saveError = result.SaveError;
+        if (result.Request is { } made) Nav.NavigateTo($"{PortalNavigation.Runner.Href}?requested={made.Id}");
+    }
+}

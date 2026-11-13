@@ -151,7 +151,7 @@
                                     <p class="errand__name">@r.Errand</p>
                                     <p class="errand__meta">
                                         @r.Place<span aria-hidden="true"> · </span><span class="visually-hidden">, </span>by
-                                        <time datetime="@DisplayFormat.Machine(r.NeededBy)">@DisplayFormat.Relative(r.NeededBy, _now)</time>
+                                        <time datetime="@DisplayFormat.Machine(r.NeededBy)">@DisplayFormat.Date(r.NeededBy)</time>
                                     </p>
                                     <p class="errand__status @(r.Status == RunnerTaskStatus.Declined ? "errand__status--attention" : null)">
                                         @RunnerTaskStatusDisplay.Label(r.Status)
@@ -159,11 +159,17 @@
                                 </li>
                             }
                         </ul>
+                        @if (RunnerRules.IsEligible(app.Status) && !_detail.RunnerRequests.Any(r => RunnerRules.IsOpen(r.Status)))
+                        {
+                            <a class="errands__new" href="@($"{PortalNavigation.Runner.Href}/new?application={app.ReferenceNumber}")">
+                                <Icon Name="plus" Size="16" /> Request runner help<span class="visually-hidden"> for @app.ReferenceNumber</span>
+                            </a>
+                        }
                     </section>
                 }
                 else if (app.Status is not (ApplicationStatus.Completed or ApplicationStatus.Cancelled))
                 {
-                    <RunnerHelp />
+                    <RunnerHelp ApplicationReference="@(RunnerRules.IsEligible(app.Status) ? app.ReferenceNumber : null)" />
                 }
             </aside>
         </div>

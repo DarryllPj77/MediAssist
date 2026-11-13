@@ -15,4 +15,22 @@ public static class RunnerTaskStatusDisplay
         RunnerTaskStatus.Cancelled => "Cancelled",
         _ => status.ToString()
     };
+
+    public static Components.UI.Badge.BadgeTone Tone(RunnerTaskStatus status) => status switch
+    {
+        RunnerTaskStatus.Completed => Components.UI.Badge.BadgeTone.Success,
+        RunnerTaskStatus.Declined => Components.UI.Badge.BadgeTone.Danger,
+        RunnerTaskStatus.Cancelled => Components.UI.Badge.BadgeTone.Neutral,
+        RunnerTaskStatus.Assigned or RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress => Components.UI.Badge.BadgeTone.Brand,
+        _ => Components.UI.Badge.BadgeTone.Info
+    };
+
+    public static string Icon(RunnerTaskStatus status) => status switch
+    {
+        RunnerTaskStatus.Completed => "check-circle",
+        RunnerTaskStatus.Declined => "alert-triangle",
+        RunnerTaskStatus.Cancelled => "x-circle",
+        RunnerTaskStatus.Assigned or RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress => "route",
+        _ => "clock"
+    };
 }
