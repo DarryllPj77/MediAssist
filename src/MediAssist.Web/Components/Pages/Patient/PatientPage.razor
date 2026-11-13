@@ -1,0 +1,189 @@
+@page "/patient/patients/{Key}"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+@*
+    One patient profile (D4): what to do next (the view's one filled button: request authorization,
+    or start an application), the profile details, authorization requests and this patient's
+    applications. ?saved=1 / ?requested=1 confirm the last action.
+*@
+
+<PageTitle>@(_patient?.FullName ?? "Patient") · MediAssist</PageTitle>
+
+<div class="page page--wide profile">
+    <div class="profile__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@PortalNavigation.Patients.Href" IconStart="chevron-left">
+            Patient profiles
+        </AppButton>
+    </div>
+
+    @if (_patient is null)
+    {
+        <header class="page__head">
+            <h1 class="page__title serif" tabindex="-1">@(Workspace.IsLoaded ? "Patient not found" : "Loading patient")</h1>
+        </header>
+        <Panel>
+            @if (!Workspace.IsLoaded)
+            {
+                <p class="profile__loading" role="status">Loading this profile…</p>
+            }
+            else
+            {
+                <EmptyState IconName="search" Title="We couldn’t find that patient"
+                            Message="They may have been added in another browser. Profiles are kept in the browser where you added them.">
+                    <Action>
+                        <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@PortalNavigation.Patients.Href">See patient profiles</AppButton>
+                    </Action>
+                </EmptyState>
+            }
+        </Panel>
+    }
+    else
+    {
+        var p = _patient;
+        <header class="page__head">
+            <p class="eyebrow">@(p.Authorization == AuthorizationStatus.Self ? "You (account holder)" : p.Relationship)</p>
+            <h1 class="page__title serif" tabindex="-1">@p.FullName</h1>
+            <p class="profile__status">
+                <Badge Text="@AuthorizationStatusDisplay.Label(p.Authorization)" Tone="AuthorizationStatusDisplay.Tone(p.Authorization)"
+                       IconName="@AuthorizationStatusDisplay.Icon(p.Authorization)" />
+            </p>
+        </header>
+
+        @if (Saved == 1 || Requested == 1)
+        {
+            <div class="profile__done" role="status">
+                <Icon Name="check-circle" Size="22" />
+                <p>
+                    @if (Requested == 1)
+                    {
+                        <strong>Authorization requested.</strong> <span>An administrator will review it. You can already start applications for @FirstName(p).</span>
+                    }
+                    else
+                    {
+                        <strong>Profile saved.</strong> <span>@(ProfileRules.CanRequest(p) ? $"Next, request authorization to act for {FirstName(p)}." : "")</span>
+                    }
+                </p>
+            </div>
+        }
+
+        <div class="profile__grid">
+            <div class="profile__main">
+                <section class="profile-next @(ProfileRules.CanRequest(p) ? "profile-next--attention" : null)" aria-labelledby="next-title">
+                    <h2 id="next-title" class="profile-next__title">What you can do</h2>
+                    <p>@(AuthorizationStatusDisplay.NextStep(p.Authorization) ?? $"You can start applications for {(p.Authorization == AuthorizationStatus.Self ? "yourself" : FirstName(p))}.")</p>
+                    <div class="profile-next__actions">
+                        @if (ProfileRules.CanRequest(p))
+                        {
+                            <AppButton Href="@($"{ApplicationsHref.Patient(p, _household)}/authorization")" IconStart="shield-check">
+                                Request authorization
+                            </AppButton>
+                        }
+                        else
+                        {
+                            <AppButton Href="@($"{PortalNavigation.NewApplicationHref}?patient={Uri.EscapeDataString(ApplicationsHref.PatientKey(p, _household))}")" IconStart="plus">
+                                Start an application
+                            </AppButton>
+                        }
+                    </div>
+                </section>
+
+                <section class="profile-apps" aria-labelledby="apps-title">
+                    <h2 id="apps-title" class="profile-apps__title">Applications for @FirstName(p)</h2>
+                    @if (_applications.Count == 0)
+                    {
+                        <Panel>
+                            <EmptyState IconName="file-text" Title="No applications yet"
+                                        Message="@(ProfileRules.CanApplyFor(p) ? "Applications you start for this patient will show here." : "Once authorization is requested, you can start applications for this patient.")" />
+                        </Panel>
+                    }
+                    else
+                    {
+                        <ApplicationTable Applications="_applications" Now="_now" />
+                    }
+                </section>
+            </div>
+
+            <aside class="profile__aside" aria-label="About this patient">
+                <section class="facts" aria-labelledby="details-title">
+                    <div class="facts__head">
+                        <h2 id="details-title" class="facts__title">Profile details</h2>
+                        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@($"{ApplicationsHref.Patient(p, _household)}/edit")" IconStart="pencil">
+                            Edit<span class="visually-hidden"> profile</span>
+                        </AppButton>
+                    </div>
+                    <dl class="facts__list">
+                        <div><dt>Relationship</dt><dd>@(p.Authorization == AuthorizationStatus.Self ? "You (account holder)" : p.Relationship)</dd></div>
+                        <div>
+                            <dt>Date of birth</dt>
+                            <dd>@(p.DateOfBirth is { } dob ? $"{dob.ToString("d MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("en-PH"))} · {p.AgeOn(_today)} years old" : "Not recorded")</dd>
+                        </div>
+                        <div><dt>City or municipality</dt><dd>@(p.City ?? "Not recorded")</dd></div>
+                    </dl>
+                </section>
+
+                @if (p.Authorization != AuthorizationStatus.Self)
+                {
+                    <section class="requests" aria-labelledby="requests-title">
+                        <h2 id="requests-title" class="facts__title">Authorization</h2>
+                        @if (_requests.Count == 0)
+                        {
+                            <p class="requests__none">No request sent yet.</p>
+                        }
+                        else
+                        {
+                            <ol class="requests__list" role="list">
+                                @foreach (var r in _requests)
+                                {
+                                    <li class="request request--@r.Status.ToString().ToLowerInvariant()">
+                                        <p class="request__status">@ProfileRules.RequestStatusLabel(r.Status)</p>
+                                        <p class="request__basis">@ProfileRules.BasisLabel(r.Basis)</p>
+                                        <p class="request__meta">
+                                            @r.DocumentFileName · @SimulatedFiles.FormatSize(r.DocumentSizeBytes)
+                                            <span class="request__when">Sent <time datetime="@DisplayFormat.Machine(r.RequestedAt)">@DisplayFormat.Date(r.RequestedAt)</time></span>
+                                        </p>
+                                        @if (r.ReviewerNote is not null)
+                                        {
+                                            <blockquote class="request__note"><span class="visually-hidden">Reviewer note: </span>@r.ReviewerNote</blockquote>
+                                        }
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+    [SupplyParameterFromQuery(Name = "saved")] public int? Saved { get; set; }
+    [SupplyParameterFromQuery(Name = "requested")] public int? Requested { get; set; }
+
+    private IReadOnlyList<PatientProfile> _household = [];
+    private PatientProfile? _patient;
+    private IReadOnlyList<AuthorizationRequest> _requests = [];
+    private IReadOnlyList<AssistanceApplication> _applications = [];
+    private DateTimeOffset _now;
+    private DateOnly _today;
+
+    private static string FirstName(PatientProfile p) => p.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? p.FullName;
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _today = DateOnly.FromDateTime(_now.Date);
+        _household = await Data.GetPatientProfilesAsync();
+        _patient = ApplicationsHref.FindPatient(_household, Key);
+        if (_patient is null) return;
+
+        _requests = await Data.GetAuthorizationRequestsAsync(_patient.Id);
+        _applications = (await Data.GetApplicationsAsync())
+            .Where(a => a.PatientId == _patient.Id)
+            .OrderByDescending(a => a.LastUpdated)
+            .ToList();
+    }
+}

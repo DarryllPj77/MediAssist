@@ -26,11 +26,17 @@ public enum DocumentStatus
     NotApplicable
 }
 
+/// <summary>
+/// Whether the account holder may act for a patient (Phase 1: administrator-reviewed). New values
+/// are appended so stored numbers keep their meaning.
+/// </summary>
 public enum AuthorizationStatus
 {
     Self,
     Authorized,
-    PendingReview
+    PendingReview,
+    NotRequested,
+    Rejected
 }
 
 public enum ActionPriority
@@ -45,12 +51,23 @@ public sealed record PortalUser(Guid Id, string FirstName, string LastName)
     public string FullName => $"{FirstName} {LastName}";
 }
 
-/// <summary>A reusable patient profile managed by the account holder.</summary>
+/// <summary>
+/// A reusable patient profile managed by the account holder. The optional fields were added in D4;
+/// they default so older records (seed data, stored snapshots) still read.
+/// </summary>
 public sealed record PatientProfile(
     Guid Id,
     string FullName,
     string Relationship,
-    AuthorizationStatus Authorization);
+    AuthorizationStatus Authorization,
+    DateOnly? DateOfBirth = null,
+    string? City = null,
+    DateTimeOffset? CreatedAt = null)
+{
+    /// <summary>Age in whole years on <paramref name="today"/>, when the date of birth is known.</summary>
+    public int? AgeOn(DateOnly today) => DateOfBirth is not { } dob ? null
+        : today.Year - dob.Year - (today < dob.AddYears(today.Year - dob.Year) ? 1 : 0);
+}
 
 public sealed record AssistanceApplication(
     string ReferenceNumber,

@@ -1,0 +1,13 @@
+.editor__back {
+    margin-block-end: calc(-1 * var(--space-4));
+}
+
+.editor__intro {
+    max-width: 60ch;
+    margin-block-end: var(--space-5);
+    color: var(--color-text);
+}
+
+.editor__loading {
+    color: var(--color-text-muted);
+}

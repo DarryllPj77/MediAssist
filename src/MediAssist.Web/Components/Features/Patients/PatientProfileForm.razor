@@ -1,0 +1,125 @@
+@*
+    Add or edit a patient profile (D4). Validation runs in ApplicationWorkspace.SaveProfileAsync,
+    the operation boundary; each error appears under its field, linked with aria-describedby and
+    marked aria-invalid, and a summary is announced. The account holder's relationship stays "You";
+    a relationship is locked while authorization is approved or being reviewed.
+*@
+@inject ApplicationWorkspace Workspace
+
+<form class="profile-form" @onsubmit="SaveAsync" novalidate>
+    @if (_errors.Count > 0 || _saveError is not null)
+    {
+        <p class="field__error profile-form__summary" role="alert">
+            <Icon Name="alert-circle" Size="18" />
+            @(_saveError ?? (_errors.Count == 1 ? "Check the field marked below." : $"Check the {_errors.Count} fields marked below."))
+        </p>
+    }
+
+    <div class="field">
+        <label class="field__label" for="pf-name">Full name</label>
+        <input id="pf-name" class="input" type="text" autocomplete="off" maxlength="80"
+               @bind="_name" aria-invalid="@Invalid("name")" aria-describedby="@Described("name", "pf-name-hint")" />
+        <p id="pf-name-hint" class="field__hint">As it appears on the patient's documents. Use fictional details in this prototype.</p>
+        <FieldError Id="pf-name-error" Message="@ErrorFor("name")" />
+    </div>
+
+    @if (IsSelf)
+    {
+        <div class="field">
+            <p class="field__label">Relationship</p>
+            <p class="profile-form__fixed">You (the account holder)</p>
+        </div>
+    }
+    else
+    {
+        <div class="field">
+            <label class="field__label" for="pf-relationship">How is the patient related to you?</label>
+            <select id="pf-relationship" class="select" @bind="_relationship" disabled="@RelationshipLocked"
+                    aria-invalid="@Invalid("relationship")" aria-describedby="@Described("relationship", RelationshipLocked ? "pf-relationship-hint" : null)">
+                <option value="">Choose a relationship</option>
+                @foreach (var r in ProfileRules.Relationships)
+                {
+                    <option value="@r">@r</option>
+                }
+            </select>
+            @if (RelationshipLocked)
+            {
+                <p id="pf-relationship-hint" class="field__hint">Locked while authorization is approved or being reviewed.</p>
+            }
+            <FieldError Id="pf-relationship-error" Message="@ErrorFor("relationship")" />
+        </div>
+    }
+
+    <div class="field profile-form__short">
+        <label class="field__label" for="pf-dob">Date of birth</label>
+        <input id="pf-dob" class="input" type="date" @bind="_dob" max="@Today.ToString("yyyy-MM-dd")"
+               aria-invalid="@Invalid("dob")" aria-describedby="@Described("dob", null)" />
+        <FieldError Id="pf-dob-error" Message="@ErrorFor("dob")" />
+    </div>
+
+    <div class="field">
+        <label class="field__label" for="pf-city">City or municipality <span class="profile-form__optional">(optional)</span></label>
+        <input id="pf-city" class="input" type="text" autocomplete="off" maxlength="60"
+               @bind="_city" aria-invalid="@Invalid("city")" aria-describedby="@Described("city", null)" />
+        <FieldError Id="pf-city-error" Message="@ErrorFor("city")" />
+    </div>
+
+    <div class="profile-form__actions">
+        <AppButton Type="submit" IconStart="check" Disabled="_saving">@SubmitLabel</AppButton>
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@CancelHref">Cancel</AppButton>
+    </div>
+</form>
+
+@code {
+    /// <summary>The profile being edited; null to add a new patient.</summary>
+    [Parameter] public PatientProfile? Profile { get; set; }
+    [Parameter, EditorRequired] public string CancelHref { get; set; } = "/patient/patients";
+    [Parameter] public string SubmitLabel { get; set; } = "Save patient";
+    [Parameter] public EventCallback<PatientProfile> OnSaved { get; set; }
+
+    [Inject] private TimeProvider Clock { get; set; } = default!;
+
+    private string _name = "";
+    private string? _relationship;
+    private DateOnly? _dob;
+    private string? _city;
+    private IReadOnlyDictionary<string, string> _errors = new Dictionary<string, string>();
+    private string? _saveError;
+    private bool _saving;
+    private Guid? _loadedFor;
+
+    private bool IsSelf => Profile?.Authorization == AuthorizationStatus.Self;
+    private bool RelationshipLocked => Profile is { Authorization: AuthorizationStatus.Authorized or AuthorizationStatus.PendingReview };
+    private DateOnly Today => DateOnly.FromDateTime(Clock.GetLocalNow().Date);
+
+    protected override void OnParametersSet()
+    {
+        // Fill the fields once per profile, so a re-render never overwrites what the user typed.
+        if (Profile?.Id == _loadedFor && (_loadedFor is not null || _name.Length > 0)) return;
+        _loadedFor = Profile?.Id;
+        _name = Profile?.FullName ?? "";
+        _relationship = Profile?.Relationship;
+        _dob = Profile?.DateOfBirth;
+        _city = Profile?.City;
+    }
+
+    private string? ErrorFor(string field) => _errors.TryGetValue(field, out var e) ? e : null;
+    private string? Invalid(string field) => _errors.ContainsKey(field) ? "true" : null;
+
+    private string? Described(string field, string? hintId)
+    {
+        var ids = new[] { hintId, _errors.ContainsKey(field) ? $"pf-{field}-error" : null }.Where(i => i is not null);
+        var joined = string.Join(' ', ids);
+        return joined.Length == 0 ? null : joined;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var result = await Workspace.SaveProfileAsync(Profile?.Id, _name, IsSelf ? ProfileRules.SelfRelationship : _relationship, _dob, _city);
+        _saving = false;
+        _errors = result.Errors;
+        _saveError = result.SaveError;
+        if (result.Profile is { } saved) await OnSaved.InvokeAsync(saved);
+    }
+}

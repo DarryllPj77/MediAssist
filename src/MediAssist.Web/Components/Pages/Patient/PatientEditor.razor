@@ -1,0 +1,86 @@
+@page "/patient/patients/new"
+@page "/patient/patients/{Key}/edit"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject NavigationManager Nav
+
+@*
+    Add or edit a patient profile (D4). ?return= (a /patient/ path, for example the wizard's first
+    step) comes back with the new patient chosen; otherwise the profile page opens.
+*@
+
+<PageTitle>@(Key is null ? "Add a patient" : "Edit patient") · MediAssist</PageTitle>
+
+<div class="page">
+    <div class="editor__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@BackHref" IconStart="chevron-left">@BackLabel</AppButton>
+    </div>
+
+    <header class="page__head">
+        <p class="eyebrow">Patient profiles</p>
+        <h1 class="page__title serif" tabindex="-1">@(Key is null ? "Add a patient" : $"Edit {_profile?.FullName ?? "patient"}")</h1>
+        <p class="fil page__fil" lang="fil">@(Key is null ? "Magdagdag ng pasyente" : "Baguhin ang profile")</p>
+    </header>
+
+    @if (Key is not null && _profile is null)
+    {
+        <Panel>
+            @if (!Workspace.IsLoaded)
+            {
+                <p class="editor__loading" role="status">Loading this profile…</p>
+            }
+            else
+            {
+                <EmptyState IconName="search" Title="We couldn’t find that patient"
+                            Message="They may have been added in another browser. Profiles are kept in the browser where you added them." />
+            }
+        </Panel>
+    }
+    else
+    {
+        <Panel>
+            @if (Key is null)
+            {
+                <p class="editor__intro">
+                    After you add a family member, request authorization to act for them. You can start an
+                    application while the request is being reviewed.
+                </p>
+            }
+            <PatientProfileForm Profile="_profile" CancelHref="@BackHref" OnSaved="OnSaved"
+                                SubmitLabel="@(Key is null ? "Add patient" : "Save changes")" />
+        </Panel>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Key { get; set; }
+    [SupplyParameterFromQuery(Name = "return")] public string? Return { get; set; }
+
+    private IReadOnlyList<PatientProfile> _household = [];
+    private PatientProfile? _profile;
+
+    /// <summary>Only paths inside the patient portal are followed.</summary>
+    private string? SafeReturn =>
+        Return is { } r && r.StartsWith("/patient/", StringComparison.Ordinal) && !r.StartsWith("//", StringComparison.Ordinal) ? r : null;
+
+    private string BackHref => SafeReturn
+        ?? (_profile is null ? PortalNavigation.Patients.Href : ApplicationsHref.Patient(_profile, _household));
+
+    private string BackLabel => SafeReturn is not null ? "Back" : _profile is null ? "Patient profiles" : _profile.FullName;
+
+    protected override async Task LoadAsync()
+    {
+        _household = await Data.GetPatientProfilesAsync();
+        _profile = Key is null ? null : ApplicationsHref.FindPatient(_household, Key);
+    }
+
+    private async Task OnSaved(PatientProfile saved)
+    {
+        var household = await Data.GetPatientProfilesAsync();
+        var key = ApplicationsHref.PatientKey(saved, household);
+        if (SafeReturn is { } back)
+            Nav.NavigateTo(back + (back.Contains('?') ? "&" : "?") + $"patient={Uri.EscapeDataString(key)}");
+        else
+            Nav.NavigateTo($"{ApplicationsHref.Patient(saved, household)}?saved=1");
+    }
+}

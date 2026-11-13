@@ -39,12 +39,29 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
     /// <summary>The account holder's household: the patients this account applies for.</summary>
     public IReadOnlyList<PatientProfile> Household { get; } =
     [
-        new(MariaId, "Maria Santos", "You", AuthorizationStatus.Self),
-        new(JoseId, "Jose Santos", "Father", AuthorizationStatus.Authorized),
-        new(LiaId, "Lia Santos", "Daughter", AuthorizationStatus.PendingReview),
+        new(MariaId, "Maria Santos", ProfileRules.SelfRelationship, AuthorizationStatus.Self, new DateOnly(1984, 6, 9), "Quezon City"),
+        new(JoseId, "Jose Santos", "Father", AuthorizationStatus.Authorized, new DateOnly(1951, 3, 14), "Quezon City"),
+        new(LiaId, "Lia Santos", "Daughter", AuthorizationStatus.PendingReview, new DateOnly(2013, 8, 2), "Quezon City"),
     ];
 
     public bool IsHousehold(Guid patientId) => Household.Any(p => p.Id == patientId);
+
+    /// <summary>
+    /// Seeded authorization requests (Phase 1: an administrator reviews them). Jose's was approved;
+    /// Lia's is waiting, which is why MA-2026-00395 is flagged in the review queue. D9 reviews these.
+    /// </summary>
+    public IReadOnlyList<AuthorizationRequest> AuthorizationRequests()
+    {
+        var t = Today;
+        return
+        [
+            new("auth-jose", JoseId, AuthorizationBasis.SignedLetter, "signed-authorization-letter-scan.pdf", "application/pdf", 842_752,
+                t.AddDays(-58).AddHours(10), AuthorizationRequestStatus.Approved, t.AddDays(-55).AddHours(15),
+                "The letter is signed and dated by the patient."),
+            new("auth-lia", LiaId, AuthorizationBasis.ParentOfMinor, "birth-certificate-scan.pdf", "application/pdf", 1_153_434,
+                t.AddDays(-4).AddHours(8).AddMinutes(30)),
+        ];
+    }
 
     // ---- Programs (fictional names; "run by" is a generic office type, never a real agency) ----
 

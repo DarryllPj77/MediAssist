@@ -3,7 +3,8 @@ using MediAssist.Web.Models;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// One user's drafts, submitted applications and simulated document uploads. Registered per
+/// One user's drafts, submitted applications, simulated document uploads, patient profiles and
+/// authorization requests. Registered per
 /// circuit (scoped), loaded from that user's browser storage once the page is interactive and
 /// written back on every change, so nothing mutable is shared between users. <see cref="Changed"/>
 /// tells pages to re-query.
@@ -31,6 +32,8 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public IReadOnlyList<LocalApplication> Submitted => _snapshot.Submitted;
     public IReadOnlyList<PortalNotification> Notifications => _snapshot.Notifications;
     public IReadOnlyList<DocumentUpload> Uploads => _snapshot.Uploads ?? [];
+    private IReadOnlyList<PatientProfile> LocalProfiles => _snapshot.Profiles ?? [];
+    private IReadOnlyList<AuthorizationRequest> LocalRequests => _snapshot.AuthorizationRequests ?? [];
 
     /// <summary>Read the user's saved workspace once; later calls return the same task.</summary>
     public Task EnsureLoadedAsync() => _loading ??= LoadAsync();
@@ -40,6 +43,109 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         _snapshot = await storage.LoadAsync() ?? WorkspaceSnapshot.Empty;
         IsLoaded = true;
         Changed?.Invoke();
+    }
+
+    // ---- Patient profiles and authorization requests (D4) ----
+
+    /// <summary>
+    /// The account holder's household: the seeded patients (with this user's edits) followed by the
+    /// patients they added. Every patient-side scope check uses this list.
+    /// </summary>
+    public IReadOnlyList<PatientProfile> Household
+    {
+        get
+        {
+            var local = LocalProfiles.ToDictionary(p => p.Id);
+            var seeded = store.Household.Select(p => local.GetValueOrDefault(p.Id) ?? p).ToList();
+            var added = LocalProfiles.Where(p => !store.Household.Any(s => s.Id == p.Id)).OrderBy(p => p.CreatedAt);
+            return [.. seeded, .. added];
+        }
+    }
+
+    public bool IsHousehold(Guid patientId) => Household.Any(p => p.Id == patientId);
+
+    /// <summary>A patient's authorization requests (seeded and this user's), newest first.</summary>
+    public IReadOnlyList<AuthorizationRequest> RequestsFor(Guid patientId) =>
+        [.. store.AuthorizationRequests().Concat(LocalRequests).Where(r => r.PatientId == patientId).OrderByDescending(r => r.RequestedAt)];
+
+    /// <summary>
+    /// Add a patient (id null) or edit one. Validates at this boundary; the account holder stays
+    /// "You", and a relationship cannot change while authorization is approved or being reviewed.
+    /// Nothing is recorded unless it is saved.
+    /// </summary>
+    public async Task<ProfileResult> SaveProfileAsync(Guid? id, string fullName, string? relationship, DateOnly? dateOfBirth, string? city)
+    {
+        var now = clock.GetLocalNow();
+        var existing = id is { } known ? Household.FirstOrDefault(p => p.Id == known) : null;
+        if (id is not null && existing is null)
+            return ProfileResult.Failed(new() { ["name"] = "That patient isn't in your household." });
+
+        var isSelf = existing?.Authorization == AuthorizationStatus.Self;
+        var errors = ProfileRules.Validate(fullName, relationship, dateOfBirth, city, isSelf, DateOnly.FromDateTime(now.Date));
+        if (existing is not null && !isSelf && relationship != existing.Relationship
+            && existing.Authorization is AuthorizationStatus.Authorized or AuthorizationStatus.PendingReview)
+            errors["relationship"] = "The relationship can't change while authorization is approved or being reviewed.";
+        if (errors.Count > 0) return ProfileResult.Failed(errors);
+
+        var profile = (existing ?? new PatientProfile(Guid.NewGuid(), "", "", AuthorizationStatus.NotRequested, CreatedAt: now)) with
+        {
+            FullName = fullName.Trim(),
+            Relationship = isSelf ? ProfileRules.SelfRelationship : relationship!,
+            DateOfBirth = dateOfBirth,
+            City = string.IsNullOrWhiteSpace(city) ? null : city.Trim(),
+        };
+
+        var before = _snapshot;
+        _snapshot = _snapshot with { Profiles = [.. LocalProfiles.Where(p => p.Id != profile.Id), profile] };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return ProfileResult.SaveFailed();
+        }
+        return ProfileResult.Saved(profile);
+    }
+
+    /// <summary>
+    /// Ask an administrator to confirm the account holder may act for a patient. Needs a basis that
+    /// fits the patient, one valid simulated supporting document and a confirmation. The patient
+    /// becomes "being reviewed"; a notification confirms it. Nothing is recorded unless it is saved.
+    /// </summary>
+    public async Task<AuthorizationResult> RequestAuthorizationAsync(Guid patientId, AuthorizationBasis? basis, SampleFile? file, bool confirmed)
+    {
+        var now = clock.GetLocalNow();
+        var patient = Household.FirstOrDefault(p => p.Id == patientId);
+        if (patient is null || !ProfileRules.CanRequest(patient))
+            return AuthorizationResult.Failed(new() { ["basis"] = "Authorization can't be requested for this patient right now." });
+
+        var errors = new Dictionary<string, string>();
+        if (ProfileRules.BasisProblem(basis, patient, DateOnly.FromDateTime(now.Date)) is string basisProblem) errors["basis"] = basisProblem;
+        // The document depends on the basis, so it is only asked for once a basis is chosen.
+        if (basis is not null && SimulatedFiles.Validate(file) is string fileProblem) errors["file"] = fileProblem;
+        if (!confirmed) errors["confirm"] = "Confirm that the information is true before you send the request.";
+        if (errors.Count > 0) return AuthorizationResult.Failed(errors);
+
+        var request = new AuthorizationRequest(
+            Guid.NewGuid().ToString("N")[..12], patientId, basis!.Value,
+            file!.FileName, file.ContentType, file.SizeBytes, now);
+        var updated = patient with { Authorization = AuthorizationStatus.PendingReview };
+        var notification = new PortalNotification($"n-auth-{request.Id}", "Authorization requested",
+            $"Your request to act for {patient.FullName} is being reviewed.", now, false);
+
+        var before = _snapshot;
+        _snapshot = _snapshot with
+        {
+            Profiles = [.. LocalProfiles.Where(p => p.Id != patientId), updated],
+            AuthorizationRequests = [.. LocalRequests, request],
+            Notifications = [notification, .. _snapshot.Notifications],
+        };
+        if (!await PersistAsync())
+        {
+            _snapshot = before;
+            Changed?.Invoke();
+            return AuthorizationResult.SaveFailed();
+        }
+        return AuthorizationResult.Saved(request);
     }
 
     // ---- Drafts ----
@@ -71,7 +177,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public async Task<string?> SubmitAsync(WizardDraft draft)
     {
         var now = clock.GetLocalNow();
-        var patient = store.Household.First(p => p.Id == draft.PatientId);
+        var patient = Household.First(p => p.Id == draft.PatientId);
         var program = store.Programs.First(p => p.Id == draft.ProgramId);
         var seed = draft.SourceReference is null ? null
             : store.Applications().FirstOrDefault(a => a.ReferenceNumber == draft.SourceReference);
@@ -223,7 +329,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     {
         if (_snapshot.Submitted.FirstOrDefault(s => Same(s.Application.ReferenceNumber, reference)) is { } local) return local.Application;
         if (_snapshot.Drafts.FirstOrDefault(d => Same(d.SourceReference ?? d.Id, reference)) is { } draft) return DraftAsApplication(draft);
-        return store.Applications().FirstOrDefault(a => Same(a.ReferenceNumber, reference) && store.IsHousehold(a.PatientId));
+        return store.Applications().FirstOrDefault(a => Same(a.ReferenceNumber, reference) && IsHousehold(a.PatientId));
     }
 
     /// <summary>The checklist behind a reference, before uploads.</summary>
@@ -276,7 +382,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     /// <summary>A draft shown as an application (status Draft); unchosen fields say so.</summary>
     public AssistanceApplication DraftAsApplication(WizardDraft draft)
     {
-        var patient = store.Household.FirstOrDefault(p => p.Id == draft.PatientId);
+        var patient = Household.FirstOrDefault(p => p.Id == draft.PatientId);
         var program = store.Programs.FirstOrDefault(p => p.Id == draft.ProgramId);
         var checklist = DraftChecklistBase(draft);
         var next = Math.Clamp(draft.FurthestStep, 1, 5);
@@ -305,7 +411,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     {
         var program = store.Programs.FirstOrDefault(p => p.Id == draft.ProgramId);
         if (program is null) return null;
-        var patient = store.Household.FirstOrDefault(p => p.Id == draft.PatientId);
+        var patient = Household.FirstOrDefault(p => p.Id == draft.PatientId);
         return ChecklistFor(draft.SourceReference ?? draft.Id, program, patient?.FullName ?? "the patient", draft.SourceReference);
     }
 
@@ -359,4 +465,30 @@ public sealed record UploadResult(DocumentUpload? Upload, bool CorrectionSent, s
     public static UploadResult Saved(DocumentUpload upload, bool correctionSent) => new(upload, correctionSent, null);
 
     public static UploadResult Invalid(string error) => new(null, false, error);
+}
+
+/// <summary>The outcome of saving a patient profile: the saved profile, or field errors / a save failure.</summary>
+public sealed record ProfileResult(PatientProfile? Profile, IReadOnlyDictionary<string, string> Errors, string? SaveError)
+{
+    public bool Succeeded => Profile is not null;
+
+    public static ProfileResult Saved(PatientProfile profile) => new(profile, new Dictionary<string, string>(), null);
+
+    public static ProfileResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
+
+    public static ProfileResult SaveFailed() =>
+        new(null, new Dictionary<string, string>(), "We couldn’t save this profile in this browser. Try again.");
+}
+
+/// <summary>The outcome of an authorization request: the saved request, or field errors / a save failure.</summary>
+public sealed record AuthorizationResult(AuthorizationRequest? Request, IReadOnlyDictionary<string, string> Errors, string? SaveError)
+{
+    public bool Succeeded => Request is not null;
+
+    public static AuthorizationResult Saved(AuthorizationRequest request) => new(request, new Dictionary<string, string>(), null);
+
+    public static AuthorizationResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
+
+    public static AuthorizationResult SaveFailed() =>
+        new(null, new Dictionary<string, string>(), "We couldn’t save this request in this browser. Try again.");
 }

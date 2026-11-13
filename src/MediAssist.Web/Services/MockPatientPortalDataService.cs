@@ -16,7 +16,7 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
         Task.FromResult(store.CurrentUser);
 
     public Task<IReadOnlyList<PatientProfile>> GetPatientProfilesAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(store.Household);
+        Task.FromResult(workspace.Household);
 
     public Task<IReadOnlyList<AssistanceApplication>> GetApplicationsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(Applications());
@@ -34,6 +34,10 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
 
     public Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<PortalNotification>>([.. workspace.Notifications, .. store.Notifications()]);
+
+    /// <summary>A household patient's authorization requests, newest first (empty for anyone else).</summary>
+    public Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(Guid patientId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(workspace.IsHousehold(patientId) ? workspace.RequestsFor(patientId) : (IReadOnlyList<AuthorizationRequest>)[]);
 
     public Task<IReadOnlyList<AssistanceProgram>> GetProgramsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(store.Programs);
@@ -60,7 +64,7 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
 
         var detail = new ApplicationDetail(
             application,
-            store.Household.FirstOrDefault(p => p.Id == application.PatientId),
+            workspace.Household.FirstOrDefault(p => p.Id == application.PatientId),
             store.Programs.FirstOrDefault(p => p.Id == application.ProgramId),
             Checklists().FirstOrDefault(c => c.ApplicationReference == application.ReferenceNumber),
             History(application.ReferenceNumber),
@@ -92,7 +96,7 @@ public sealed class MockPatientPortalDataService(MockPortalStore store, Applicat
     {
         var local = LocalApplications();
         var seeded = store.Applications()
-            .Where(a => store.IsHousehold(a.PatientId) && !local.ContainsKey(a.ReferenceNumber));
+            .Where(a => workspace.IsHousehold(a.PatientId) && !local.ContainsKey(a.ReferenceNumber));
         return [.. local.Values.Concat(seeded).Select(WithLatestUpload)];
     }
 

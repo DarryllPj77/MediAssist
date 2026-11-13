@@ -1,0 +1,186 @@
+/* Phones and tablets: one column. From 75em: main column | 22rem side column (as the application page). */
+.profile {
+    gap: var(--space-6);
+}
+
+.profile__back {
+    margin-block-end: calc(-1 * var(--space-4));
+}
+
+.profile__loading {
+    color: var(--color-text-muted);
+}
+
+.profile__status {
+    margin-block-start: var(--space-2);
+}
+
+.profile__done {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    border-inline-start: 4px solid var(--color-success);
+    background: var(--color-success-subtle);
+    color: var(--color-text);
+}
+
+.profile__done ::deep .icon,
+.profile__done strong {
+    color: var(--color-success);
+}
+
+.profile__grid,
+.profile__main,
+.profile__aside {
+    display: grid;
+    gap: var(--space-8);
+    min-width: 0;
+}
+
+.profile__aside {
+    gap: var(--space-7);
+    align-content: start;
+}
+
+@media (min-width: 75em) {
+    .profile__grid {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+        align-items: start;
+        gap: var(--space-9);
+    }
+}
+
+/* ---- What you can do: the page's one action ---- */
+.profile-next {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5) var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-block-start: 4px solid var(--color-gold-action);
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+}
+
+.profile-next--attention {
+    border-block-start-color: var(--color-red);
+}
+
+.profile-next__title,
+.profile-apps__title,
+.facts__title {
+    font-size: var(--text-lg);
+}
+
+.profile-next__actions {
+    margin-block-start: var(--space-2);
+}
+
+.profile-apps {
+    display: grid;
+    gap: var(--space-4);
+}
+
+/* ---- Profile details ---- */
+.facts,
+.requests {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.facts__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.facts__list {
+    display: grid;
+    margin: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+}
+
+.facts__list > div {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3) var(--space-5);
+}
+
+.facts__list > div + div {
+    border-block-start: 1px solid var(--color-border);
+}
+
+.facts__list dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+}
+
+.facts__list dd {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+/* ---- Authorization requests ---- */
+.requests__none {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.requests__list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+}
+
+.request {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-inline-start: 4px solid var(--color-primary);
+    border-radius: var(--radius-lg);
+}
+
+.request--approved {
+    border-inline-start-color: var(--color-success);
+}
+
+.request--rejected {
+    border-inline-start-color: var(--color-red);
+}
+
+.request__status {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.request__basis,
+.request__meta {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
+.request__when {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+}
+
+.request__note {
+    margin: var(--space-2) 0 0;
+    padding-inline-start: var(--space-3);
+    border-inline-start: 2px solid var(--color-gold);
+    color: var(--color-navy);
+    font-family: var(--font-serif);
+    font-size: var(--text-base);
+}

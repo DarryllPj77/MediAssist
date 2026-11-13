@@ -104,3 +104,77 @@ html:has(.wizard__nav) {
         scroll-padding-block-end: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6rem);
     }
 }
+
+/* ---- Option cards: a radio or checkbox with its label as a card (D4 forms) ---- */
+.option-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.option-list__legend {
+    margin-block-end: var(--space-2);
+    padding: 0;
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.option-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap-target);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: border-color var(--duration-out) var(--ease-out);
+}
+
+.option-card:hover {
+    border-color: var(--color-navy);
+    transition-duration: var(--duration-in);
+}
+
+.option-card:has(input:checked) {
+    border: 2px solid var(--color-navy);
+    background: var(--color-gold-subtle);
+}
+
+.option-card:has(input:focus-visible) {
+    box-shadow: var(--focus-ring);
+}
+
+.option-card input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    accent-color: var(--color-navy);
+}
+
+.option-card input:focus-visible {
+    box-shadow: none;
+}
+
+.option-card__text {
+    display: grid;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.option-card__title {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.option-card__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}

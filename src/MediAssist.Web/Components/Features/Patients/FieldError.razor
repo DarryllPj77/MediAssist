@@ -1,0 +1,13 @@
+@* One field's error, linked from the field with aria-describedby. Renders nothing without a message. *@
+@if (Message is not null)
+{
+    <p id="@Id" class="field__error">
+        <Icon Name="alert-circle" Size="16" />
+        @Message
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter] public string? Message { get; set; }
+}

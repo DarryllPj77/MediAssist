@@ -59,11 +59,26 @@
                                        checked="@(p.Id == _patientId)" @onchange="() => ChoosePatientAsync(p.Id)" />
                                 <span class="choice__text">
                                     <span class="choice__title">@p.FullName</span>
-                                    <span class="choice__meta">@p.Relationship@(p.Authorization == AuthorizationStatus.PendingReview ? $" · authorization {AuthorizationStatusDisplay.Label(p.Authorization).ToLowerInvariant()}" : "")</span>
+                                    <span class="choice__meta">@p.Relationship@(AuthorizationNote(p))</span>
                                 </span>
                             </label>
                         }
                     </fieldset>
+                    @if (SelectedPatient is { } chosen && !ProfileRules.CanApplyFor(chosen))
+                    {
+                        <p class="wizard__auth-note">
+                            <Icon Name="shield-check" Size="18" />
+                            <span>
+                                @chosen.FullName needs authorization first.
+                                <a href="@($"{ApplicationsHref.Patient(chosen, _patients)}/authorization")">Request authorization<span class="visually-hidden"> for @chosen.FullName</span></a>
+                            </span>
+                        </p>
+                    }
+                    <p class="wizard__add-patient">
+                        <a href="@($"{PortalNavigation.Patients.Href}/new?return={Uri.EscapeDataString(StepUrl(1))}")">
+                            <Icon Name="plus" Size="16" /> Add a patient
+                        </a>
+                    </p>
                     break;
 
                 case 2:
@@ -192,6 +207,8 @@
     [SupplyParameterFromQuery(Name = "draft")] public string? DraftKey { get; set; }
     /// <summary>A program chosen on the Programs page: pre-selected on a new application.</summary>
     [SupplyParameterFromQuery(Name = "program")] public string? ProgramQuery { get; set; }
+    /// <summary>A patient chosen elsewhere (profile page, program search, or after adding one): pre-selected.</summary>
+    [SupplyParameterFromQuery(Name = "patient")] public string? PatientQuery { get; set; }
 
     private IReadOnlyList<PatientProfile> _patients = [];
     private IReadOnlyList<AssistanceProgram> _programs = [];
@@ -307,6 +324,7 @@
             var preset = _programs.FirstOrDefault(p => p.Id == ProgramQuery)?.Id;
             (_patientId, _hospital, _programId, _confirmed) = (null, null, preset, false);
             _loadingDraft = false;
+            ApplyPatientQuery();
             return;
         }
 
@@ -338,12 +356,23 @@
 
         _draft = draft;
         (_patientId, _hospital, _programId, _confirmed) = (draft.PatientId, draft.Hospital, draft.ProgramId, draft.Confirmed);
+        ApplyPatientQuery();
+    }
+
+    /// <summary>Choose the patient named in ?patient= (a key or an id), if they are in the household.</summary>
+    private void ApplyPatientQuery()
+    {
+        if (ApplicationsHref.FindPatient(_patients, PatientQuery) is { } patient) _patientId = patient.Id;
     }
 
     private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
     {
-        if (!_loadingDraft) return;   // our own saves change nothing on screen
-        await OnParametersSetAsync();
+        // Profiles the user added live in their browser and arrive with the workspace.
+        var before = _patients.Count;
+        _patients = await Data.GetPatientProfilesAsync();
+        if (_patientId is null && _patients.Count != before) ApplyPatientQuery();
+
+        if (_loadingDraft) await OnParametersSetAsync();   // our own saves change nothing else on screen
         StateHasChanged();
     });
 
@@ -352,14 +381,25 @@
     /// <summary>The first required choice missing before <paramref name="step"/>, if any.</summary>
     private (int Step, string Message)? FirstMissing(int step) =>
         step > 1 && SelectedPatient is null ? (1, "Choose who this application is for.")
+        : step > 1 && !ProfileRules.CanApplyFor(SelectedPatient!) ? (1, NeedsAuthorization(SelectedPatient!))
         : step > 2 && string.IsNullOrWhiteSpace(_hospital) ? (2, "Choose the hospital.")
         : step > 3 && SelectedProgram is null ? (3, "Choose a program.")
         : null;
+
+    /// <summary>" · authorization being reviewed" / " · authorization needed" / " · authorization not approved"; nothing when settled.</summary>
+    private static string AuthorizationNote(PatientProfile patient) =>
+        patient.Authorization is AuthorizationStatus.Self or AuthorizationStatus.Authorized ? ""
+        : AuthorizationStatusDisplay.Label(patient.Authorization).ToLowerInvariant() is var label && label.StartsWith("authorization")
+            ? $" · {label}" : $" · authorization {label}";
+
+    private static string NeedsAuthorization(PatientProfile patient) =>
+        $"Request authorization for {patient.FullName} before applying for them.";
 
     /// <summary>The current step's own required choice, if it is missing.</summary>
     private string? MissingHere() => _step switch
     {
         1 when SelectedPatient is null => "Choose who this application is for.",
+        1 when !ProfileRules.CanApplyFor(SelectedPatient) => NeedsAuthorization(SelectedPatient),
         2 when string.IsNullOrWhiteSpace(_hospital) => "Choose the hospital.",
         3 when SelectedProgram is null => "Choose a program.",
         5 when !_confirmed => "Confirm that the information is correct before you submit.",

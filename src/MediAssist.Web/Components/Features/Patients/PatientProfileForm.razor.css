@@ -1,0 +1,37 @@
+.profile-form {
+    display: grid;
+    gap: var(--space-5);
+    max-width: 36rem;
+}
+
+.profile-form__short {
+    max-width: 14rem;
+}
+
+.profile-form__fixed {
+    color: var(--color-text);
+    font-weight: var(--weight-semibold);
+}
+
+.profile-form__optional {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+}
+
+.profile-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block-start: var(--space-2);
+}
+
+@media (max-width: 47.99em) {
+    .profile-form__short {
+        max-width: none;
+    }
+
+    .profile-form__actions {
+        display: grid;
+    }
+}

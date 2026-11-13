@@ -9,7 +9,11 @@ namespace MediAssist.Web.Services;
 public interface IPatientPortalDataService
 {
     Task<PortalUser> GetCurrentUserAsync(CancellationToken cancellationToken = default);
+    /// <summary>The household: seeded patients (with the user's edits) and patients the user added.</summary>
     Task<IReadOnlyList<PatientProfile>> GetPatientProfilesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>A household patient's authorization requests, newest first.</summary>
+    Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(Guid patientId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AssistanceApplication>> GetApplicationsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ActionItem>> GetActionItemsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PortalNotification>> GetNotificationsAsync(CancellationToken cancellationToken = default);

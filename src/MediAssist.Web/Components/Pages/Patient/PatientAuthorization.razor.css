@@ -1,0 +1,37 @@
+.auth__back {
+    margin-block-end: calc(-1 * var(--space-4));
+}
+
+.auth {
+    display: grid;
+    gap: var(--space-6);
+    max-width: 40rem;
+}
+
+.auth__intro {
+    max-width: 60ch;
+    color: var(--color-text);
+}
+
+.auth__rules {
+    margin-block-end: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.auth__loading {
+    color: var(--color-text-muted);
+}
+
+.auth__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+@media (max-width: 47.99em) {
+    .auth__actions {
+        display: grid;
+    }
+}

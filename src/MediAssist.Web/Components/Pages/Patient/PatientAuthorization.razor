@@ -1,0 +1,174 @@
+@page "/patient/patients/{Key}/authorization"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject NavigationManager Nav
+@inject TimeProvider Clock
+
+@*
+    Request authorization to act for a family member (D4, simulated). Choose a basis that fits the
+    patient, pick one fictional supporting document (the D3 sample files and rules), confirm, send.
+    An administrator reviews it in D9; requests made here stay in this browser until then.
+*@
+
+<PageTitle>Request authorization · MediAssist</PageTitle>
+
+<div class="page">
+    <div class="auth__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@BackHref" IconStart="chevron-left">@(_patient?.FullName ?? "Patient profiles")</AppButton>
+    </div>
+
+    <header class="page__head">
+        <p class="eyebrow">Authorization</p>
+        <h1 class="page__title serif" tabindex="-1">@(_patient is null ? "Request authorization" : $"Request authorization for {_patient.FullName}")</h1>
+        <p class="fil page__fil" lang="fil">Humiling ng pahintulot</p>
+    </header>
+
+    @if (_patient is null || !ProfileRules.CanRequest(_patient))
+    {
+        <Panel>
+            @if (!Workspace.IsLoaded)
+            {
+                <p class="auth__loading" role="status">Loading this profile…</p>
+            }
+            else
+            {
+                <EmptyState IconName="shield-check"
+                            Title="@(_patient is null ? "We couldn’t find that patient" : "No request is needed right now")"
+                            Message="@(_patient is null ? "Choose a patient from your profiles." : $"{_patient.FullName}: {AuthorizationStatusDisplay.Label(_patient.Authorization).ToLowerInvariant()}.")">
+                    <Action>
+                        <AppButton Variant="AppButton.ButtonVariant.Secondary" Href="@BackHref">Back</AppButton>
+                    </Action>
+                </EmptyState>
+            }
+        </Panel>
+    }
+    else
+    {
+        <Panel>
+            <form class="auth" @onsubmit="SendAsync" novalidate>
+                <p class="auth__intro">
+                    MediAssist needs to know you may act for @_patient.FullName. An administrator reviews the request;
+                    you can start applications while it is being reviewed.
+                </p>
+
+                @if (_errors.Count > 0 || _saveError is not null)
+                {
+                    <p class="field__error" role="alert">
+                        <Icon Name="alert-circle" Size="18" />
+                        @(_saveError ?? (_errors.Count == 1 ? "Check the item marked below." : $"Check the {_errors.Count} items marked below."))
+                    </p>
+                }
+
+                <fieldset class="option-list" aria-describedby="@(Has("basis") ? "auth-basis-error" : null)">
+                    <legend class="option-list__legend">Why may you act for @FirstName?</legend>
+                    @foreach (var basis in Enum.GetValues<AuthorizationBasis>())
+                    {
+                        <label class="option-card">
+                            <input type="radio" name="basis" checked="@(_basis == basis)" aria-invalid="@(Has("basis") ? "true" : null)"
+                                   @onchange="() => ChooseBasis(basis)" />
+                            <span class="option-card__text">
+                                <span class="option-card__title">@ProfileRules.BasisLabel(basis)</span>
+                                <span class="option-card__meta">Needs: @Lower(ProfileRules.BasisDocument(basis))</span>
+                            </span>
+                        </label>
+                    }
+                    <FieldError Id="auth-basis-error" Message="@ErrorFor("basis")" />
+                </fieldset>
+
+                @if (_basis is { } chosen)
+                {
+                    <fieldset class="option-list" aria-describedby="@(Has("file") ? "auth-file-rules auth-file-error" : "auth-file-rules")">
+                        <legend class="option-list__legend">@ProfileRules.BasisDocument(chosen)</legend>
+                        <p id="auth-file-rules" class="auth__rules">
+                            @SimulatedFiles.RulesText. This prototype doesn’t read files from your device: choose one of these sample files.
+                        </p>
+                        @foreach (var file in SimulatedFiles.SamplesFor(ProfileRules.BasisDocument(chosen)))
+                        {
+                            <label class="option-card">
+                                <input type="radio" name="document" checked="@(_file?.Id == file.Id)" aria-invalid="@(Has("file") ? "true" : null)"
+                                       @onchange="() => ChooseFile(file)" />
+                                <span class="option-card__text">
+                                    <span class="option-card__title">@file.FileName</span>
+                                    <span class="option-card__meta">@SimulatedFiles.TypeLabel(file.ContentType) · @SimulatedFiles.FormatSize(file.SizeBytes)</span>
+                                </span>
+                            </label>
+                        }
+                        <FieldError Id="auth-file-error" Message="@ErrorFor("file")" />
+                    </fieldset>
+                }
+
+                <div class="option-list">
+                    <label class="option-card">
+                        <input type="checkbox" checked="@_confirmed" @onchange="ToggleConfirm"
+                               aria-invalid="@(Has("confirm") ? "true" : null)" aria-describedby="@(Has("confirm") ? "auth-confirm-error" : null)" />
+                        <span class="option-card__text">
+                            <span>I confirm this is true and that @FirstName knows I am applying for assistance for them.</span>
+                        </span>
+                    </label>
+                    <FieldError Id="auth-confirm-error" Message="@ErrorFor("confirm")" />
+                </div>
+
+                <div class="auth__actions">
+                    <AppButton Type="submit" IconStart="send" Disabled="_sending">Send request</AppButton>
+                    <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@BackHref">Cancel</AppButton>
+                </div>
+            </form>
+        </Panel>
+    }
+</div>
+
+@code {
+    [Parameter] public string Key { get; set; } = "";
+
+    private IReadOnlyList<PatientProfile> _household = [];
+    private PatientProfile? _patient;
+    private AuthorizationBasis? _basis;
+    private SampleFile? _file;
+    private bool _confirmed;
+    private bool _sending;
+    private IReadOnlyDictionary<string, string> _errors = new Dictionary<string, string>();
+    private string? _saveError;
+
+    private string FirstName => _patient?.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "this patient";
+    private string BackHref => _patient is null ? PortalNavigation.Patients.Href : ApplicationsHref.Patient(_patient, _household);
+
+    private static string Lower(string s) => s.Length > 0 ? char.ToLowerInvariant(s[0]) + s[1..] : s;
+    private bool Has(string field) => _errors.ContainsKey(field);
+    private string? ErrorFor(string field) => _errors.TryGetValue(field, out var e) ? e : null;
+
+    protected override async Task LoadAsync()
+    {
+        _household = await Data.GetPatientProfilesAsync();
+        _patient = ApplicationsHref.FindPatient(_household, Key);
+    }
+
+    private void ChooseBasis(AuthorizationBasis basis)
+    {
+        if (_basis != basis) _file = null;   // each basis has its own document
+        _basis = basis;
+        _errors = _errors.Where(e => e.Key is not ("basis" or "file")).ToDictionary();
+    }
+
+    private void ChooseFile(SampleFile file)
+    {
+        _file = file;
+        _errors = _errors.Where(e => e.Key != "file").ToDictionary();
+    }
+
+    private void ToggleConfirm(ChangeEventArgs e)
+    {
+        _confirmed = e.Value is true || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        _errors = _errors.Where(x => x.Key != "confirm").ToDictionary();
+    }
+
+    private async Task SendAsync()
+    {
+        if (_patient is null) return;
+        _sending = true;
+        var result = await Workspace.RequestAuthorizationAsync(_patient.Id, _basis, _file, _confirmed);
+        _sending = false;
+        _errors = result.Errors;
+        _saveError = result.SaveError;
+        if (result.Succeeded) Nav.NavigateTo($"{BackHref}?requested=1");
+    }
+}

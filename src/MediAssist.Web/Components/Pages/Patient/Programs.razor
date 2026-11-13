@@ -29,7 +29,7 @@
                     <li>@doc</li>
                 }
             </ol>
-            <AppButton Href="@($"{PortalNavigation.NewApplicationHref}?program={_selected.Id}")" IconStart="plus">
+            <AppButton Href="@($"{PortalNavigation.NewApplicationHref}?program={_selected.Id}{(string.IsNullOrEmpty(PatientId) ? "" : $"&patient={Uri.EscapeDataString(PatientId)}")}")" IconStart="plus">
                 Start an application for this program
             </AppButton>
         </section>
@@ -71,6 +71,8 @@
 @code {
     [SupplyParameterFromQuery] public string? Q { get; set; }
     [SupplyParameterFromQuery(Name = "program")] public string? ProgramId { get; set; }
+    /// <summary>The patient chosen in the program search: carried into the wizard with the program.</summary>
+    [SupplyParameterFromQuery(Name = "patient")] public string? PatientId { get; set; }
 
     private IReadOnlyList<AssistanceProgram> _programs = [];
     private IReadOnlyList<PatientProfile> _patients = [];

@@ -77,7 +77,7 @@
     private DateTimeOffset _now;
 
     private PatientProfile? SelectedPatient =>
-        _patientKey is null ? null : _patients.FirstOrDefault(p => ApplicationsHref.PatientKey(p) == _patientKey);
+        _patientKey is null ? null : ApplicationsHref.FindPatient(_patients, _patientKey);
 
     /// <summary>The household's applications for the chosen patient (all patients when none).</summary>
     private IReadOnlyList<AssistanceApplication> ForPatient =>
@@ -98,7 +98,7 @@
             };
             chips.AddRange(_patients.Select(p => new FilterChips.Chip(
                 p.Authorization == AuthorizationStatus.Self ? $"{p.FullName} (you)" : p.FullName,
-                ApplicationsHref.For(_stage, ApplicationsHref.PatientKey(p)),
+                ApplicationsHref.For(_stage, ApplicationsHref.PatientKey(p, _patients)),
                 inStage.Count(a => a.PatientId == p.Id),
                 Active: SelectedPatient?.Id == p.Id)));
             return chips;

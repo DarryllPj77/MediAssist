@@ -1,0 +1,67 @@
+@page "/patient/patients"
+@inherits WorkspaceAwarePage
+@inject IPatientPortalDataService Data
+@inject TimeProvider Clock
+
+@*
+    Patient profiles (D4): the people this account applies for. The account holder first, then
+    family members, each with an authorization badge and what to do next. A card's name links the
+    whole card to the profile.
+*@
+
+<PageTitle>Patient profiles · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="patients-title" ImageKey="hero-patient-patients" Compact="true"
+               Title="Patient profiles"
+               TitleFilipino="Mga pasyente"
+               Lead="The people you apply for. Family members need an approved authorization before applications for them can be reviewed."
+               LeadFilipino="Gamitin muli ang mga profile sa bawat bagong aplikasyon.">
+        <Eyebrow>Overview</Eyebrow>
+        <Actions>
+            <AppButton Href="@($"{PortalNavigation.Patients.Href}/new")" IconStart="plus">Add a patient</AppButton>
+        </Actions>
+    </SplitHero>
+
+    <section aria-labelledby="household-list-title" class="people">
+        <h2 id="household-list-title" class="visually-hidden">Your household</h2>
+        <ul role="list" class="people__list">
+            @foreach (var p in _patients)
+            {
+                <li class="person-card @(ProfileRules.CanRequest(p) ? "person-card--attention" : null)">
+                    <Avatar Name="@p.FullName" />
+                    <div class="person-card__text">
+                        <a class="person-card__name" href="@ApplicationsHref.Patient(p, _patients)">@p.FullName</a>
+                        <p class="person-card__meta">@Describe(p)</p>
+                        @if (AuthorizationStatusDisplay.NextStep(p.Authorization) is string next)
+                        {
+                            <p class="person-card__next">@next</p>
+                        }
+                    </div>
+                    <Badge Text="@AuthorizationStatusDisplay.Label(p.Authorization)"
+                           Tone="AuthorizationStatusDisplay.Tone(p.Authorization)"
+                           IconName="@AuthorizationStatusDisplay.Icon(p.Authorization)" Class="person-card__badge" />
+                </li>
+            }
+        </ul>
+    </section>
+</div>
+
+@code {
+    private IReadOnlyList<PatientProfile> _patients = [];
+    private DateOnly _today;
+
+    private string Describe(PatientProfile p)
+    {
+        var parts = new List<string> { p.Authorization == AuthorizationStatus.Self ? "You" : p.Relationship };
+        if (p.AgeOn(_today) is int age) parts.Add($"{age} {(age == 1 ? "year" : "years")} old");
+        if (p.City is not null) parts.Add(p.City);
+        return string.Join(" · ", parts);
+    }
+
+    protected override async Task LoadAsync()
+    {
+        _today = DateOnly.FromDateTime(Clock.GetLocalNow().Date);
+        _patients = await Data.GetPatientProfilesAsync();
+    }
+}

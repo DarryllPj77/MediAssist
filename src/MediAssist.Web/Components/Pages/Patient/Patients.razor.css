@@ -1,0 +1,92 @@
+.people__list {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+}
+
+@media (min-width: 60em) {
+    .people__list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* One person: avatar, name (the link covers the card), details and the next step; badge at the end. */
+.person-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--duration-out) var(--ease-out);
+}
+
+.person-card:hover {
+    border-color: var(--color-navy);
+    transition-duration: var(--duration-in);
+}
+
+.person-card--attention {
+    box-shadow: inset 3px 0 0 var(--color-red);
+}
+
+.person-card__text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.person-card__name {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    margin-block: calc(-1 * var(--space-2));
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    text-decoration: none;
+}
+
+.person-card__name::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+}
+
+.person-card__name:hover {
+    text-decoration: underline;
+}
+
+.person-card__name:focus-visible {
+    box-shadow: none;
+}
+
+.person-card__name:focus-visible::after {
+    box-shadow: inset 0 0 0 2px var(--focus-ring-color);
+}
+
+.person-card__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.person-card__next {
+    margin-block-start: var(--space-1);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+}
+
+@media (max-width: 30em) {
+    .person-card {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .person-card ::deep .person-card__badge {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
