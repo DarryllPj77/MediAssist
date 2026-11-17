@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// The shared application workflow (D9a): submitted applications, their uploads and review
-/// decisions, and the notifications they send, kept in SQLite so the patient and administrator
-/// portals see one record. A singleton: <see cref="State"/> is an immutable read model loaded at
+/// The shared workflow (D9a, D9b): submitted applications, their uploads and review decisions,
+/// authorization requests and runner requests, and the notifications they send, kept in SQLite so
+/// the patient and administrator portals see one record. A singleton: <see cref="State"/> is an immutable read model loaded at
 /// start-up and swapped whole after each saved change, so reads are synchronous and safe from any
 /// circuit. Every change goes through one gate, checks its rules there, writes to the database
 /// and only then updates the read model and raises <see cref="Changed"/>.
@@ -39,6 +39,7 @@ public sealed class WorkflowService(
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await db.Database.EnsureCreatedAsync(cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(WorkflowDbContext.AddLaterTables, cancellationToken);
 
         var applications = new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in await db.Applications.AsNoTracking().ToListAsync(cancellationToken))
@@ -50,7 +51,12 @@ public sealed class WorkflowService(
             .Select(n => JsonSerializer.Deserialize<PortalNotification>(n.Json, Json)!)
             .OrderByDescending(n => n.CreatedAt).ToList();
 
-        Volatile.Write(ref _state, new WorkflowState(applications, uploads, notifications));
+        var authorizations = (await db.Authorizations.AsNoTracking().ToListAsync(cancellationToken))
+            .Select(a => JsonSerializer.Deserialize<SharedAuthorization>(a.Json, Json)!).ToDictionary(a => a.Id);
+        var runnerRequests = (await db.RunnerRequests.AsNoTracking().ToListAsync(cancellationToken))
+            .Select(a => JsonSerializer.Deserialize<SharedRunnerRequest>(a.Json, Json)!).ToDictionary(a => a.Id);
+
+        Volatile.Write(ref _state, new WorkflowState(applications, uploads, notifications, authorizations, runnerRequests));
     }
 
     // ---- Reading ----
@@ -80,9 +86,9 @@ public sealed class WorkflowService(
 
     public DocumentUpload? LatestUpload(string reference, string documentName) => Latest(State.Uploads, reference, documentName);
 
-    /// <summary>True while the patient's authorization request waits for an administrator (seeded requests until D9b).</summary>
+    /// <summary>True while the patient's latest authorization request waits for an administrator.</summary>
     public bool AuthorizationPending(Guid patientId) =>
-        store.AuthorizationRequests().Any(r => r.PatientId == patientId && r.Status == AuthorizationRequestStatus.Pending);
+        LatestAuthorization(patientId)?.Request.Status == AuthorizationRequestStatus.Pending;
 
     /// <summary>The application's history with its uploads, oldest first (the administrator's view).</summary>
     public IReadOnlyList<ApplicationEvent> History(SharedApplication application) =>
@@ -132,7 +138,7 @@ public sealed class WorkflowService(
 
             var submission = build(reference);
             var application = submission.Application with { Version = (existing?.Version ?? 0) + 1 };
-            saved = await CommitAsync(state, [application], submission.Uploads, [submission.Notification]);
+            saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification]));
         }
         finally
         {
@@ -205,7 +211,7 @@ public sealed class WorkflowService(
             }
 
             var updated = new SharedApplication(application, current.Checklist, events, current.Version + 1);
-            result = await CommitAsync(state, [updated], [upload], notifications)
+            result = await CommitAsync(state, new Writes([updated], [upload], notifications))
                 ? UploadResult.Saved(upload, corrected)
                 : UploadResult.Invalid("We couldn’t save that upload. Try again.");
         }
@@ -342,7 +348,200 @@ public sealed class WorkflowService(
             if (change.Error is not null) return ReviewResult.Refused(change.Error);
 
             var updated = change.Updated! with { Version = current.Version + 1 };
-            result = await CommitAsync(State, [updated], change.Uploads, change.Notification is null ? [] : [change.Notification])
+            var notify = change.Notification is not null && ForAccount(current.Application.PatientId);
+            result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification!] : []))
+                ? ReviewResult.Done
+                : ReviewResult.SaveFailed;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (result.Succeeded) Changed?.Invoke();
+        return result;
+    }
+
+    // ---- Authorization requests (D9b) ----
+
+    /// <summary>Every authorization request (seeded and shared, all accounts), shared copies replacing seeds, newest first.</summary>
+    public IReadOnlyList<SharedAuthorization> AllAuthorizations()
+    {
+        var state = State;
+        var seeded = store.AuthorizationRequests().Where(r => !state.Authorizations.ContainsKey(r.Id)).Select(SeededAuthorization);
+        return [.. state.Authorizations.Values.Concat(seeded).OrderByDescending(a => a.Request.RequestedAt)];
+    }
+
+    public SharedAuthorization? FindAuthorization(string id) =>
+        State.Authorizations.TryGetValue(id, out var shared) ? shared
+        : store.AuthorizationRequests().FirstOrDefault(r => r.Id == id) is { } seed ? SeededAuthorization(seed) : null;
+
+    /// <summary>A patient's requests, newest first.</summary>
+    public IReadOnlyList<SharedAuthorization> AuthorizationsFor(Guid patientId) =>
+        [.. AllAuthorizations().Where(a => a.Request.PatientId == patientId)];
+
+    /// <summary>The patient's most recent request, which decides what their profile shows.</summary>
+    public SharedAuthorization? LatestAuthorization(Guid patientId) => AuthorizationsFor(patientId).FirstOrDefault();
+
+    private SharedAuthorization SeededAuthorization(AuthorizationRequest request)
+    {
+        var patient = store.Household.FirstOrDefault(p => p.Id == request.PatientId);
+        return new SharedAuthorization(request, patient?.FullName ?? "Patient", patient?.Relationship ?? "",
+            patient?.DateOfBirth,
+            patient is null ? "/patient/patients" : $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, store.Household)}", 0);
+    }
+
+    /// <summary>
+    /// Save a family's request. Refused while the patient already has one waiting or approved, so
+    /// two browsers can't both ask. The family's own checks (basis, file, confirmation) run first.
+    /// </summary>
+    public async Task<bool> RequestAuthorizationAsync(SharedAuthorization authorization, PortalNotification notification)
+    {
+        bool saved;
+        await _gate.WaitAsync();
+        try
+        {
+            if (LatestAuthorization(authorization.Request.PatientId)?.Request.Status is AuthorizationRequestStatus.Pending or AuthorizationRequestStatus.Approved)
+                return false;
+            saved = await CommitAsync(State, new Writes(Notifications: [notification], Authorizations: [authorization with { Version = 1 }]));
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (saved) Changed?.Invoke();
+        return saved;
+    }
+
+    /// <summary>Approve, or don't approve with a note the family sees. The family's profile follows.</summary>
+    public async Task<ReviewResult> DecideAuthorizationAsync(string id, int expectedVersion, bool approve, string? note)
+    {
+        ReviewResult result;
+        await _gate.WaitAsync();
+        try
+        {
+            var current = FindAuthorization(id);
+            if (current is null) return ReviewResult.Refused("That request doesn't exist.");
+            if (current.Version != expectedVersion) return ReviewResult.Stale;
+
+            var now = clock.GetLocalNow();
+            var request = current.Request;
+            var problem = approve
+                ? StaffDecisionRules.ApproveProblem(request.Status, request.Basis, current.DateOfBirth, DateOnly.FromDateTime(now.Date))
+                : StaffDecisionRules.RejectProblem(request.Status, note);
+            if (problem is not null) return ReviewResult.Refused(problem);
+
+            var decided = current with
+            {
+                Request = request with
+                {
+                    Status = approve ? AuthorizationRequestStatus.Approved : AuthorizationRequestStatus.Rejected,
+                    DecidedAt = now,
+                    ReviewerNote = approve ? "The supporting document matches the request." : note!.Trim(),
+                },
+                Version = current.Version + 1,
+            };
+            var notice = new PortalNotification($"n-auth-{id}-{(approve ? "approved" : "rejected")}-{now:yyyyMMddHHmmssfff}",
+                approve ? "Authorization approved" : "Authorization not approved",
+                approve ? $"You can now apply and follow applications for {current.PatientName}."
+                        : $"Your request to act for {current.PatientName} wasn't approved. See the reviewer's note.",
+                now, false, current.PatientHref);
+            result = await CommitAsync(State, new Writes(Notifications: [notice], Authorizations: [decided]))
+                ? ReviewResult.Done
+                : ReviewResult.SaveFailed;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (result.Succeeded) Changed?.Invoke();
+        return result;
+    }
+
+    // ---- Runner requests (D9b) ----
+
+    /// <summary>Every runner request (seeded and shared, all accounts), shared copies replacing seeds.</summary>
+    public IReadOnlyList<SharedRunnerRequest> AllRunnerRequests()
+    {
+        var state = State;
+        var seeded = store.RunnerRequests().Where(r => !state.RunnerRequests.ContainsKey(r.Id)).Select(r => new SharedRunnerRequest(r, 0));
+        return [.. state.RunnerRequests.Values, .. seeded];
+    }
+
+    public SharedRunnerRequest? FindRunnerRequest(string id) =>
+        State.RunnerRequests.TryGetValue(id, out var shared) ? shared
+        : store.RunnerRequests().FirstOrDefault(r => r.Id == id) is { } seed ? new SharedRunnerRequest(seed, 0) : null;
+
+    /// <summary>True for a request a family made in the portal (not seeded data).</summary>
+    public bool IsFamilyRunnerRequest(string id) =>
+        State.RunnerRequests.ContainsKey(id) && store.RunnerRequests().All(r => r.Id != id);
+
+    /// <summary>Save a family's runner request; refused when the application already has one in progress.</summary>
+    public async Task<bool> RequestRunnerAsync(RunnerRequestItem request, PortalNotification notification)
+    {
+        bool saved;
+        await _gate.WaitAsync();
+        try
+        {
+            if (AllRunnerRequests().Any(r => Same(r.Request.ApplicationReference, request.ApplicationReference) && RunnerRules.IsOpen(r.Request.Status)))
+                return false;
+            saved = await CommitAsync(State, new Writes(Notifications: [notification], RunnerRequests: [new SharedRunnerRequest(request, 1)]));
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (saved) Changed?.Invoke();
+        return saved;
+    }
+
+    /// <summary>The family cancels its own request while it still waits for a runner.</summary>
+    public async Task<bool> CancelRunnerRequestAsync(string id, Func<string, bool> inScope)
+    {
+        bool saved;
+        await _gate.WaitAsync();
+        try
+        {
+            var current = FindRunnerRequest(id);
+            if (current is null || !IsFamilyRunnerRequest(id) || !inScope(current.Request.ApplicationReference)
+                || current.Request.Status != RunnerTaskStatus.PendingAssignment)
+                return false;
+            var cancelled = new SharedRunnerRequest(current.Request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() },
+                current.Version + 1);
+            saved = await CommitAsync(State, new Writes(RunnerRequests: [cancelled]));
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (saved) Changed?.Invoke();
+        return saved;
+    }
+
+    /// <summary>Assign (or change) the runner. The application's status never changes with it.</summary>
+    public async Task<ReviewResult> AssignRunnerAsync(string id, int expectedVersion, string? runner)
+    {
+        ReviewResult result;
+        await _gate.WaitAsync();
+        try
+        {
+            var current = FindRunnerRequest(id);
+            if (current is null) return ReviewResult.Refused("That runner request doesn't exist.");
+            if (current.Version != expectedVersion) return ReviewResult.Stale;
+            if (StaffDecisionRules.AssignProblem(current.Request.Status, current.Request.RunnerName, runner) is string problem)
+                return ReviewResult.Refused(problem);
+
+            var now = clock.GetLocalNow();
+            var reassigned = current.Request.Status == RunnerTaskStatus.Assigned;
+            var assigned = new SharedRunnerRequest(current.Request with
+            {
+                Status = RunnerTaskStatus.Assigned, RunnerName = runner, AssignedAt = now,
+            }, current.Version + 1);
+            var notice = new PortalNotification($"n-{id}-assigned-{now:yyyyMMddHHmmssfff}",
+                reassigned ? "Runner changed" : "Runner assigned",
+                $"{runner} will help with “{current.Request.Errand}” for {current.Request.ApplicationReference}.",
+                now, false, "/patient/runner");
+            var forAccount = Find(current.Request.ApplicationReference) is { } application && ForAccount(application.Application.PatientId);
+            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice] : [], RunnerRequests: [assigned]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -356,10 +555,21 @@ public sealed class WorkflowService(
 
     // ---- Storage ----
 
+    private sealed record Writes(
+        IReadOnlyList<SharedApplication>? Applications = null,
+        IReadOnlyList<DocumentUpload>? Uploads = null,
+        IReadOnlyList<PortalNotification>? Notifications = null,
+        IReadOnlyList<SharedAuthorization>? Authorizations = null,
+        IReadOnlyList<SharedRunnerRequest>? RunnerRequests = null);
+
     /// <summary>Write the changes in one transaction; on success swap in the new read model. Call under the gate.</summary>
-    private async Task<bool> CommitAsync(WorkflowState state, IReadOnlyList<SharedApplication> applications,
-        IReadOnlyList<DocumentUpload> uploads, IReadOnlyList<PortalNotification> notifications)
+    private async Task<bool> CommitAsync(WorkflowState state, Writes writes)
     {
+        var applications = writes.Applications ?? [];
+        var uploads = writes.Uploads ?? [];
+        var notifications = writes.Notifications ?? [];
+        var authorizations = writes.Authorizations ?? [];
+        var runnerRequests = writes.RunnerRequests ?? [];
         try
         {
             await using var db = await factory.CreateDbContextAsync();
@@ -381,6 +591,8 @@ public sealed class WorkflowService(
             }
             foreach (var n in notifications)
                 db.Notifications.Add(new StoredNotification { Id = n.Id, Json = JsonSerializer.Serialize(n, Json) });
+            foreach (var a in authorizations) await UpsertAsync(db.Authorizations, a.Id, JsonSerializer.Serialize(a, Json));
+            foreach (var r in runnerRequests) await UpsertAsync(db.RunnerRequests, r.Id, JsonSerializer.Serialize(r, Json));
             await db.SaveChangesAsync();
         }
         catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or IOException or InvalidOperationException)
@@ -391,15 +603,35 @@ public sealed class WorkflowService(
 
         var nextApplications = new Dictionary<string, SharedApplication>(state.Applications, StringComparer.OrdinalIgnoreCase);
         foreach (var a in applications) nextApplications[a.Reference] = a;
+        var nextAuthorizations = new Dictionary<string, SharedAuthorization>(state.Authorizations);
+        foreach (var a in authorizations) nextAuthorizations[a.Id] = a;
+        var nextRunnerRequests = new Dictionary<string, SharedRunnerRequest>(state.RunnerRequests);
+        foreach (var r in runnerRequests) nextRunnerRequests[r.Id] = r;
         var changedIds = uploads.Select(u => u.Id).ToHashSet();
         Volatile.Write(ref _state, new WorkflowState(
             nextApplications,
             [.. state.Uploads.Where(u => !changedIds.Contains(u.Id)), .. uploads],
-            [.. notifications.OrderByDescending(n => n.CreatedAt), .. state.Notifications]));
+            [.. notifications.OrderByDescending(n => n.CreatedAt), .. state.Notifications],
+            nextAuthorizations,
+            nextRunnerRequests));
         return true;
     }
 
+    private static async Task UpsertAsync(DbSet<StoredRecord> set, string id, string json)
+    {
+        var row = await set.FindAsync(id);
+        if (row is null) set.Add(new StoredRecord { Id = id, Json = json });
+        else row.Json = json;
+    }
+
     // ---- Helpers ----
+
+    /// <summary>
+    /// True for patients of the prototype's one account (seeded household, or anyone a family added
+    /// in a browser). Seeded patients of other accounts (Ramon) get no notifications in this account.
+    /// </summary>
+    private bool ForAccount(Guid patientId) =>
+        store.Household.Any(p => p.Id == patientId) || store.Applications().All(a => a.PatientId != patientId);
 
     /// <summary>A seeded application without a written checklist: its program's documents, the first ones ready.</summary>
     private ApplicationChecklist GeneratedChecklist(AssistanceApplication application)

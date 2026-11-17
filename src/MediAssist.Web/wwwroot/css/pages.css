@@ -121,3 +121,145 @@
     color: var(--color-text);
     font-weight: var(--weight-medium);
 }
+
+/* ---- Staff request lists (D9b): authorization reviews and runner management ---- */
+
+.staffreq {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.staffreq__status:empty {
+    display: none;
+}
+
+.staffreq__status {
+    color: var(--color-text);
+    font-weight: var(--weight-semibold);
+}
+
+.staffreq__error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.staffreq__list {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+}
+
+.sreq {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+    min-width: 0;
+}
+
+.sreq--open {
+    box-shadow: inset 4px 0 0 var(--color-primary);
+}
+
+.sreq--target {
+    border-color: var(--color-primary);
+}
+
+.sreq__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+}
+
+.sreq__title {
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.sreq__facts {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+}
+
+@media (min-width: 40em) {
+    .sreq__facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 64em) {
+    .sreq__facts {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.sreq__facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.sreq__facts dd {
+    margin: 0;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+
+.sreq__file {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.sreq__note {
+    padding-inline-start: var(--space-3);
+    border-inline-start: 3px solid var(--color-border-card);
+    color: var(--color-text);
+}
+
+.sreq__warn {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    color: var(--color-danger);
+    font-weight: var(--weight-medium);
+}
+
+.sreq__hint {
+    color: var(--color-text-muted);
+}
+
+.sreq__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.sreq__reason {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 40rem;
+}
+
+.sreq__textarea {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.sreq__assign {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+}
+
+.sreq__select {
+    flex: 1 1 16rem;
+    max-width: 24rem;
+}

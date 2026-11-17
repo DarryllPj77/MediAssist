@@ -1,0 +1,229 @@
+@page "/admin/authorizations"
+@inherits StaffWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    Authorization reviews (D9b): requests from every family to act for a patient. A waiting request
+    can be approved (only when its basis fits the patient: a parent's request needs a patient under
+    18) or not approved with a note the family sees. The family's profile, the review queue's flag
+    and the application review's start guard all follow the decision. Filter: ?show=waiting|decided.
+    Every decision carries the version the reviewer saw.
+*@
+
+<PageTitle>Authorization reviews · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="auth-title" ImageKey="@ImageSlots.HeroKeyForPath("admin/authorizations")" Compact="true"
+               Title="Authorization reviews"
+               TitleFilipino="Mga pahintulot na susuriin"
+               Lead="@LeadText"
+               LeadFilipino="Tiyaking may karapatan ang humihiling bago aprubahan.">
+        <Eyebrow>Administrator</Eyebrow>
+    </SplitHero>
+
+    <section class="staffreq" aria-labelledby="auth-list-title">
+        <h2 id="auth-list-title" class="visually-hidden">Requests</h2>
+        <FilterChips Chips="Chips" AriaLabel="Requests by decision" Noun="request" />
+
+        <p class="staffreq__status" role="status">@_status</p>
+        @if (_error is not null)
+        {
+            <p class="field__error staffreq__error" role="alert"><Icon Name="alert-circle" Size="18" /> @_error</p>
+        }
+
+        @if (_items.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="check-circle" Title="Nothing waiting" Message="Every authorization request has a decision." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="staffreq__list">
+                @foreach (var a in _items)
+                {
+                    var r = a.Request;
+                    var waiting = r.Status == AuthorizationRequestStatus.Pending;
+                    var approveProblem = waiting ? StaffDecisionRules.ApproveProblem(r.Status, r.Basis, a.DateOfBirth, Today) : null;
+                    <li class="sreq @(waiting ? "sreq--open" : null)">
+                        <div class="sreq__head">
+                            <h3 class="sreq__title">@a.PatientName</h3>
+                            <Badge Text="@ProfileRules.RequestStatusLabel(r.Status)" Tone="@Tone(r.Status)" IconName="@Icon(r.Status)" />
+                        </div>
+                        <dl class="sreq__facts">
+                            <div><dt>Relationship</dt><dd>@RelationshipText(a)</dd></div>
+                            <div><dt>Reason given</dt><dd>@ProfileRules.BasisLabel(r.Basis)</dd></div>
+                            <div><dt>Document</dt><dd class="sreq__file"><Icon Name="file-text" Size="16" /> @r.DocumentFileName · @SimulatedFiles.FormatSize(r.DocumentSizeBytes)</dd></div>
+                            <div><dt>Asked</dt><dd><time datetime="@DisplayFormat.Machine(r.RequestedAt)">@DisplayFormat.Relative(r.RequestedAt, _now)</time></dd></div>
+                        </dl>
+
+                        @if (!waiting && r.ReviewerNote is not null)
+                        {
+                            <p class="sreq__note"><span class="visually-hidden">Decision note: </span>@r.ReviewerNote</p>
+                        }
+
+                        @if (waiting)
+                        {
+                            @if (approveProblem is not null)
+                            {
+                                <p class="sreq__warn"><Icon Name="alert-triangle" Size="18" /> @approveProblem</p>
+                            }
+                            <div class="sreq__actions">
+                                @if (_rejecting == a.Id)
+                                {
+                                    <div class="sreq__reason">
+                                        <label class="field__label" for="auth-note">Why isn't it approved?</label>
+                                        <textarea id="auth-note" class="input sreq__textarea" rows="3" maxlength="@ReviewRules.ReasonMax"
+                                                  @bind="_note" @ref="_noteBox"
+                                                  aria-describedby="auth-note-hint @(_noteError is null ? null : "auth-note-error")"
+                                                  aria-invalid="@(_noteError is null ? null : "true")"></textarea>
+                                        <p id="auth-note-hint" class="field__hint">The family sees this. Say what would let you approve it.</p>
+                                        <FieldError Id="auth-note-error" Message="@_noteError" />
+                                        <div class="sreq__buttons">
+                                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Disabled="_busy" OnClick="() => RejectAsync(a)">
+                                                Send decision<span class="visually-hidden">: @a.PatientName</span>
+                                            </AppButton>
+                                            <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="CloseNote">Cancel</AppButton>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="sreq__buttons">
+                                        @if (approveProblem is null)
+                                        {
+                                            <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="check" Disabled="_busy" OnClick="() => ApproveAsync(a)">
+                                                Approve<span class="visually-hidden"> @a.PatientName</span>
+                                            </AppButton>
+                                        }
+                                        <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="x-circle" OnClick="() => OpenNote(a.Id)">
+                                            Don't approve<span class="visually-hidden"> @a.PatientName</span>
+                                        </AppButton>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
+
+    private IReadOnlyList<SharedAuthorization> _all = [];
+    private IReadOnlyList<SharedAuthorization> _items = [];
+    private DateTimeOffset _now;
+    private string? _status;
+    private string? _error;
+    private bool _busy;
+
+    private string? _rejecting;
+    private string? _note;
+    private string? _noteError;
+    private ElementReference _noteBox;
+    private bool _focusNote;
+
+    private DateOnly Today => DateOnly.FromDateTime(_now.Date);
+    private int Waiting => _all.Count(a => a.Request.Status == AuthorizationRequestStatus.Pending);
+
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+    [
+        new("Waiting", RoleNavigation.AdminAuthorizations.Href, Waiting, Active: Show is null, Attention: Waiting > 0),
+        new("Decided", $"{RoleNavigation.AdminAuthorizations.Href}?show=decided", _all.Count - Waiting, Active: Show == "decided"),
+    ];
+
+    private string LeadText => Waiting switch
+    {
+        0 => "No request is waiting. Families ask here before they act for a patient.",
+        1 => "1 request is waiting. Check the document before you approve.",
+        _ => $"{Waiting} requests are waiting. Check each document before you approve."
+    };
+
+    private string RelationshipText(SharedAuthorization a)
+    {
+        var age = a.DateOfBirth is { } dob ? Today.Year - dob.Year - (Today < dob.AddYears(Today.Year - dob.Year) ? 1 : 0) : (int?)null;
+        return age is null ? $"{a.Relationship} of the account holder" : $"{a.Relationship} of the account holder, age {age}";
+    }
+
+    private static Badge.BadgeTone Tone(AuthorizationRequestStatus status) => status switch
+    {
+        AuthorizationRequestStatus.Approved => Badge.BadgeTone.Success,
+        AuthorizationRequestStatus.Rejected => Badge.BadgeTone.Danger,
+        _ => Badge.BadgeTone.Warning
+    };
+
+    private static string Icon(AuthorizationRequestStatus status) => status switch
+    {
+        AuthorizationRequestStatus.Approved => "shield-check",
+        AuthorizationRequestStatus.Rejected => "x-circle",
+        _ => "clock"
+    };
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _all = await Staff.GetAuthorizationRequestsAsync();
+        _items = Show == "decided"
+            ? _all.Where(a => a.Request.Status != AuthorizationRequestStatus.Pending).ToList()
+            : _all.Where(a => a.Request.Status == AuthorizationRequestStatus.Pending).OrderBy(a => a.Request.RequestedAt).ToList();
+        if (_rejecting is not null && _all.FirstOrDefault(a => a.Id == _rejecting)?.Request.Status != AuthorizationRequestStatus.Pending) CloseNote();
+    }
+
+    private Task ApproveAsync(SharedAuthorization a) =>
+        RunAsync(Workflow.DecideAuthorizationAsync(a.Id, a.Version, true, null), $"Approved: {a.PatientName}. The family has been told.");
+
+    private async Task RejectAsync(SharedAuthorization a)
+    {
+        _noteError = ReviewRules.ReasonProblem(_note);
+        if (_noteError is not null)
+        {
+            _focusNote = true;
+            return;
+        }
+        if (await RunAsync(Workflow.DecideAuthorizationAsync(a.Id, a.Version, false, _note), $"Not approved: {a.PatientName}. The family has your note."))
+            CloseNote();
+    }
+
+    private void OpenNote(string id)
+    {
+        _rejecting = id;
+        _note = null;
+        _noteError = null;
+        _focusNote = true;
+        _status = null;
+    }
+
+    private void CloseNote()
+    {
+        _rejecting = null;
+        _note = null;
+        _noteError = null;
+    }
+
+    private async Task<bool> RunAsync(Task<ReviewResult> action, string done)
+    {
+        if (_busy) return false;
+        _busy = true;
+        _error = null;
+        _status = null;
+        var result = await action;
+        _busy = false;
+        if (result.Succeeded) _status = done;
+        else _error = result.Error;
+        if (result.Conflict) await LoadAsync();
+        return result.Succeeded;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusNote && _rejecting is not null)
+        {
+            _focusNote = false;
+            await _noteBox.FocusAsync();
+        }
+    }
+}

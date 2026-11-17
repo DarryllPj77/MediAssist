@@ -3,11 +3,12 @@ using MediAssist.Web.Models;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// One user's view of their applications. Drafts (and uploads to drafts), patient profiles,
-/// authorization and runner requests, read states and account changes are theirs alone: per
+/// One user's view of their applications. Drafts (and uploads to drafts), patient profiles, read
+/// states and account changes are theirs alone: per
 /// circuit (scoped), loaded from their browser storage once the page is interactive and written
-/// back on every change. Submitted applications, their uploads and review notifications live in
-/// the shared <see cref="WorkflowService"/> (D9a) so administrators can review them; this class
+/// back on every change. Submitted applications, their uploads, authorization and runner requests
+/// and the notifications about them live in the shared <see cref="WorkflowService"/> (D9a, D9b) so
+/// administrators can act on them; this class
 /// shows the household's part of it and passes submissions and uploads through.
 /// <see cref="Changed"/> tells pages to re-query (also when a reviewer changes something).
 /// <para>
@@ -56,8 +57,6 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     private IReadOnlyList<DocumentUpload> LocalUploads => _snapshot.Uploads ?? [];
     private IReadOnlyList<PatientProfile> LocalProfiles => _snapshot.Profiles ?? [];
-    private IReadOnlyList<AuthorizationRequest> LocalRequests => _snapshot.AuthorizationRequests ?? [];
-    private IReadOnlyList<RunnerRequestItem> LocalRunnerRequests => _snapshot.RunnerRequests ?? [];
     private IReadOnlyList<NotificationReadState> NotificationStates => _snapshot.NotificationStates ?? [];
 
     /// <summary>Read the user's saved workspace once; later calls return the same task.</summary>
@@ -89,15 +88,21 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             var local = LocalProfiles.ToDictionary(p => p.Id);
             var seeded = store.Household.Select(p => local.GetValueOrDefault(p.Id) ?? p).ToList();
             var added = LocalProfiles.Where(p => !store.Household.Any(s => s.Id == p.Id)).OrderBy(p => p.CreatedAt);
-            return [.. seeded, .. added];
+            return [.. seeded.Concat(added).Select(WithAuthorization)];
         }
     }
 
+    /// <summary>A family member's authorization follows their latest request in the shared store (D9b).</summary>
+    private PatientProfile WithAuthorization(PatientProfile profile) =>
+        profile.Authorization != AuthorizationStatus.Self && workflow.LatestAuthorization(profile.Id) is { } latest
+            ? profile with { Authorization = StaffDecisionRules.ProfileStatus(latest.Request.Status) }
+            : profile;
+
     public bool IsHousehold(Guid patientId) => Household.Any(p => p.Id == patientId);
 
-    /// <summary>A patient's authorization requests (seeded and this user's), newest first.</summary>
+    /// <summary>A patient's authorization requests (seeded and shared), newest first.</summary>
     public IReadOnlyList<AuthorizationRequest> RequestsFor(Guid patientId) =>
-        [.. store.AuthorizationRequests().Concat(LocalRequests).Where(r => r.PatientId == patientId).OrderByDescending(r => r.RequestedAt)];
+        [.. workflow.AuthorizationsFor(patientId).Select(a => a.Request)];
 
     /// <summary>
     /// Add a patient (id null) or edit one. Validates at this boundary; the account holder stays
@@ -162,25 +167,15 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         var request = new AuthorizationRequest(
             Guid.NewGuid().ToString("N")[..12], patientId, basis!.Value,
             file!.FileName, file.ContentType, file.SizeBytes, now);
-        var updated = patient with { Authorization = AuthorizationStatus.PendingReview };
+        var href = $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, Household)}";
         var notification = new PortalNotification($"n-auth-{request.Id}", "Authorization requested",
-            $"Your request to act for {patient.FullName} is being reviewed.", now, false,
-            $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, Household)}");
+            $"Your request to act for {patient.FullName} is being reviewed.", now, false, href);
 
-        var before = _snapshot;
-        _snapshot = _snapshot with
-        {
-            Profiles = [.. LocalProfiles.Where(p => p.Id != patientId), updated],
-            AuthorizationRequests = [.. LocalRequests, request],
-            Notifications = [notification, .. _snapshot.Notifications],
-        };
-        if (!await PersistAsync())
-        {
-            _snapshot = before;
-            Changed?.Invoke();
-            return AuthorizationResult.SaveFailed();
-        }
-        return AuthorizationResult.Saved(request);
+        // The request goes to the shared store so an administrator can decide; the profile's status follows it.
+        var shared = new SharedAuthorization(request, patient.FullName, patient.Relationship, patient.DateOfBirth, href, 0);
+        return await workflow.RequestAuthorizationAsync(shared, notification)
+            ? AuthorizationResult.Saved(request)
+            : AuthorizationResult.SaveFailed();
     }
 
     // ---- Account details and saved data (D8) ----
@@ -280,22 +275,22 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     // ---- Optional runner requests (D6) ----
 
     /// <summary>
-    /// The household's runner requests: seeded ones for the household's applications (staff data,
-    /// read-only here) and the ones this user made.
+    /// The household's runner requests from the shared store (D9b): the ones this account made
+    /// (newest first), then seeded ones by date needed.
     /// </summary>
     public IReadOnlyList<RunnerRequestItem> RunnerRequests
     {
         get
         {
-            var mine = LocalRunnerRequests.ToList();
-            var seeded = store.RunnerRequests().Where(r => CurrentApplication(r.ApplicationReference) is not null);
-            // The user's own requests first (newest first), then seeded ones by date needed.
-            return [.. mine.OrderByDescending(r => r.RequestedAt), .. seeded.OrderByDescending(r => r.NeededBy)];
+            var all = workflow.AllRunnerRequests().Where(r => CurrentApplication(r.Request.ApplicationReference) is not null).ToList();
+            var mine = all.Where(r => workflow.IsFamilyRunnerRequest(r.Id)).Select(r => r.Request).OrderByDescending(r => r.RequestedAt);
+            var seeded = all.Where(r => !workflow.IsFamilyRunnerRequest(r.Id)).Select(r => r.Request).OrderByDescending(r => r.NeededBy);
+            return [.. mine, .. seeded];
         }
     }
 
-    /// <summary>True for requests this user made (they can cancel one before it is assigned).</summary>
-    public bool IsOwnRunnerRequest(string id) => LocalRunnerRequests.Any(r => r.Id == id);
+    /// <summary>True for requests this account made (they can cancel one before it is assigned).</summary>
+    public bool IsOwnRunnerRequest(string id) => workflow.IsFamilyRunnerRequest(id) && RunnerRequests.Any(r => r.Id == id);
 
     /// <summary>
     /// Ask for optional runner help with one errand. Validates at this boundary (eligible
@@ -325,49 +320,35 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         var notification = new PortalNotification($"n-{request.Id}", "Runner help requested",
             $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false, "/patient/runner");
 
-        var before = _snapshot;
-        _snapshot = _snapshot with
-        {
-            RunnerRequests = [.. LocalRunnerRequests, request],
-            Notifications = [notification, .. _snapshot.Notifications],
-        };
-        if (!await PersistAsync())
-        {
-            _snapshot = before;
-            Changed?.Invoke();
-            return RunnerRequestResult.SaveFailed();
-        }
-        return RunnerRequestResult.Saved(request);
+        return await workflow.RequestRunnerAsync(request, notification)
+            ? RunnerRequestResult.Saved(request)
+            : RunnerRequestResult.SaveFailed();
     }
 
-    /// <summary>Cancel one of this user's requests while it is still waiting for a runner. False if not allowed or not saved.</summary>
-    public async Task<bool> CancelRunnerRequestAsync(string id)
-    {
-        var request = LocalRunnerRequests.FirstOrDefault(r => r.Id == id);
-        if (request is null || request.Status != RunnerTaskStatus.PendingAssignment) return false;
+    /// <summary>Cancel one of this account's requests while it is still waiting for a runner. False if not allowed or not saved.</summary>
+    public Task<bool> CancelRunnerRequestAsync(string id) =>
+        workflow.CancelRunnerRequestAsync(id, reference => CurrentApplication(reference) is not null);
 
-        var before = _snapshot;
-        var cancelled = request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() };
-        _snapshot = _snapshot with { RunnerRequests = [.. LocalRunnerRequests.Select(r => r.Id == id ? cancelled : r)] };
-        if (!await PersistAsync())
-        {
-            _snapshot = before;
-            Changed?.Invoke();
-            return false;
-        }
-        return true;
-    }
-
-    /// <summary>History entries for this user's runner requests on an application.</summary>
+    /// <summary>
+    /// History entries for runner requests on an application: this account's requests and
+    /// cancellations, and every assignment an administrator made (seeded requests already have
+    /// their own "requested" entry in the seeded history).
+    /// </summary>
     public IReadOnlyList<ApplicationEvent> RunnerEvents(string reference) =>
     [
-        .. LocalRunnerRequests.Where(r => Same(r.ApplicationReference, reference)).SelectMany(r =>
+        .. RunnerRequests.Where(r => Same(r.ApplicationReference, reference)).SelectMany(r =>
         {
-            var requested = new ApplicationEvent(reference, r.RequestedAt ?? r.NeededBy, ApplicationEventKind.RunnerRequested,
-                "Runner help requested", "You", $"{r.Errand} at {r.Place}.");
-            return r.Status == RunnerTaskStatus.Cancelled && r.ClosedAt is { } closed
-                ? new[] { requested, new ApplicationEvent(reference, closed, ApplicationEventKind.RunnerRequested, "Runner request cancelled", "You") }
-                : [requested];
+            var own = workflow.IsFamilyRunnerRequest(r.Id);
+            var events = new List<ApplicationEvent>();
+            if (own)
+                events.Add(new(reference, r.RequestedAt ?? r.NeededBy, ApplicationEventKind.RunnerRequested,
+                    "Runner help requested", "You", $"{r.Errand} at {r.Place}."));
+            if (r.AssignedAt is { } assigned)
+                events.Add(new(reference, assigned, ApplicationEventKind.RunnerRequested, $"Runner assigned: {r.RunnerName}", "MediAssist",
+                    "Runner help doesn't change the application's status."));
+            if (own && r.Status == RunnerTaskStatus.Cancelled && r.ClosedAt is { } closed)
+                events.Add(new(reference, closed, ApplicationEventKind.RunnerRequested, "Runner request cancelled", "You"));
+            return events;
         }),
     ];
 
@@ -658,7 +639,7 @@ public sealed record AuthorizationResult(AuthorizationRequest? Request, IReadOnl
     public static AuthorizationResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
 
     public static AuthorizationResult SaveFailed() =>
-        new(null, new Dictionary<string, string>(), "We couldn’t save this request in this browser. Try again.");
+        new(null, new Dictionary<string, string>(), "We couldn’t save this request. It may already have been sent from another browser; reload and check.");
 }
 
 /// <summary>The outcome of a runner request: the saved request, or field errors / a save failure.</summary>
@@ -671,5 +652,5 @@ public sealed record RunnerRequestResult(RunnerRequestItem? Request, IReadOnlyDi
     public static RunnerRequestResult Failed(Dictionary<string, string> errors) => new(null, errors, null);
 
     public static RunnerRequestResult SaveFailed() =>
-        new(null, new Dictionary<string, string>(), "We couldn’t save this request in this browser. Try again.");
+        new(null, new Dictionary<string, string>(), "We couldn’t save this request. The application may already have one in progress; reload and check.");
 }

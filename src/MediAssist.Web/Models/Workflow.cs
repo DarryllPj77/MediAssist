@@ -24,10 +24,13 @@ public sealed record SharedApplication(
 public sealed record WorkflowState(
     IReadOnlyDictionary<string, SharedApplication> Applications,
     IReadOnlyList<DocumentUpload> Uploads,
-    IReadOnlyList<PortalNotification> Notifications)
+    IReadOnlyList<PortalNotification> Notifications,
+    IReadOnlyDictionary<string, SharedAuthorization> Authorizations,
+    IReadOnlyDictionary<string, SharedRunnerRequest> RunnerRequests)
 {
     public static WorkflowState Empty { get; } = new(
-        new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase), [], []);
+        new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase), [], [],
+        new Dictionary<string, SharedAuthorization>(), new Dictionary<string, SharedRunnerRequest>());
 }
 
 /// <summary>What a patient submission writes: the new application, its uploads and the confirmation.</summary>
@@ -141,4 +144,83 @@ public static class ReviewRules
 
     public static string? CompleteProblem(ApplicationStatus status) =>
         status != ApplicationStatus.ReadyForProcessing ? "Only an application ready for processing can be completed." : null;
+}
+
+// ---- Authorization reviews and runner assignment (D9b) ----
+
+/// <summary>
+/// An authorization request as the shared store holds it, with what the reviewer needs about the
+/// patient (copied when the family asks, since profiles stay in the family's browser) and the
+/// family's link to that profile.
+/// </summary>
+public sealed record SharedAuthorization(
+    AuthorizationRequest Request,
+    string PatientName,
+    string Relationship,
+    DateOnly? DateOfBirth,
+    string PatientHref,
+    int Version)
+{
+    public string Id => Request.Id;
+}
+
+/// <summary>A runner request as the shared store holds it (a seeded one nobody changed is version 0).</summary>
+public sealed record SharedRunnerRequest(RunnerRequestItem Request, int Version)
+{
+    public string Id => Request.Id;
+}
+
+/// <summary>A fictional medical runner the administrator can assign (no real people or contact details).</summary>
+public sealed record RunnerProfile(string Name, string Area);
+
+/// <summary>Rules for authorization decisions and runner assignment (D9b).</summary>
+public static class StaffDecisionRules
+{
+    /// <summary>The prototype's fictional runners.</summary>
+    public static IReadOnlyList<RunnerProfile> Runners { get; } =
+    [
+        new("Paolo Dizon", "Bayview and Quezon City"),
+        new("Liza Manalo", "Northridge"),
+        new("Ramil Ocampo", "San Isidro"),
+        new("Cora Bautista", "Eastgate and Mandaluyong"),
+    ];
+
+    /// <summary>What the family's profile shows for a request's state.</summary>
+    public static AuthorizationStatus ProfileStatus(AuthorizationRequestStatus status) => status switch
+    {
+        AuthorizationRequestStatus.Approved => AuthorizationStatus.Authorized,
+        AuthorizationRequestStatus.Rejected => AuthorizationStatus.Rejected,
+        _ => AuthorizationStatus.PendingReview
+    };
+
+    /// <summary>Approve only a waiting request whose basis still fits the patient (a parent's request needs a patient under 18).</summary>
+    public static string? ApproveProblem(AuthorizationRequestStatus status, AuthorizationBasis basis, DateOnly? dateOfBirth, DateOnly today)
+    {
+        if (status != AuthorizationRequestStatus.Pending) return "This request already has a decision.";
+        if (basis != AuthorizationBasis.ParentOfMinor) return null;
+        if (dateOfBirth is not { } dob) return "The patient's date of birth is missing, so a parent's request can't be checked.";
+        var age = today.Year - dob.Year - (today < dob.AddYears(today.Year - dob.Year) ? 1 : 0);
+        return age < 18 ? null : "The patient is 18 or older, so a parent's request doesn't apply. Don't approve it; ask for a signed letter instead.";
+    }
+
+    public static string? RejectProblem(AuthorizationRequestStatus status, string? note) =>
+        status != AuthorizationRequestStatus.Pending ? "This request already has a decision." : ReviewRules.ReasonProblem(note);
+
+    /// <summary>
+    /// A runner can be assigned while the request waits (or was declined), and changed while assigned
+    /// but not yet accepted. Once the runner accepts, the errand is theirs (D10).
+    /// </summary>
+    public static string? AssignProblem(RunnerTaskStatus status, string? currentRunner, string? runner)
+    {
+        if (runner is null || Runners.All(r => r.Name != runner)) return "Choose a runner from the list.";
+        return status switch
+        {
+            RunnerTaskStatus.Requested or RunnerTaskStatus.PendingAssignment => null,
+            RunnerTaskStatus.Declined or RunnerTaskStatus.Assigned when runner == currentRunner =>
+                status == RunnerTaskStatus.Declined ? $"{runner} declined this errand. Choose another runner." : $"{runner} is already assigned.",
+            RunnerTaskStatus.Declined or RunnerTaskStatus.Assigned => null,
+            RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress => "The runner has accepted this errand, so it can't be reassigned here.",
+            _ => "This request is closed."
+        };
+    }
 }

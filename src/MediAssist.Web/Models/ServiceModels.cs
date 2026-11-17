@@ -80,7 +80,8 @@ public sealed record RunnerRequestItem(
     string? TimeWindow = null,
     string? Notes = null,
     DateTimeOffset? RequestedAt = null,
-    DateTimeOffset? ClosedAt = null);
+    DateTimeOffset? ClosedAt = null,
+    DateTimeOffset? AssignedAt = null);
 
 /// <summary>A runner's assigned task: only the minimum information the errand needs (Phase 1 rule).</summary>
 public sealed record RunnerTask(

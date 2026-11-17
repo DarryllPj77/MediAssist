@@ -95,7 +95,7 @@ else
         _now = Clock.GetLocalNow();
         // The dashboard lists what still needs a reviewer; ready-for-processing waits on the queue page.
         _queue = (await Staff.GetReviewQueueAsync()).Where(q => q.Status != ApplicationStatus.ReadyForProcessing).ToList();
-        _requests = await Staff.GetRunnerRequestsAsync();
+        _requests = (await Staff.GetRunnerRequestsAsync()).Select(r => r.Request).ToList();
         _user = await Staff.GetUserAsync(PortalRole.Administrator);
     }
 }

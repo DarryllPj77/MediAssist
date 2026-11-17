@@ -1,0 +1,175 @@
+@page "/admin/runners"
+@inherits StaffWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    Runner management (D9b): runner requests from every family. A waiting or declined request gets
+    a runner from the prototype's fictional list; an assigned one can be changed until the runner
+    accepts (after that the errand is the runner's, D10). The application's status never changes
+    with any of this. Filters: ?show=open (default) | assigned | closed; ?request=<id> highlights
+    one request (the dashboard's "Assign runner" link). Every change carries the version on screen.
+*@
+
+<PageTitle>Runner management · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="runners-title" ImageKey="@ImageSlots.HeroKeyForPath("admin/runners")" Compact="true"
+               Title="Runner management"
+               TitleFilipino="Pamamahala ng mga runner"
+               Lead="@LeadText"
+               LeadFilipino="Opsyonal ang tulong ng runner; hindi nito binabago ang aplikasyon.">
+        <Eyebrow>Administrator</Eyebrow>
+    </SplitHero>
+
+    <section class="staffreq" aria-labelledby="runner-list-title">
+        <h2 id="runner-list-title" class="visually-hidden">Runner requests</h2>
+        <FilterChips Chips="Chips" AriaLabel="Runner requests by stage" Noun="request" />
+
+        <p class="staffreq__status" role="status">@_status</p>
+        @if (_error is not null)
+        {
+            <p class="field__error staffreq__error" role="alert"><Icon Name="alert-circle" Size="18" /> @_error</p>
+        }
+
+        @if (_items.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="route" Title="No runner requests here" Message="Requests appear here when a family asks for runner help." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="staffreq__list">
+                @foreach (var item in _items)
+                {
+                    var r = item.Request;
+                    var canAssign = StaffDecisionRules.AssignProblem(r.Status, r.RunnerName, Choices(r).FirstOrDefault()?.Name) is null;
+                    var selectId = $"runner-{r.Id}";
+                    <li class="sreq @(NeedsRunner(r.Status) ? "sreq--open" : null) @(r.Id == Request ? "sreq--target" : null)" id="@($"request-{r.Id}")">
+                        <div class="sreq__head">
+                            <h3 class="sreq__title">@r.Errand</h3>
+                            <Badge Text="@RunnerTaskStatusDisplay.Label(r.Status)" Tone="@RunnerTaskStatusDisplay.Tone(r.Status)" IconName="@RunnerTaskStatusDisplay.Icon(r.Status)" />
+                        </div>
+                        <dl class="sreq__facts">
+                            <div><dt>Application</dt><dd><span class="tabular">@r.ApplicationReference</span> · @PatientName(r.ApplicationReference)</dd></div>
+                            <div><dt>Where</dt><dd>@r.Place</dd></div>
+                            <div><dt>Needed by</dt><dd>@DisplayFormat.Date(r.NeededBy)@(r.TimeWindow is null ? "" : $", {r.TimeWindow.Split(',')[0].ToLowerInvariant()}")</dd></div>
+                            <div><dt>Runner</dt><dd>@(r.RunnerName ?? "Not assigned yet")</dd></div>
+                        </dl>
+                        @if (r.Notes is not null)
+                        {
+                            <p class="sreq__note"><span class="visually-hidden">Family's notes: </span>@r.Notes</p>
+                        }
+                        @if (r.Status == RunnerTaskStatus.Declined && r.RunnerName is not null)
+                        {
+                            <p class="sreq__warn"><Icon Name="alert-triangle" Size="18" /> @r.RunnerName declined. Choose another runner.</p>
+                        }
+
+                        @if (canAssign)
+                        {
+                            <div class="sreq__assign">
+                                <div class="field sreq__select">
+                                    <label class="field__label" for="@selectId">@(r.Status == RunnerTaskStatus.Assigned ? "Change runner" : "Runner")</label>
+                                    <select id="@selectId" class="select" value="@ChoiceFor(r)" @onchange="e => _choice[r.Id] = e.Value?.ToString()">
+                                        @foreach (var runner in Choices(r))
+                                        {
+                                            <option value="@runner.Name">@runner.Name, @runner.Area</option>
+                                        }
+                                    </select>
+                                </div>
+                                <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="route" Disabled="_busy" OnClick="() => AssignAsync(item)">
+                                    @(r.Status == RunnerTaskStatus.Assigned ? "Change runner" : "Assign runner")<span class="visually-hidden"> for @r.ApplicationReference</span>
+                                </AppButton>
+                            </div>
+                        }
+                        else if (r.Status is RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress)
+                        {
+                            <p class="sreq__hint">The runner has accepted this errand. Changes now go through the runner.</p>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
+    [SupplyParameterFromQuery(Name = "request")] public string? Request { get; set; }
+
+    private IReadOnlyList<SharedRunnerRequest> _all = [];
+    private IReadOnlyList<SharedRunnerRequest> _items = [];
+    private readonly Dictionary<string, string?> _choice = [];
+    private string? _status;
+    private string? _error;
+    private bool _busy;
+
+    private static bool NeedsRunner(RunnerTaskStatus s) => s is RunnerTaskStatus.Requested or RunnerTaskStatus.PendingAssignment or RunnerTaskStatus.Declined;
+    private static bool IsAssigned(RunnerTaskStatus s) => s is RunnerTaskStatus.Assigned or RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress;
+
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+    [
+        new("Needs a runner", RoleNavigation.AdminRunners.Href, _all.Count(r => NeedsRunner(r.Request.Status)),
+            Active: Show is not ("assigned" or "closed"), Attention: _all.Any(r => NeedsRunner(r.Request.Status))),
+        new("Assigned", $"{RoleNavigation.AdminRunners.Href}?show=assigned", _all.Count(r => IsAssigned(r.Request.Status)), Active: Show == "assigned"),
+        new("Closed", $"{RoleNavigation.AdminRunners.Href}?show=closed",
+            _all.Count(r => !NeedsRunner(r.Request.Status) && !IsAssigned(r.Request.Status)), Active: Show == "closed"),
+    ];
+
+    private string LeadText
+    {
+        get
+        {
+            var open = _all.Count(r => NeedsRunner(r.Request.Status));
+            return open switch
+            {
+                0 => "Every runner request has a runner. Runner help is optional and never changes an application.",
+                1 => "1 request needs a runner. Runner help is optional and never changes an application.",
+                _ => $"{open} requests need a runner. Runner help is optional and never changes an application."
+            };
+        }
+    }
+
+    /// <summary>Runners to offer: everyone except the one already assigned (or who declined).</summary>
+    private static IReadOnlyList<RunnerProfile> Choices(RunnerRequestItem r) =>
+        [.. StaffDecisionRules.Runners.Where(x => x.Name != r.RunnerName)];
+
+    private string? ChoiceFor(RunnerRequestItem r) =>
+        _choice.TryGetValue(r.Id, out var chosen) && chosen is not null ? chosen : Choices(r).FirstOrDefault()?.Name;
+
+    private string PatientName(string reference) => Workflow.Find(reference)?.Application.PatientName ?? "Patient";
+
+    protected override async Task LoadAsync()
+    {
+        _all = await Staff.GetRunnerRequestsAsync();
+        IEnumerable<SharedRunnerRequest> shown = Show switch
+        {
+            "assigned" => _all.Where(r => IsAssigned(r.Request.Status)),
+            "closed" => _all.Where(r => !NeedsRunner(r.Request.Status) && !IsAssigned(r.Request.Status)),
+            _ => _all.Where(r => NeedsRunner(r.Request.Status)),
+        };
+        _items = [.. shown.OrderBy(r => r.Request.NeededBy)];
+    }
+
+    private async Task AssignAsync(SharedRunnerRequest item)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _status = null;
+        var runner = ChoiceFor(item.Request);
+        var result = await Workflow.AssignRunnerAsync(item.Id, item.Version, runner);
+        _busy = false;
+        if (result.Succeeded)
+        {
+            _status = $"{runner} assigned to {item.Request.ApplicationReference}. The application's status hasn't changed.";
+            _choice.Remove(item.Id);
+        }
+        else
+        {
+            _error = result.Error;
+        }
+        if (result.Conflict) await LoadAsync();
+    }
+}

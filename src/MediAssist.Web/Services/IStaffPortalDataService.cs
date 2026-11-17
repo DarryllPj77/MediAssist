@@ -15,8 +15,9 @@ public interface IStaffPortalDataService
     Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken = default);
     /// <summary>One application for review (D9a), or null when there is none with that reference.</summary>
     Task<ReviewDetail?> GetReviewAsync(string reference, CancellationToken cancellationToken = default);
-    /// <summary>Authorization requests waiting for or given an administrator decision (D9 reviews them).</summary>
-    Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<RunnerRequestItem>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Authorization requests waiting for or given an administrator decision (D9b), with what the reviewer needs.</summary>
+    Task<IReadOnlyList<SharedAuthorization>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Runner requests from every family (D9b), with versions for assignment.</summary>
+    Task<IReadOnlyList<SharedRunnerRequest>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RunnerTask>> GetRunnerTasksAsync(CancellationToken cancellationToken = default);
 }

@@ -4,9 +4,9 @@ using MediAssist.Web.Navigation;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// The staff portals' view. Reviews come from the shared <see cref="WorkflowService"/> (D9a), so
-/// administrators see what patients submit from any browser; people, authorization requests and
-/// runner data still come from the seeded <see cref="MockPortalStore"/> until D9b and D10.
+/// The staff portals' view. Reviews, authorization requests and runner requests come from the
+/// shared <see cref="WorkflowService"/> (D9a, D9b), so administrators see what families send from
+/// any browser; staff names and runner tasks still come from the seeded <see cref="MockPortalStore"/> (D10).
 /// </summary>
 public sealed class MockStaffPortalDataService(MockPortalStore store, WorkflowService workflow) : IStaffPortalDataService
 {
@@ -49,15 +49,13 @@ public sealed class MockStaffPortalDataService(MockPortalStore store, WorkflowSe
             workflow.AuthorizationPending(current.Application.PatientId)));
     }
 
-    /// <summary>
-    /// Authorization requests for administrator review (D9). Seeded requests only: requests made in
-    /// a patient's browser (D4) are not visible to staff until shared persistence exists.
-    /// </summary>
-    public Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(store.AuthorizationRequests());
+    /// <summary>Authorization requests from every family (D9b), newest first.</summary>
+    public Task<IReadOnlyList<SharedAuthorization>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(workflow.AllAuthorizations());
 
-    public Task<IReadOnlyList<RunnerRequestItem>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(store.RunnerRequests());
+    /// <summary>Runner requests from every family (D9b), seeded ones included.</summary>
+    public Task<IReadOnlyList<SharedRunnerRequest>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(workflow.AllRunnerRequests());
 
     public Task<IReadOnlyList<RunnerTask>> GetRunnerTasksAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(store.RunnerTasks());

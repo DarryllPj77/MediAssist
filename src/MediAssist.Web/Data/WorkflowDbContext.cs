@@ -12,6 +12,17 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     public DbSet<StoredApplication> Applications => Set<StoredApplication>();
     public DbSet<StoredUpload> Uploads => Set<StoredUpload>();
     public DbSet<StoredNotification> Notifications => Set<StoredNotification>();
+    public DbSet<StoredRecord> Authorizations => Set<StoredRecord>("Authorizations");
+    public DbSet<StoredRecord> RunnerRequests => Set<StoredRecord>("RunnerRequests");
+
+    /// <summary>
+    /// Tables added after a database was first created (D9b). <c>EnsureCreated</c> does nothing to an
+    /// existing file, so these are created if missing until the project adopts migrations.
+    /// </summary>
+    public const string AddLaterTables = """
+        CREATE TABLE IF NOT EXISTS "Authorizations" ("Id" TEXT NOT NULL CONSTRAINT "PK_Authorizations" PRIMARY KEY, "Json" TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS "RunnerRequests" ("Id" TEXT NOT NULL CONSTRAINT "PK_RunnerRequests" PRIMARY KEY, "Json" TEXT NOT NULL);
+        """;
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -32,6 +43,13 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
             e.HasKey(n => n.Id);
             e.Property(n => n.Id).HasMaxLength(80);
         });
+        // One record type, two tables (shared-type entities): authorization and runner requests.
+        foreach (var table in new[] { "Authorizations", "RunnerRequests" })
+            model.SharedTypeEntity<StoredRecord>(table, e =>
+            {
+                e.ToTable(table);
+                e.HasKey(r => r.Id);
+            });
     }
 }
 
@@ -50,6 +68,13 @@ public sealed class StoredUpload
 {
     public string Id { get; set; } = "";
     public string Reference { get; set; } = "";
+    public string Json { get; set; } = "";
+}
+
+/// <summary>A request (authorization or runner, D9b): <see cref="Json"/> holds the shared record.</summary>
+public sealed class StoredRecord
+{
+    public string Id { get; set; } = "";
     public string Json { get; set; } = "";
 }
 
