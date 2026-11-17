@@ -60,7 +60,8 @@ public sealed record ReviewQueueItem(
     int DocumentsReady,
     int DocumentsRequired,
     DateTimeOffset WaitingSince,
-    bool AuthorizationPending);
+    bool AuthorizationPending,
+    int AwaitingDecision = 0);
 
 /// <summary>An optional runner request as the administrator sees it.</summary>
 /// <summary>

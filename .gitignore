@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# MediAssist shared workflow database (D9, created on first run)
+src/MediAssist.Web/App_Data/

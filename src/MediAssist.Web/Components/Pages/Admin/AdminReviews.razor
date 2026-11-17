@@ -1,0 +1,82 @@
+@page "/admin/reviews"
+@inherits StaffWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    Review queue (D9a): every open application from the shared store, from any browser. Filter
+    links by stage (?stage=submitted|review|correction|ready); the oldest wait comes first.
+*@
+
+<PageTitle>Review queue · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="reviews-title" ImageKey="@ImageSlots.HeroKeyForPath("admin/reviews")" Compact="true"
+               Title="Review queue"
+               TitleFilipino="Mga susuriin"
+               Lead="@LeadText"
+               LeadFilipino="Suriin nang maingat; bawat papel ay isang pamilyang naghihintay.">
+        <Eyebrow>Administrator</Eyebrow>
+    </SplitHero>
+
+    <section class="reviews" aria-labelledby="reviews-list-title">
+        <h2 id="reviews-list-title" class="visually-hidden">Applications</h2>
+        <FilterChips Chips="Chips" AriaLabel="Applications by stage" />
+
+        @if (_items.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="check-circle" Title="Nothing here right now"
+                            Message="No open application is at this stage." />
+            </Panel>
+        }
+        else
+        {
+            <ReviewQueueTable Items="_items" Now="_now" />
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "stage")] public string? Stage { get; set; }
+
+    private IReadOnlyList<ReviewQueueItem> _all = [];
+    private IReadOnlyList<ReviewQueueItem> _items = [];
+    private DateTimeOffset _now;
+
+    private static readonly (string Key, string Label, ApplicationStatus Status)[] Stages =
+    [
+        ("submitted", "Waiting to start", ApplicationStatus.Submitted),
+        ("review", "In review", ApplicationStatus.UnderReview),
+        ("correction", "With the family", ApplicationStatus.NeedsCorrection),
+        ("ready", "Ready for processing", ApplicationStatus.ReadyForProcessing),
+    ];
+
+    private ApplicationStatus? Selected => Stages.FirstOrDefault(s => string.Equals(s.Key, Stage, StringComparison.OrdinalIgnoreCase)) is { Key: not null } s
+        ? s.Status : null;
+
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+    [
+        new("All open", RoleNavigation.AdminReviews.Href, _all.Count, Active: Selected is null),
+        .. Stages.Select(s => new FilterChips.Chip(s.Label, $"{RoleNavigation.AdminReviews.Href}?stage={s.Key}",
+            _all.Count(i => i.Status == s.Status), Active: Selected == s.Status,
+            Attention: s.Status == ApplicationStatus.Submitted && _all.Any(i => i.Status == s.Status))),
+    ];
+
+    private string LeadText
+    {
+        get
+        {
+            var toStart = _all.Count(i => i.Status == ApplicationStatus.Submitted);
+            var inReview = _all.Count(i => i.Status == ApplicationStatus.UnderReview);
+            return $"{toStart} waiting to start and {inReview} in review. Applications from every family's browser arrive here.";
+        }
+    }
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _all = await Staff.GetReviewQueueAsync();
+        _items = Selected is { } status ? _all.Where(i => i.Status == status).ToList() : _all;
+    }
+}

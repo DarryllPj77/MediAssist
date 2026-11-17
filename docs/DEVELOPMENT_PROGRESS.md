@@ -1,21 +1,21 @@
 # MediAssist Development Progress
 
-MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is committed as `d9fd22a` and pushed. D5 (hospital directory and search) is committed as `b42be6d` and pushed. D6 (optional runner requests) is committed as `5ecfb68` and pushed. D7 (notification read/unread and links) is committed as `7f57383` and pushed. D8 (user profile and settings) is implemented and verified but not yet committed.**
+MediAssist is a C# and Blazor prototype for preparing and tracking medical assistance applications. Milestone 1 and Milestone 2 phases A–C, D1, D2 and D3 are committed. D3 includes simulated document uploads, the correction workflow and prerequisite fixes P1–P3. Administrator decisions, patient management and runner actions are still planned. **D4 (patient profiles and simulated authorization requests) is committed as `d9fd22a` and pushed. D5 (hospital directory and search) is committed as `b42be6d` and pushed. D6 (optional runner requests) is committed as `5ecfb68` and pushed. D7 (notification read/unread and links) is committed as `7f57383` and pushed. D8 (user profile and settings) is committed as `a5311c9` and pushed. D9a (shared workflow store and administrator reviews) is implemented and verified but not yet committed.**
 
 ## Current snapshot
 
 | Field | Verified state |
 |---|---|
-| Reviewed | 13 November 2026, Asia/Manila (D8 implementation review) |
+| Reviewed | 17 November 2026, Asia/Manila (D9a implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `7f57383` — feat(patient): implement notification read state and links (pushed; `origin/design/premium-civic-imagery` in sync) |
-| Latest application commit | `7f573838c53f0081119e6168f019b53f13257559` — D7 |
-| Latest implementation | D8 — User Profile & Settings (**implemented, uncommitted**) |
-| Application changes awaiting commit | D8: 9 new files, 14 modified, 1 deleted (`PortalPlaceholder.razor`) — see “D8 User Profile & Settings” below |
-| Documentation awaiting commit | (1) the post-commit D7 hash/push record, preserved; (2) this D8 status, features, verification and log update |
+| Branch HEAD | `a5311c9` — feat(settings): implement user profile and settings (pushed; `origin/design/premium-civic-imagery` in sync) |
+| Latest application commit | `a5311c965024f85cf6e85db02e426dcdd2a7c63a` — D8 |
+| Latest implementation | D9a — Shared workflow store & administrator reviews (**implemented, uncommitted**) |
+| Application changes awaiting commit | D9a: new shared store, review pages and a test project — see “D9a Shared Workflow Store & Administrator Reviews” below |
+| Documentation awaiting commit | (1) the post-commit D8 hash/push record, preserved; (2) this D9a status, features, verification and log update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 in progress; A–C and D1–D7 committed and pushed; D8 implemented and verified, awaiting commit approval |
-| Next development task | Commit D8 (with this document) once approved; then D9 — Administrator workflows and shared persistence (**plan only** until approved) |
+| Overall status | Milestone 2 in progress; A–C and D1–D8 committed and pushed; D9a implemented and verified, awaiting commit approval |
+| Next development task | Commit D9a (with this document) once approved; then D9b — authorization approval and runner assignment |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -34,6 +34,7 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 - D6 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **232 of 232** page checks (58 routes × 320, 768, 1024 and 1440 px, with own and seeded runner requests stored), same checks as D4–D5 plus textarea target size. Flow checks are listed under D6 below. The version 3 → 4 snapshot upgrade uses the same generic upgrade path verified with real older builds in D3 and D4; it was not re-run with a D5 build.
 - D7 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **224 of 224** page checks (56 routes × 320, 768, 1024 and 1440 px, with stored read states and a new local notification). Flow checks are listed under D7 below. The version 4 → 5 snapshot upgrade uses the same generic upgrade path verified with real older builds in D3 and D4.
 - D8 verification (13 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `git diff --check` clean. Scripted browser suite passed **160 of 160** page checks (40 routes, including the three new settings pages, × 320, 768, 1024 and 1440 px): overflow, 44 px targets, 13 px text, one h1, at most one filled button, duplicate ids, ARIA references, heading order and AA contrast. The suite was rebuilt for D8; its first run flagged row-title links whose whole row is the click area (stretched links, unchanged since earlier phases), so the target rule now skips links with a stretched click area. Flow checks are listed under D8 below. The version 5 → 6 snapshot upgrade uses the same generic upgrade path verified with real older builds in D3 and D4.
+- D9a verification (17 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `dotnet test` **16 of 16** passed (new `tests/MediAssist.Web.Tests`); `git diff --check` clean. Scripted browser suite at 320, 768, 1024 and 1440 px over 47 routes (including the queue, its filters and six review pages): **188 of 188** page checks pass. The first run found 10 small-text failures (the reference in the review page's eyebrow at 320 and 768 px); after the fix those pages were rechecked. Flow checks are listed under D9a below.
 - No dedicated test project exists in the tracked solution. The browser checks above are scripted in the review session, not committed tests.
 
 To repeat verification from the repository root in PowerShell, without stopping a running app:
@@ -61,8 +62,10 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | D5 — Hospital Directory & Search | Completed | **Committed** | `b42be6d`; searchable directory, hospital details, wizard and Programs integration |
 | D6 — Optional Medical Runner Requests | Completed | **Committed** | `5ecfb68`; request list, request form, cancel before assignment, detail-page links and history; application status untouched |
 | D7 — In-App Notifications & Read/Unread Management | Completed | **Committed** | `7f57383`; read/unread per notification, mark all read, All/Unread filters, links to related items; bell and dashboard follow |
-| D8 — User Profile & Settings | Implemented and verified | **Uncommitted** | Patient account details (synced with the “You” profile), display preferences for every role, clear saved data; staff settings read-only |
-| D9–D10 | Pending | Agreed roadmap | Some read-only foundations exist; remaining workflows are not complete |
+| D8 — User Profile & Settings | Completed | **Committed** | `a5311c9`; patient account details (synced with the “You” profile), display preferences for every role, clear saved data; staff settings read-only |
+| D9a — Shared workflow store & administrator reviews | Implemented and verified | **Uncommitted** | SQLite (EF Core) shared store for submitted applications, uploads and review notifications; review queue and review page; document decisions and status changes; xUnit tests |
+| D9b — Authorization approval & runner assignment | Pending | Approved plan | Authorization requests and runner requests still live in the patient's browser |
+| D10 | Pending | Agreed roadmap | Runner workflows |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -88,6 +91,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-13 | `b42be6d` | feat(patient): implement hospital directory and search |
 | 2026-11-13 | `5ecfb68` | feat(patient): implement optional runner requests |
 | 2026-11-13 | `7f57383` | feat(patient): implement notification read state and links |
+| 2026-11-13 | `a5311c9` | feat(settings): implement user profile and settings |
 
 ## Completed features and workflows
 
@@ -211,7 +215,9 @@ Built in efficient mode. Decisions: read state covers **seeded and the user's ow
 
 **Flow checks performed (browser, 13 November 2026):** initial 3 unread (bell 3); mark one read (bell 2, Unread chip 2, row moves down); mark a read one unread (bell 3); mark all read (bell cleared, “You are up to date.”); Unread filter with one item and the active chip; opening that item's link navigated to MA-2026-00431 and cleared it (“You're all caught up”); state kept across reloads; dashboard shows read state and links; a new runner-request notification arrived unread with its link. Fixed during verification: filter chips announced “applications” instead of “notifications”.
 
-### D8 User Profile & Settings (uncommitted)
+### D8 User Profile & Settings
+
+Committed on 13 November 2026 as `a5311c965024f85cf6e85db02e426dcdd2a7c63a` with message `feat(settings): implement user profile and settings` (24 application files and the progress document, which also carried the D7 hash record), then pushed: `7f57383..a5311c9`. `git pull --rebase` beforehand reported the branch up to date.
 
 Built in efficient mode. Decisions: in a prototype without sign-in, the patient may edit **first name, last name and an optional email** (fictional, `example.com`); staff account details are **read-only**. Settings include **display preferences** (sidebar layout, Filipino helper text) for every role; notification preferences are left out because MediAssist sends nothing outside the app.
 
@@ -225,6 +231,22 @@ Built in efficient mode. Decisions: in a prototype without sign-in, the patient 
 **Data:** new `Models/Account.cs` (`AccountDetails`, `AccountRules`, `SidebarPreference`); `PortalUser` gains optional `Email`. Workspace snapshot **version 6** adds `Account` (null until the user changes it); `GetCurrentUserAsync` merges it. `ApplicationWorkspace.SaveAccountAsync` and `ClearAsync` restore the previous state if the browser save fails. `portalLayout.js` setters now report whether the browser kept the value. The routeless `PortalPlaceholder.razor` was deleted (settings was its last route).
 
 **Flow checks performed (browser, 13 November 2026):** empty first name and malformed email gave two field errors, `aria-invalid` and the summary; a valid save (“Mariana Santos-Cruz”, `mariana@example.com`) showed “Your details are saved.”, renamed the header and the “You” profile, and its editor showed the fixed name with the Settings link; Always compact + English only set `data-sidebar="collapsed"`, `data-fil="hide"` (no visible Filipino lines), stored both and carried over to `/runner/settings`; Clear → Keep my data changed nothing; Clear → Yes restored the seeded account and announced it, with focus handled. Fixed during verification: the clear button's red outline lost to the button's own styles (equal specificity).
+
+### D9a Shared Workflow Store & Administrator Reviews (uncommitted)
+
+Approved plan (17 November 2026, “Approve D9”): SQLite with EF Core for submitted work; drafts and preferences stay in the browser; every browser is the same fictional account (no sign-in); D9 split into D9a and D9b; fixed Data Protection application name; an xUnit test project.
+
+1. **Shared store.** `Data/WorkflowDbContext.cs` (EF Core SQLite, file `src/MediAssist.Web/App_Data/mediassist.db`, git-ignored, created on first run with `EnsureCreated`; no migrations yet). Rows keep the record as JSON plus the fields staff filter on. `Services/WorkflowService.cs` (singleton) holds an immutable read model loaded at start-up; every change runs through one gate, checks its rules, writes to the database and only then swaps the read model and raises `Changed`. Seeded applications stay in `MockPortalStore` until their first change copies them in at version 1.
+2. **Patient side.** Submitting moves the application, its draft uploads and the confirmation into the shared store; the **reference is chosen there under the gate**, so two browsers can't take the same one. Uploads to submitted applications go to the shared store (an accepted document can't be replaced); uploads to drafts stay in the browser. The D3 correction rule (back to review once every sent-back document has a new copy) now runs in the shared store. Patient pages, the bell and the dashboard update live when a reviewer acts. Settings now says applications you sent stay when the browser is cleared.
+3. **`/admin/reviews`** replaces the placeholder: every open application (all browsers and seeded data), oldest wait first, with stage filters (Waiting to start, In review, With the family, Ready for processing), flags for a pending authorization and documents waiting for a decision. The dashboard uses the same ledger (`Features/Admin/ReviewQueueTable`) and is live.
+4. **`/admin/reviews/{reference}`**: the stage's one next step — Start review (blocked while the patient's authorization is pending), Mark ready for processing / Send back for correction, Mark processing complete (“doesn't decide on assistance; the program office does”). Per document: Accept, “Needs a new copy” or, for a missing one, “Ask for it”, each with a 10–300 character reason the family sees. Every action carries the version the reviewer saw; a stale action saves nothing and shows the latest version. History lists every decision.
+5. **Rules** (`Models/Workflow.cs`, `ReviewRules`, `ChecklistOverlay`): only undecided latest uploads show as “being reviewed”; send-back needs every copy decided and at least one sent back; ready needs every required document accepted. New event kinds `DocumentAccepted`, `DocumentRejected` (appended).
+6. **Data Protection** uses the fixed application name `MediAssist`, so moving the app no longer loses browser data. As approved, this **reset earlier prototype browser data once**. Because of that reset, step 3 of the approved plan (copying older browser submissions into the shared store) has nothing to read and was not built; no older data can be decrypted to copy.
+7. **Tests:** `tests/MediAssist.Web.Tests` (xUnit, added to `MediAssist.slnx`): review rules and overlay; against a real SQLite file — unique references and persistence across restart, a full review round with one correction, stale version refused, accepted document not replaceable and scope checked, seeded application copied on first change, authorization guard.
+
+**Flow checks performed (browser, 17 November 2026):** queue showed the five seeded open applications; a new wizard submission with one draft upload became MA-2026-00453 with the upload carried over and the draft gone; review started (family notified); a 6-character reason was refused with the field marked and focused; Prescription sent back, Clinical abstract and Valid ID asked for; “Mark ready” and early “Send back” were refused with reasons; sent back to the family, who saw status, notes, history and the bell (6); three new copies — the third returned it to review (“Every correction is in”); a second reviewer page refreshed live when the first accepted a document; accept ×2, ready, complete; the open patient page showed Completed live; after a server restart the application was still Completed; Start review on MA-2026-00395 was refused while Lia's authorization is pending. **Fixed during verification:** a document asked for (never sent) was labelled “Sent with the application”; the reference in the review page's eyebrow rendered at 11.4 px (same fix as D1).
+
+**Not verified:** the stale-version message in the browser (the page refreshes live, so the race is hard to trigger; the rule is covered by a test); two physically separate browsers (both portals ran in one browser profile; the shared state is server-side and covered by tests).
 
 ## Current architecture
 
@@ -250,10 +272,11 @@ Built in efficient mode. Decisions: in a prototype without sign-in, the patient 
 | Service | Lifetime and data | Boundary |
 |---|---|---|
 | `MockPortalStore` | Singleton, read-only fictional seed records; dates calculated relative to the current day | Patient and staff services share the seeded story |
-| `ApplicationWorkspace` | Scoped to the Blazor circuit; drafts, submissions, notifications, (D3) simulated uploads and (D4) patient profiles and authorization requests; snapshot version 3; `Household` merges seed and local profiles | User work is separate from the singleton seed store |
-| `ProtectedLocalWorkspaceStorage` | ASP.NET Core protected browser `localStorage`, key `mediassist.workspace` | Data Protection protects the serialized snapshot; no database persistence |
+| `ApplicationWorkspace` | Scoped to the Blazor circuit; drafts and their uploads, profiles, authorization and runner requests, read states and account changes (browser); shows the household's part of the shared store and passes submissions and uploads to it (D9a) | User-only work stays in the browser |
+| `WorkflowService` (D9a) | Singleton; SQLite through EF Core (`App_Data/mediassist.db`); immutable read model, one write gate, versioned applications | Submitted applications, uploads, review decisions and their notifications, shared by every portal |
+| `ProtectedLocalWorkspaceStorage` | ASP.NET Core protected browser `localStorage`, key `mediassist.workspace` | Data Protection protects the serialized snapshot; fixed application name `MediAssist` since D9a |
 | `MockPatientPortalDataService` | Scoped; merges local submissions/drafts over matching seed references | Patient views include local changes |
-| `MockStaffPortalDataService` | Scoped; reads the seed store only (including seeded authorization requests for D9) | Staff views do not receive browser-only submissions, uploads, profiles or requests |
+| `MockStaffPortalDataService` | Scoped; reviews from `WorkflowService` (D9a); staff names, authorization and runner data still from the seed store | Browser-only profiles, authorization and runner requests are not visible to staff until D9b |
 | `WorkspaceAwarePage` | Subscribes/unsubscribes to workspace changes | Re-queries page data after interactive storage load or mutation |
 
 The layout loads browser storage after interactivity starts. Version 1 and 2 snapshots are upgraded to version 3; an unknown version or unreadable protected content resets the workspace. Storage is browser/origin-specific, not a signed-in multi-device account store. PostgreSQL and EF Core are planned in the Phase 1 concept, not implemented.
@@ -267,47 +290,49 @@ The following findings are source-verified unless explicitly described as build 
 | ~~Mobile drawer interop mismatch~~ — **fixed in D3 (`8c0554e`)** | Both exports were removed as "unused" in `3130302`; restored and verified (open, close, Escape, navigation) | None |
 | ~~Patient context from program search is dropped~~ — **fixed in D4 (`d9fd22a`)** | Programs now passes the search's patient into the wizard with the program | None |
 | ~~Resumed seed draft can retain stale checklist context~~ — **fixed in D3 (`8c0554e`)** | The seed checklist is reused only while the program is unchanged | None |
-| Local submissions, uploads, profiles, authorization and runner requests are not visible to administrators | Staff service reads only `MockPortalStore`; everything the user creates (D2–D4) lives in their browser. The D3 correction return-to-review happens on the user's local copy without a reviewer; D4 requests stay “Being reviewed” and D6 runner requests stay “Waiting for a runner” | Choose shared workflow persistence before D9 administrator reviews |
-| Upload reviews are not decided | D3 uploads stay `Pending`; nothing marks a document accepted or rejected, so “Ready” counts only change in seed data | D9: reviewer accept/reject with reason, using `UploadReviewState` and `ReviewNote` |
-| Management pages are placeholders | Patient profiles (D4, `d9fd22a`), hospitals (D5, `b42be6d`) and runner requests (D6, `5ecfb68`) are implemented. Settings for all roles is implemented (D8, uncommitted). Staff management/task routes still use placeholder components; `/admin/authorizations` awaits D9 | Implement the pending modules below |
+| Profiles, authorization and runner requests are not visible to administrators | **Submissions and uploads are shared since D9a.** Patient profiles, authorization requests and runner requests still live in the patient's browser, so D4 requests stay “Being reviewed” and D6 runner requests stay “Waiting for a runner” | D9b |
+| ~~Upload reviews are not decided~~ — **fixed in D9a (uncommitted)** | Reviewers accept, send back or ask for documents with a reason; uploads record the decision | None |
+| Management pages are placeholders | Patient profiles (D4, `d9fd22a`), hospitals (D5, `b42be6d`) and runner requests (D6, `5ecfb68`) are implemented. Settings for all roles is implemented (D8, `a5311c9`). Staff management/task routes still use placeholder components; the review queue is implemented (D9a); `/admin/authorizations` and `/admin/runners` await D9b | Implement the pending modules below |
 | ~~Notification read state cannot be changed~~ — **fixed in D7 (`7f57383`)** | Read/unread per notification and mark-all, saved in the user's browser. Staff notification pages remain placeholders | Staff notifications with D9/D10 |
 | Persistence and recovery are limited | Browser storage has no account isolation, multi-device sync or cross-tab conflict handling. D3 now reports save failures to the user and rolls back uploads/submissions that were not saved | Idempotency and eventual database persistence |
-| Stored data is tied to the app's build location | Observed during D3 verification: ASP.NET Core Data Protection isolates keys per application location by default, so a build run from a different folder could not decrypt data saved by another (the workspace safely reset). Moving or republishing the app to a new folder would reset users' stored drafts | Set a fixed Data Protection application name and key location before any shared deployment (would reset existing prototype data once) |
-| References are local | Generator considers known seed/local references only | Enforce unique references transactionally when adding shared persistence |
-| Verification is not automated | No dedicated test project; D3 and D4 were verified with scripted browser checks in the review session (not committed). The owner's running app can lock the default build output | Add focused behavioral tests (validation, versioning, migration, references, profile rules); repeat vulnerability audit with connectivity |
+| ~~Stored data is tied to the app's build location~~ — **fixed in D9a (uncommitted)** | Data Protection now uses the fixed application name `MediAssist`; this reset earlier prototype browser data once | None |
+| ~~References are local~~ — **fixed in D9a (uncommitted)** | References are chosen in the shared store under one gate | None while one server process owns the database |
+| Verification is only partly automated | D9a added `tests/MediAssist.Web.Tests` (16 tests: review rules, shared store). Browser checks remain scripted in the review session and are not committed | Extend tests to profile, upload and runner rules; repeat vulnerability audit with connectivity |
 | Profiles cannot be removed | D4 adds and edits profiles; there is no archive/remove flow, and an added patient with applications must stay for history | Decide archive rules (D8 or later) |
 | Authorization is not identity verification | Requests use fictional sample files; nothing verifies a real relationship or identity, and approvals only exist in seed data until D9 | D9 review actions; real verification needs authentication and shared persistence |
 | Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
+| Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema made with `EnsureCreated` (no migrations); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
 
 Only fictional records and simulated documents belong in this prototype. Real medical records, official submissions, payment processing, real dispatch, AI/OCR, SMS/email and production compliance readiness are outside the delivered scope.
 
 ## Remaining Phase D checklist
 
-**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is committed (`d9fd22a`); D5 is committed (`b42be6d`); D6 is committed (`5ecfb68`); D7 is committed (`7f57383`); D8 is implemented but not yet committed.
+**Agreed roadmap:** The owner supplied the following D3–D10 scope. Existing display components are foundations, not completion of these workflows. Every unchecked item is pending; D3 is committed; D4 is committed (`d9fd22a`); D5 is committed (`b42be6d`); D6 is committed (`5ecfb68`); D7 is committed (`7f57383`); D8 is committed (`a5311c9`); D9a is implemented but not yet committed.
 
 - [x] **D3 — Simulated Document Uploads & Correction Workflow:** implemented and committed as `8c0554e`. Upload metadata, validation, replacement/versions, history, counts and correction return-to-review; fictional sample files only. Handoff to D9: `UploadReviewState` and `ReviewNote` are reserved for reviewer decisions.
 - [x] **D4 — Patient Profile Management & Authorization Requests:** implemented, verified and committed as `d9fd22a` (pushed). Profile list/details/add/edit, reusable profiles in the wizard (add-and-return, pre-selection, authorization gate), simulated authorization requests with a supporting sample document. Handoff to D9: `AuthorizationRequest` status/decision/note fields and `IStaffPortalDataService.GetAuthorizationRequestsAsync`.
 - [x] **D5 — Hospital Directory & Search:** implemented, verified and committed as `b42be6d` (pushed). Searchable directory and hospital details; the wizard uses the directory (pre-selection, “not listed at” notes) and Programs lists where each program is handled.
 - [x] **D6 — Optional Medical Runner Requests (Patient Portal):** implemented, verified and committed as `5ecfb68` (pushed). Request list and form for permitted errands on eligible applications, cancel before assignment, detail-page integration and history; runner and application statuses stay independent. Assignment remains D9, execution D10.
 - [x] **D7 — In-App Notifications & Read/Unread Management:** implemented, verified and committed as `7f57383` (pushed). Read/unread and mark-all for seeded and own notifications, All/Unread filters, links to the related item; bell and dashboard follow. Staff notification pages remain placeholders.
-- [x] **D8 — User Profile & Settings:** implemented and verified (**uncommitted**, awaiting approval). Patient account name and optional email (synced with the “You” profile), display preferences for every role, clear saved data with confirmation; staff account details are read-only.
-- [ ] **D9 — Administrator Workflows: Review Queue, Document Reviews, Authorization Approval & Runner Assignment:** extend the seeded dashboard into actionable reviews, correction reasons, authorization approval, readiness transitions and manual runner assignment/reassignment. Management routes remain placeholders; choose shared workflow persistence first.
+- [x] **D8 — User Profile & Settings:** implemented, verified and committed as `a5311c9` (pushed). Patient account name and optional email (synced with the “You” profile), display preferences for every role, clear saved data with confirmation; staff account details are read-only.
+- [ ] **D9 — Administrator Workflows: Review Queue, Document Reviews, Authorization Approval & Runner Assignment:** split into D9a and D9b (approved 17 November 2026). **D9a implemented and verified (uncommitted):** shared SQLite store, review queue, document decisions, correction round, ready/complete. **D9b pending:** authorization approval and manual runner assignment.
 - [ ] **D10 — Medical Runner Workflows: Assignments, Task Details, Status Updates & History:** replace runner task/history placeholders with assigned-task details, accept/decline, progress, completion and history. The dashboard currently displays seeded tasks; runner and application statuses must remain independent.
 
 Integration testing, mobile/accessibility checks and the known-issue fixes apply across all phases. Authentication and PostgreSQL/EF Core remain explicit architecture prerequisites for a real multi-user service; their delivery milestone is not assigned by this roadmap.
 
 ## Next development task and prerequisites
 
-**Next step: commit D8** (application changes and this document, including the preserved D7 hash record) once the owner approves. Then **D9 — Administrator workflows and shared persistence**, which is **plan only** until the owner approves it.
+**Next step: commit D9a** (application changes, the test project and this document, including the preserved D8 hash record) once the owner approves. Then **D9b — authorization approval and runner assignment**.
 
-D8 decisions recorded:
+D9 decisions recorded (approved 17 November 2026):
 
-- [x] Without sign-in, the patient edits first name, last name and an optional fictional email; staff details are read-only.
-- [x] The account holder's name lives in the account; the “You” profile follows it.
-- [x] Settings offers display preferences (sidebar, Filipino helper text) for every role; no notification preferences, since nothing is sent outside the app.
-- [x] “Clear my saved data” resets only this browser's workspace, after confirmation.
+- [x] Shared store: SQLite through EF Core for submitted work; drafts, profiles (until D9b), preferences and read states stay in the browser.
+- [x] No sign-in: every browser is the same fictional account.
+- [x] D9 split into D9a (reviews) and D9b (authorizations, runner assignment).
+- [x] Fixed Data Protection application name (one-time reset of earlier browser data; copying older submissions therefore had nothing to read).
+- [x] xUnit tests for the workflow rules.
 
-Before D9: choose the shared persistence (for example SQLite with EF Core) and how browser-only data reaches staff, and whether D9 adds a fixed Data Protection application name and key location (see Known issues).
+D9b will move authorization requests and runner requests (and the profiles they need) into the shared store, then add `/admin/authorizations` (approve, or reject with a note) and `/admin/runners` (assign or reassign from fictional runners); runner status stays independent of application status, and runner task pages stay D10.
 
 ## Updating this document
 
@@ -335,4 +360,6 @@ After each phase:
 | 2026-11-13 | Committed D6 and progress documentation (exact message: `feat(patient): implement optional runner requests`), then pushed (`b42be6d..5ecfb68`) | `5ecfb68aa55c2b496368bf700820801249f0ecad` | D6 committed and pushed; this actual-hash update is uncommitted |
 | 2026-11-13 | D7 implemented and verified (efficient mode): notification read/unread, mark all, filters and links | `5ecfb68` + working tree | Committed as `7f57383` |
 | 2026-11-13 | Committed D7 and progress documentation (exact message: `feat(patient): implement notification read state and links`), then pushed (`5ecfb68..7f57383`) | `7f573838c53f0081119e6168f019b53f13257559` | D7 committed and pushed; this actual-hash update is uncommitted |
-| 2026-11-13 | D8 implemented and verified (efficient mode): account details, display preferences, clear saved data, staff settings | `7f57383` + working tree | Uncommitted, awaiting approval |
+| 2026-11-13 | D8 implemented and verified (efficient mode): account details, display preferences, clear saved data, staff settings | `7f57383` + working tree | Committed as `a5311c9` |
+| 2026-11-13 | Committed D8 and progress documentation (exact message: `feat(settings): implement user profile and settings`), then pushed (`7f57383..a5311c9`) | `a5311c965024f85cf6e85db02e426dcdd2a7c63a` | D8 committed and pushed; this actual-hash update is uncommitted |
+| 2026-11-17 | D9 plan approved (D9a/D9b split); D9a implemented and verified: shared SQLite store, review queue and page, document decisions, tests | `a5311c9` + working tree | Uncommitted, awaiting approval |

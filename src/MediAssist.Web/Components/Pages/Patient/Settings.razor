@@ -70,8 +70,9 @@
     <Panel LabelledBy="data-title">
         <h2 id="data-title" class="settings__title" tabindex="-1" @ref="_dataTitle">Data saved in this browser</h2>
         <p class="settings__intro">
-            Your drafts, applications you sent, uploads, added patients, requests, notification choices and account
-            changes are kept only in this browser. Staff and other devices can’t see them in this prototype.
+            Your drafts and their uploads, added patients, authorization and runner requests, notification choices and
+            account changes are kept only in this browser. Applications you send are kept in MediAssist’s shared records
+            so a reviewer can check them, and clearing this browser doesn’t remove them.
         </p>
         <p class="settings__held">@HeldSummary</p>
 
@@ -85,7 +86,7 @@
             <div class="settings__confirm" role="group" aria-labelledby="clear-question">
                 <p id="clear-question" class="settings__confirm-text" tabindex="-1" @ref="_question">
                     <Icon Name="alert-triangle" Size="20" />
-                    <span>Clear everything saved in this browser? This can’t be undone. The sample applications stay.</span>
+                    <span>Clear everything saved in this browser? This can’t be undone. Applications you sent and the sample applications stay.</span>
                 </p>
                 <div class="settings__confirm-actions">
                     <AppButton Variant="AppButton.ButtonVariant.Secondary" Class="settings__clear" IconStart="x-circle" OnClick="ClearAsync">Yes, clear my data</AppButton>
@@ -122,8 +123,7 @@
             var parts = new[]
             {
                 Count(Workspace.Drafts.Count, "draft"),
-                Count(Workspace.Submitted.Count, "application you sent", "applications you sent"),
-                Count(Workspace.Uploads.Count, "upload"),
+                Count(Workspace.LocalUploadCount, "upload to a draft", "uploads to drafts"),
                 Count(Workspace.Household.Count(p => p.CreatedAt is not null), "added patient"),
             };
             return $"Now in this browser: {string.Join(", ", parts)}.";

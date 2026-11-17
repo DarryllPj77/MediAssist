@@ -1,0 +1,48 @@
+@*
+    The administrator's review ledger (dashboard and /admin/reviews): one row per application,
+    oldest wait first. The patient's name opens the review; the whole row is its click area.
+*@
+
+<div class="queue__table">
+    <div class="queue__columns" aria-hidden="true">
+        <span>Application</span>
+        <span>Stage</span>
+        <span>Documents</span>
+        <span>Waiting</span>
+    </div>
+    <ul role="list" class="queue__rows">
+        @foreach (var item in Items.OrderBy(q => q.WaitingSince))
+        {
+            <li class="qrow @(item.Status == ApplicationStatus.NeedsCorrection ? "qrow--attention" : null)">
+                <div class="qrow__main">
+                    <a class="qrow__title" href="@($"{RoleNavigation.AdminReviews.Href}/{item.ReferenceNumber}")">@item.PatientName</a>
+                    <p class="qrow__meta">@item.ProgramName · @item.HospitalName <span class="ref">@item.ReferenceNumber</span></p>
+                    @if (item.AuthorizationPending)
+                    {
+                        <p class="qrow__flag"><Icon Name="shield-check" Size="16" /> Patient authorization also needs review</p>
+                    }
+                    @if (item.AwaitingDecision > 0)
+                    {
+                        <p class="qrow__flag"><Icon Name="file-text" Size="16" /> @(item.AwaitingDecision == 1 ? "1 document waits for a decision" : $"{item.AwaitingDecision} documents wait for a decision")</p>
+                    }
+                </div>
+                <p class="qrow__stage">
+                    <span class="visually-hidden">Stage: </span>
+                    <StatusBadge Status="item.Status" />
+                </p>
+                <p class="qrow__docs tabular @(item.DocumentsReady < item.DocumentsRequired ? "qrow__docs--missing" : null)">
+                    <span class="visually-hidden">Documents: </span>@item.DocumentsReady of @item.DocumentsRequired ready
+                </p>
+                <p class="qrow__waiting">
+                    <span class="visually-hidden">Last change </span>
+                    <time datetime="@DisplayFormat.Machine(item.WaitingSince)">@DisplayFormat.Relative(item.WaitingSince, Now)</time>
+                </p>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ReviewQueueItem> Items { get; set; } = [];
+    [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+}

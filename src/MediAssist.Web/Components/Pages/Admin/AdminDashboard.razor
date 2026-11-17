@@ -1,4 +1,5 @@
 @page "/admin"
+@inherits StaffWorkflowPage
 @inject IStaffPortalDataService Staff
 @inject TimeProvider Clock
 
@@ -37,40 +38,7 @@ else
                 </Actions>
             </SectionHeader>
 
-            <div class="queue__table">
-                <div class="queue__columns" aria-hidden="true">
-                    <span>Application</span>
-                    <span>Stage</span>
-                    <span>Documents</span>
-                    <span>Waiting</span>
-                </div>
-                <ul role="list" class="queue__rows">
-                    @foreach (var item in _queue.OrderBy(q => q.WaitingSince))
-                    {
-                        <li class="qrow @(item.Status == ApplicationStatus.NeedsCorrection ? "qrow--attention" : null)">
-                            <div class="qrow__main">
-                                <a class="qrow__title" href="@($"{RoleNavigation.AdminReviews.Href}/{item.ReferenceNumber}")">@item.PatientName</a>
-                                <p class="qrow__meta">@item.ProgramName · @item.HospitalName <span class="ref">@item.ReferenceNumber</span></p>
-                                @if (item.AuthorizationPending)
-                                {
-                                    <p class="qrow__flag"><Icon Name="shield-check" Size="16" /> Patient authorization also needs review</p>
-                                }
-                            </div>
-                            <p class="qrow__stage">
-                                <span class="visually-hidden">Stage: </span>
-                                <StatusBadge Status="item.Status" />
-                            </p>
-                            <p class="qrow__docs tabular @(item.DocumentsReady < item.DocumentsRequired ? "qrow__docs--missing" : null)">
-                                <span class="visually-hidden">Documents: </span>@item.DocumentsReady of @item.DocumentsRequired ready
-                            </p>
-                            <p class="qrow__waiting">
-                                <span class="visually-hidden">Waiting since </span>
-                                <time datetime="@DisplayFormat.Machine(item.WaitingSince)">@DisplayFormat.Relative(item.WaitingSince, _now)</time>
-                            </p>
-                        </li>
-                    }
-                </ul>
-            </div>
+            <ReviewQueueTable Items="_queue" Now="_now" />
         </section>
 
         <section class="requests" aria-labelledby="requests-title">
@@ -122,10 +90,11 @@ else
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task LoadAsync()
     {
         _now = Clock.GetLocalNow();
-        _queue = await Staff.GetReviewQueueAsync();
+        // The dashboard lists what still needs a reviewer; ready-for-processing waits on the queue page.
+        _queue = (await Staff.GetReviewQueueAsync()).Where(q => q.Status != ApplicationStatus.ReadyForProcessing).ToList();
         _requests = await Staff.GetRunnerRequestsAsync();
         _user = await Staff.GetUserAsync(PortalRole.Administrator);
     }

@@ -61,6 +61,8 @@
         ApplicationEventKind.RunnerRequested => "route",
         ApplicationEventKind.Completed => "check-circle",
         ApplicationEventKind.Cancelled => "x-circle",
+        ApplicationEventKind.DocumentAccepted => "check",
+        ApplicationEventKind.DocumentRejected => "alert-circle",
         _ => "circle"
     };
 }

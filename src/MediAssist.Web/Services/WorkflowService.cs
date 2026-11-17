@@ -1,0 +1,427 @@
+using System.Text.Json;
+using MediAssist.Web.Data;
+using MediAssist.Web.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace MediAssist.Web.Services;
+
+/// <summary>
+/// The shared application workflow (D9a): submitted applications, their uploads and review
+/// decisions, and the notifications they send, kept in SQLite so the patient and administrator
+/// portals see one record. A singleton: <see cref="State"/> is an immutable read model loaded at
+/// start-up and swapped whole after each saved change, so reads are synchronous and safe from any
+/// circuit. Every change goes through one gate, checks its rules there, writes to the database
+/// and only then updates the read model and raises <see cref="Changed"/>.
+/// <para>
+/// Seeded applications stay in <see cref="MockPortalStore"/> (with day-relative dates) until the
+/// first change, which copies the application into the shared store at version 1.
+/// </para>
+/// </summary>
+public sealed class WorkflowService(
+    IDbContextFactory<WorkflowDbContext> factory,
+    MockPortalStore store,
+    TimeProvider clock,
+    ILogger<WorkflowService> logger)
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private const string Reviewer = "Reviewer";
+
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private WorkflowState _state = WorkflowState.Empty;
+
+    /// <summary>Raised after a saved change, on the thread that made it. Handlers marshal to their renderer.</summary>
+    public event Action? Changed;
+
+    public WorkflowState State => Volatile.Read(ref _state);
+
+    /// <summary>Create the database if needed and load the read model. Called once at start-up.</summary>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        await db.Database.EnsureCreatedAsync(cancellationToken);
+
+        var applications = new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in await db.Applications.AsNoTracking().ToListAsync(cancellationToken))
+            if (JsonSerializer.Deserialize<SharedApplication>(row.Json, Json) is { } a) applications[a.Reference] = a;
+
+        var uploads = (await db.Uploads.AsNoTracking().ToListAsync(cancellationToken))
+            .Select(u => JsonSerializer.Deserialize<DocumentUpload>(u.Json, Json)!).ToList();
+        var notifications = (await db.Notifications.AsNoTracking().ToListAsync(cancellationToken))
+            .Select(n => JsonSerializer.Deserialize<PortalNotification>(n.Json, Json)!)
+            .OrderByDescending(n => n.CreatedAt).ToList();
+
+        Volatile.Write(ref _state, new WorkflowState(applications, uploads, notifications));
+    }
+
+    // ---- Reading ----
+
+    /// <summary>The application behind a reference: the shared copy, else the seeded one (version 0).</summary>
+    public SharedApplication? Find(string reference)
+    {
+        if (State.Applications.TryGetValue(reference, out var shared)) return shared;
+        var seed = store.Applications().FirstOrDefault(a => Same(a.ReferenceNumber, reference));
+        if (seed is null) return null;
+        var checklist = store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, reference)) ?? GeneratedChecklist(seed);
+        var events = store.Events().Where(e => Same(e.ApplicationReference, reference)).OrderBy(e => e.At).ToList();
+        return new SharedApplication(seed, checklist, events, 0);
+    }
+
+    /// <summary>Every application (seeded and submitted, all accounts), shared copies replacing seeds.</summary>
+    public IReadOnlyList<SharedApplication> All()
+    {
+        var state = State;
+        var seeded = store.Applications().Where(a => !state.Applications.ContainsKey(a.ReferenceNumber)).Select(a => Find(a.ReferenceNumber)!);
+        return [.. state.Applications.Values, .. seeded];
+    }
+
+    /// <summary>The checklist with undecided uploads shown as "being reviewed".</summary>
+    public ApplicationChecklist Effective(SharedApplication application) =>
+        ChecklistOverlay.Apply(application.Checklist, State.Uploads);
+
+    public DocumentUpload? LatestUpload(string reference, string documentName) => Latest(State.Uploads, reference, documentName);
+
+    /// <summary>True while the patient's authorization request waits for an administrator (seeded requests until D9b).</summary>
+    public bool AuthorizationPending(Guid patientId) =>
+        store.AuthorizationRequests().Any(r => r.PatientId == patientId && r.Status == AuthorizationRequestStatus.Pending);
+
+    /// <summary>The application's history with its uploads, oldest first (the administrator's view).</summary>
+    public IReadOnlyList<ApplicationEvent> History(SharedApplication application) =>
+        [.. application.Events.Concat(UploadEvents(application.Reference, State.Uploads, application.Checklist)).OrderBy(e => e.At)];
+
+    /// <summary>History entries for uploads to one application ("… uploaded", "… replaced (version 2)").</summary>
+    public static IReadOnlyList<ApplicationEvent> UploadEvents(string reference, IEnumerable<DocumentUpload> uploads, ApplicationChecklist? baseChecklist)
+    {
+        var baseItems = baseChecklist?.Items.ToDictionary(i => i.Name, i => i.Status) ?? [];
+        return uploads.Where(u => Same(u.ApplicationReference, reference)).Select(u =>
+        {
+            var title = u.Version > 1 ? $"{u.DocumentName} replaced (version {u.Version})"
+                : baseItems.GetValueOrDefault(u.DocumentName) == DocumentStatus.NeedsCorrection ? $"Corrected {Lower(u.DocumentName)} uploaded"
+                : $"{u.DocumentName} uploaded";
+            return new ApplicationEvent(reference, u.UploadedAt, ApplicationEventKind.DocumentUploaded, title, "You",
+                $"{u.FileName} · {SimulatedFiles.FormatSize(u.SizeBytes)}");
+        }).ToList();
+    }
+
+    // ---- Patient actions ----
+
+    /// <summary>
+    /// Save a submission. The reference is chosen here, under the gate, so two browsers can't take
+    /// the same one; a resumed seeded draft keeps its own. Returns the reference, or null when it
+    /// could not be saved (or that seeded draft was already submitted elsewhere).
+    /// </summary>
+    public async Task<string?> SubmitAsync(string? fixedReference, Func<string, Submission> build)
+    {
+        string? reference = null;
+        var saved = false;
+        await _gate.WaitAsync();
+        try
+        {
+            var state = State;
+            SharedApplication? existing = null;
+            if (fixedReference is not null)
+            {
+                if (state.Applications.TryGetValue(fixedReference, out existing) && existing.Application.Status != ApplicationStatus.Draft)
+                    return null;
+                reference = fixedReference;
+            }
+            else
+            {
+                reference = ReferenceGenerator.NextReference(
+                    store.Applications().Select(a => a.ReferenceNumber).Concat(state.Applications.Keys), clock.GetLocalNow());
+            }
+
+            var submission = build(reference);
+            var application = submission.Application with { Version = (existing?.Version ?? 0) + 1 };
+            saved = await CommitAsync(state, [application], submission.Uploads, [submission.Notification]);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (saved) Changed?.Invoke();
+        return saved ? reference : null;
+    }
+
+    /// <summary>
+    /// Record a simulated upload for a submitted application in the account's scope. A missing or
+    /// sent-back document takes a copy; a copy still waiting for review can be replaced; an accepted
+    /// one can't. When every sent-back document has a new copy, the application returns to review.
+    /// </summary>
+    public async Task<UploadResult> UploadAsync(string reference, string documentName, SampleFile? file, Func<Guid, bool> inScope)
+    {
+        if (SimulatedFiles.Validate(file) is string invalid) return UploadResult.Invalid(invalid);
+
+        UploadResult result;
+        await _gate.WaitAsync();
+        try
+        {
+            var state = State;
+            var now = clock.GetLocalNow();
+            var current = Find(reference);
+            var item = current?.Checklist.Items.FirstOrDefault(i => i.Name == documentName);
+            var previous = Latest(state.Uploads, reference, documentName);
+            var allowed = current is not null && inScope(current.Application.PatientId) && item is not null
+                && current.Application.Status is not (ApplicationStatus.Draft or ApplicationStatus.Completed or ApplicationStatus.Cancelled)
+                && (DocumentStatusDisplay.NeedsAction(item.Status)
+                    || (item.Status == DocumentStatus.PendingReview && previous?.ReviewState == UploadReviewState.Pending));
+            if (!allowed) return UploadResult.Invalid($"{documentName} cannot be uploaded for this application.");
+
+            var upload = new DocumentUpload(
+                Guid.NewGuid().ToString("N")[..12], current!.Reference, documentName,
+                file!.FileName, file.ContentType, file.SizeBytes, now,
+                (previous?.Version ?? 0) + 1, previous?.Id);
+            IReadOnlyList<DocumentUpload> uploads = [.. state.Uploads, upload];
+
+            var application = current.Application with { LastUpdated = now };
+            var events = current.Events;
+            var notifications = new List<PortalNotification>();
+            var stillMissing = ChecklistOverlay.Apply(current.Checklist, uploads).Items.Count(i => DocumentStatusDisplay.NeedsAction(i.Status));
+            var corrected = application.Status == ApplicationStatus.NeedsCorrection
+                && current.Checklist.Items.Where(i => i.Status == DocumentStatus.NeedsCorrection)
+                    .All(i => Latest(uploads, reference, i.Name)?.ReviewState == UploadReviewState.Pending);
+
+            if (corrected)
+            {
+                // Phase 1 rule: a corrected application goes back to review.
+                application = application with
+                {
+                    Status = ApplicationStatus.UnderReview,
+                    NextStep = stillMissing > 0 ? AddMissing(stillMissing) : "Wait for the reviewer to check the corrected document",
+                };
+                events = [.. events, new(current.Reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
+                    "Every document the reviewer asked for has a new copy, so the application is back in review.",
+                    ApplicationStatus.UnderReview)];
+                notifications.Add(Notice(current.Reference, "corrected", "Correction sent",
+                    $"{current.Reference} is back in review with your corrected document.", now));
+            }
+            else if (application.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview)
+            {
+                application = application with
+                {
+                    NextStep = stillMissing > 0 ? AddMissing(stillMissing)
+                        : application.Status == ApplicationStatus.Submitted ? "Wait for the review to start"
+                        : "Wait for the document review to finish",
+                };
+            }
+
+            var updated = new SharedApplication(application, current.Checklist, events, current.Version + 1);
+            result = await CommitAsync(state, [updated], [upload], notifications)
+                ? UploadResult.Saved(upload, corrected)
+                : UploadResult.Invalid("We couldn’t save that upload. Try again.");
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (result.Succeeded) Changed?.Invoke();
+        return result;
+    }
+
+    // ---- Administrator actions (each checks the version the reviewer saw) ----
+
+    public Task<ReviewResult> StartReviewAsync(string reference, int expectedVersion) =>
+        ActAsync(reference, expectedVersion, (current, _, now) =>
+        {
+            if (ReviewRules.StartProblem(current.Application.Status, AuthorizationPending(current.Application.PatientId)) is string problem)
+                return Change.Refuse(problem);
+            var application = current.Application with
+            {
+                Status = ApplicationStatus.UnderReview, LastUpdated = now, NextStep = "Wait for the document review to finish",
+            };
+            return Change.To(current with
+            {
+                Application = application,
+                Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReviewStarted, "Review started", Reviewer,
+                    Status: ApplicationStatus.UnderReview)],
+            }, notification: Notice(current.Reference, "review", "Review started", $"{current.Reference} is now under review.", now));
+        });
+
+    /// <summary>Accept a document, or send it back (or ask for a missing one) with a reason the family will see.</summary>
+    public Task<ReviewResult> DecideDocumentAsync(string reference, int expectedVersion, string documentName, bool accept, string? reason) =>
+        ActAsync(reference, expectedVersion, (current, effective, now) =>
+        {
+            var item = effective.Items.FirstOrDefault(i => i.Name == documentName);
+            if (ReviewRules.DecideProblem(current.Application.Status, item, accept) is string problem) return Change.Refuse(problem);
+            if (!accept && ReviewRules.ReasonProblem(reason) is string reasonProblem) return Change.Refuse(reasonProblem);
+
+            var note = accept ? null : reason!.Trim();
+            var decided = item! with { Status = accept ? DocumentStatus.Complete : DocumentStatus.NeedsCorrection, ReviewerNote = note };
+            var checklist = current.Checklist with
+            {
+                Items = current.Checklist.Items.Select(i => i.Name == documentName ? decided : i).ToList(),
+            };
+            var latest = LatestUpload(reference, documentName);
+            DocumentUpload[] uploads = latest?.ReviewState == UploadReviewState.Pending
+                ? [latest with { ReviewState = accept ? UploadReviewState.Accepted : UploadReviewState.Rejected, ReviewNote = note }]
+                : [];
+            var title = accept ? $"{documentName} accepted"
+                : item.Status == DocumentStatus.Missing ? $"{documentName} requested" : $"{documentName} needs a new copy";
+
+            return Change.To(current with
+            {
+                Application = current.Application with { DocumentsReady = checklist.ReadyCount, LastUpdated = now },
+                Checklist = checklist,
+                Events = [.. current.Events, new(current.Reference, now,
+                    accept ? ApplicationEventKind.DocumentAccepted : ApplicationEventKind.DocumentRejected, title, Reviewer, note)],
+            }, uploads);
+        });
+
+    /// <summary>Send the application back to the family with the documents marked for correction.</summary>
+    public Task<ReviewResult> RequestCorrectionsAsync(string reference, int expectedVersion) =>
+        ActAsync(reference, expectedVersion, (current, effective, now) =>
+        {
+            if (ReviewRules.CorrectionProblem(current.Application.Status, effective) is string problem) return Change.Refuse(problem);
+            var flagged = effective.Items.Where(i => i.Status == DocumentStatus.NeedsCorrection).ToList();
+            var next = flagged.Count == 1 ? $"Send a new copy of the {Lower(flagged[0].Name)}" : $"Send new copies of {flagged.Count} documents";
+            var detail = string.Join(" ", flagged.Select(i => $"{i.Name}: {i.ReviewerNote}"));
+            return Change.To(current with
+            {
+                Application = current.Application with { Status = ApplicationStatus.NeedsCorrection, LastUpdated = now, NextStep = next },
+                Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.CorrectionRequested, "Correction requested",
+                    Reviewer, detail, ApplicationStatus.NeedsCorrection)],
+            }, notification: Notice(current.Reference, "correction", "Correction requested",
+                flagged.Count == 1 ? $"{current.Reference} needs a new copy of the {Lower(flagged[0].Name)}."
+                    : $"{current.Reference} needs new copies of {flagged.Count} documents.", now));
+        });
+
+    public Task<ReviewResult> MarkReadyAsync(string reference, int expectedVersion) =>
+        ActAsync(reference, expectedVersion, (current, effective, now) =>
+        {
+            if (ReviewRules.ReadyProblem(current.Application.Status, effective) is string problem) return Change.Refuse(problem);
+            return Change.To(current with
+            {
+                Application = current.Application with
+                {
+                    Status = ApplicationStatus.ReadyForProcessing, LastUpdated = now, NextStep = "No action needed from you",
+                },
+                Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReadyForProcessing, "Review finished",
+                    Reviewer, "All documents were accepted. The program office will process the application.",
+                    ApplicationStatus.ReadyForProcessing)],
+            }, notification: Notice(current.Reference, "ready", "Review finished",
+                $"{current.Reference} passed review and is with the program office.", now));
+        });
+
+    /// <summary>Internal processing is finished. This is not a financial decision; the program office makes that.</summary>
+    public Task<ReviewResult> CompleteAsync(string reference, int expectedVersion) =>
+        ActAsync(reference, expectedVersion, (current, _, now) =>
+        {
+            if (ReviewRules.CompleteProblem(current.Application.Status) is string problem) return Change.Refuse(problem);
+            return Change.To(current with
+            {
+                Application = current.Application with
+                {
+                    Status = ApplicationStatus.Completed, LastUpdated = now, NextStep = "Internal processing finished",
+                },
+                Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.Completed, "Application completed", "MediAssist",
+                    "Internal processing is finished. The program office decides on any assistance and contacts the family.",
+                    ApplicationStatus.Completed)],
+            }, notification: Notice(current.Reference, "completed", "Application completed",
+                $"Internal processing for {current.Reference} is finished.", now));
+        });
+
+    private sealed record Change(string? Error, SharedApplication? Updated, IReadOnlyList<DocumentUpload> Uploads, PortalNotification? Notification)
+    {
+        public static Change Refuse(string error) => new(error, null, [], null);
+
+        public static Change To(SharedApplication updated, IReadOnlyList<DocumentUpload>? uploads = null, PortalNotification? notification = null) =>
+            new(null, updated, uploads ?? [], notification);
+    }
+
+    private async Task<ReviewResult> ActAsync(string reference, int expectedVersion,
+        Func<SharedApplication, ApplicationChecklist, DateTimeOffset, Change> decide)
+    {
+        ReviewResult result;
+        await _gate.WaitAsync();
+        try
+        {
+            var current = Find(reference);
+            if (current is null) return ReviewResult.Refused("That application doesn't exist.");
+            if (current.Version != expectedVersion) return ReviewResult.Stale;
+
+            var change = decide(current, Effective(current), clock.GetLocalNow());
+            if (change.Error is not null) return ReviewResult.Refused(change.Error);
+
+            var updated = change.Updated! with { Version = current.Version + 1 };
+            result = await CommitAsync(State, [updated], change.Uploads, change.Notification is null ? [] : [change.Notification])
+                ? ReviewResult.Done
+                : ReviewResult.SaveFailed;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (result.Succeeded) Changed?.Invoke();
+        return result;
+    }
+
+    // ---- Storage ----
+
+    /// <summary>Write the changes in one transaction; on success swap in the new read model. Call under the gate.</summary>
+    private async Task<bool> CommitAsync(WorkflowState state, IReadOnlyList<SharedApplication> applications,
+        IReadOnlyList<DocumentUpload> uploads, IReadOnlyList<PortalNotification> notifications)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync();
+            foreach (var a in applications)
+            {
+                var row = await db.Applications.FindAsync(a.Reference);
+                if (row is null) db.Applications.Add(row = new StoredApplication { Reference = a.Reference });
+                row.PatientId = a.Application.PatientId;
+                row.Status = (int)a.Application.Status;
+                row.Version = a.Version;
+                row.Json = JsonSerializer.Serialize(a, Json);
+            }
+            foreach (var u in uploads)
+            {
+                var row = await db.Uploads.FindAsync(u.Id);
+                if (row is null) db.Uploads.Add(row = new StoredUpload { Id = u.Id });
+                row.Reference = u.ApplicationReference;
+                row.Json = JsonSerializer.Serialize(u, Json);
+            }
+            foreach (var n in notifications)
+                db.Notifications.Add(new StoredNotification { Id = n.Id, Json = JsonSerializer.Serialize(n, Json) });
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or IOException or InvalidOperationException)
+        {
+            logger.LogError(ex, "The shared workflow store could not be updated.");
+            return false;
+        }
+
+        var nextApplications = new Dictionary<string, SharedApplication>(state.Applications, StringComparer.OrdinalIgnoreCase);
+        foreach (var a in applications) nextApplications[a.Reference] = a;
+        var changedIds = uploads.Select(u => u.Id).ToHashSet();
+        Volatile.Write(ref _state, new WorkflowState(
+            nextApplications,
+            [.. state.Uploads.Where(u => !changedIds.Contains(u.Id)), .. uploads],
+            [.. notifications.OrderByDescending(n => n.CreatedAt), .. state.Notifications]));
+        return true;
+    }
+
+    // ---- Helpers ----
+
+    /// <summary>A seeded application without a written checklist: its program's documents, the first ones ready.</summary>
+    private ApplicationChecklist GeneratedChecklist(AssistanceApplication application)
+    {
+        var program = store.Programs.FirstOrDefault(p => p.Id == application.ProgramId);
+        var documents = program?.RequiredDocuments ?? [];
+        return new ApplicationChecklist(application.ReferenceNumber, application.ProgramName, application.PatientName,
+            documents.Select((d, i) => new ChecklistItem(d, i < application.DocumentsReady ? DocumentStatus.Complete : DocumentStatus.Missing,
+                true, "See the program's requirements")).ToList());
+    }
+
+    private static DocumentUpload? Latest(IEnumerable<DocumentUpload> uploads, string reference, string documentName) =>
+        uploads.Where(u => Same(u.ApplicationReference, reference) && u.DocumentName == documentName).MaxBy(u => u.Version);
+
+    /// <summary>A notification for the account holder, unique per change (repeated rounds don't collide).</summary>
+    private static PortalNotification Notice(string reference, string kind, string title, string message, DateTimeOffset now) =>
+        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmssfff}", title, message, now, false, $"/patient/applications/{reference}");
+
+    public static string AddMissing(int count) =>
+        count == 1 ? "Add the missing document" : $"Add the {count} missing documents";
+
+    private static string Lower(string name) => name.Length > 0 ? char.ToLowerInvariant(name[0]) + name[1..] : name;
+
+    private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+}

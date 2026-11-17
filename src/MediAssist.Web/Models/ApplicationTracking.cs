@@ -17,7 +17,10 @@ public enum ApplicationEventKind
     ReadyForProcessing,
     RunnerRequested,
     Completed,
-    Cancelled
+    Cancelled,
+    // Appended in D9a (stored values of the earlier kinds stay the same).
+    DocumentAccepted,
+    DocumentRejected
 }
 
 /// <summary>

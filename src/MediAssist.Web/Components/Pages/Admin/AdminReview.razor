@@ -1,0 +1,278 @@
+@page "/admin/reviews/{Reference}"
+@inherits StaffWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    One application's review (D9a). The stage decides the one next step (start review, send back
+    or mark ready, complete); while in review each document waiting for a decision can be accepted
+    or sent back with a reason the family sees, and a missing one can be asked for. Every action
+    carries the version the reviewer saw: if a family upload or another reviewer changed the
+    application first, nothing is saved and the latest version is shown. Completing is internal
+    processing only; the program office decides on any assistance.
+*@
+
+<PageTitle>@(_detail is null ? "Review" : $"Review {_detail.Application.ReferenceNumber}") · MediAssist</PageTitle>
+
+<div class="page page--wide review">
+    <div class="review__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@RoleNavigation.AdminReviews.Href" IconStart="chevron-left">Review queue</AppButton>
+    </div>
+
+    @if (_detail is null)
+    {
+        <header class="page__head">
+            <p class="eyebrow">Review</p>
+            <h1 class="page__title serif" tabindex="-1">We couldn’t find that application</h1>
+        </header>
+        <Panel>
+            <EmptyState IconName="search" Title="No application with that reference"
+                        Message="Check the reference, or open the review queue." />
+        </Panel>
+    }
+    else
+    {
+        var app = _detail.Application;
+        <header class="page__head review__head">
+            <p class="eyebrow"><span class="tabular">@app.ReferenceNumber</span> · @app.ProgramName</p>
+            <h1 class="page__title serif" tabindex="-1">@app.PatientName</h1>
+            <p class="review__meta">
+                <StatusBadge Status="app.Status" />
+                <span>@app.HospitalName</span>
+                <span>Last change <time datetime="@DisplayFormat.Machine(app.LastUpdated)">@DisplayFormat.Relative(app.LastUpdated, _now)</time></span>
+            </p>
+        </header>
+
+        @if (_detail.AuthorizationPending)
+        {
+            <p class="review__flag"><Icon Name="shield-check" Size="18" /> The patient's authorization is still being reviewed. Approve it before this review starts.</p>
+        }
+
+        <p class="review__status" role="status">@_status</p>
+        @if (_error is not null)
+        {
+            <p class="field__error review__error" role="alert"><Icon Name="alert-circle" Size="18" /> @_error</p>
+        }
+
+        <Panel LabelledBy="next-title" Class="review__next">
+            <h2 id="next-title" class="review__title">Next step</h2>
+            @switch (app.Status)
+            {
+                case ApplicationStatus.Submitted:
+                    <p class="review__hint">Start the review to check the documents. The family is told the review has started.</p>
+                    <div class="review__actions">
+                        <AppButton IconStart="search" Disabled="_busy" OnClick="StartAsync">Start review</AppButton>
+                    </div>
+                    break;
+                case ApplicationStatus.UnderReview:
+                    <p class="review__hint">@ReviewHint</p>
+                    <div class="review__actions">
+                        <AppButton IconStart="list-checks" Disabled="_busy" OnClick="ReadyAsync">Mark ready for processing</AppButton>
+                        <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="send" Disabled="_busy" OnClick="SendBackAsync">Send back for correction</AppButton>
+                    </div>
+                    break;
+                case ApplicationStatus.NeedsCorrection:
+                    <p class="review__hint">Waiting for the family to send new copies. It comes back to review once every document you sent back has a new copy.</p>
+                    break;
+                case ApplicationStatus.ReadyForProcessing:
+                    <p class="review__hint">Mark it complete when the program office has finished its internal processing. This doesn’t decide on assistance; the program office does that.</p>
+                    <div class="review__actions">
+                        <AppButton IconStart="check-circle" Disabled="_busy" OnClick="CompleteAsync">Mark processing complete</AppButton>
+                    </div>
+                    break;
+                default:
+                    <p class="review__hint">Nothing is left to do on this application.</p>
+                    break;
+            }
+        </Panel>
+
+        <Panel LabelledBy="docs-title">
+            <h2 id="docs-title" class="review__title">Documents <span class="review__count tabular">@_detail.Checklist.ReadyCount of @_detail.Checklist.Items.Count accepted</span></h2>
+            <ul role="list" class="docs">
+                @foreach (var item in _detail.Checklist.Items)
+                {
+                    var upload = _detail.LatestUploads.GetValueOrDefault(item.Name);
+                    var canDecide = app.Status == ApplicationStatus.UnderReview;
+                    <li class="doc @(item.Status == DocumentStatus.PendingReview ? "doc--waiting" : null)">
+                        <div class="doc__text">
+                            <p class="doc__name">@item.Name</p>
+                            @if (upload is not null)
+                            {
+                                <p class="doc__file">
+                                    <Icon Name="file-text" Size="16" />
+                                    <span>@upload.FileName · @SimulatedFiles.FormatSize(upload.SizeBytes)@(upload.Version > 1 ? $" · version {upload.Version}" : "") · <time datetime="@DisplayFormat.Machine(upload.UploadedAt)">@DisplayFormat.DateTime(upload.UploadedAt)</time></span>
+                                </p>
+                            }
+                            else if (item.Status is DocumentStatus.Complete or DocumentStatus.PendingReview)
+                            {
+                                <p class="doc__file">Sent with the application</p>
+                            }
+                            @if (item.ReviewerNote is not null)
+                            {
+                                <p class="doc__note"><span class="visually-hidden">Your note to the family: </span>@item.ReviewerNote</p>
+                            }
+                        </div>
+                        <p class="doc__status doc__status--@item.Status.ToString().ToLowerInvariant()">
+                            <Icon Name="@DocumentStatusDisplay.Icon(item.Status)" Size="16" />
+                            <span>@StaffLabel(item.Status)</span>
+                        </p>
+
+                        @if (canDecide && item.Status is DocumentStatus.PendingReview or DocumentStatus.Missing)
+                        {
+                            <div class="doc__actions">
+                                @if (_reasonFor == item.Name)
+                                {
+                                    <div class="doc__reason">
+                                        <label class="field__label" for="reason">@(item.Status == DocumentStatus.Missing ? "What should the family send?" : "What needs fixing?")</label>
+                                        <textarea id="reason" class="input doc__textarea" rows="3" maxlength="@ReviewRules.ReasonMax"
+                                                  @bind="_reason" @ref="_reasonBox"
+                                                  aria-describedby="reason-hint @(_reasonError is null ? null : "reason-error")"
+                                                  aria-invalid="@(_reasonError is null ? null : "true")"></textarea>
+                                        <p id="reason-hint" class="field__hint">The family sees this. Be specific, for example which page or signature.</p>
+                                        <FieldError Id="reason-error" Message="@_reasonError" />
+                                        <div class="review__actions">
+                                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Disabled="_busy" OnClick="() => RejectAsync(item.Name)">
+                                                @(item.Status == DocumentStatus.Missing ? "Ask for it" : "Send back")<span class="visually-hidden">: @item.Name</span>
+                                            </AppButton>
+                                            <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="CloseReason">Cancel</AppButton>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @if (item.Status == DocumentStatus.PendingReview)
+                                    {
+                                        <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="check" Disabled="_busy" OnClick="() => AcceptAsync(item.Name)">
+                                            Accept<span class="visually-hidden"> @item.Name</span>
+                                        </AppButton>
+                                    }
+                                    <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="alert-circle" OnClick="() => OpenReason(item.Name)">
+                                        @(item.Status == DocumentStatus.Missing ? "Ask for it" : "Needs a new copy")<span class="visually-hidden">: @item.Name</span>
+                                    </AppButton>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        </Panel>
+
+        <Panel>
+            <ActivityHistory Events="_detail.History" />
+        </Panel>
+    }
+</div>
+
+@code {
+    [Parameter] public string Reference { get; set; } = "";
+
+    private ReviewDetail? _detail;
+    private DateTimeOffset _now;
+    private string? _status;
+    private string? _error;
+    private bool _busy;
+
+    private string? _reasonFor;
+    private string? _reason;
+    private string? _reasonError;
+    private ElementReference _reasonBox;
+    private bool _focusReason;
+
+    private string ReviewHint
+    {
+        get
+        {
+            var waiting = _detail!.Checklist.Items.Count(i => i.Status == DocumentStatus.PendingReview);
+            return waiting switch
+            {
+                0 => "Every copy has a decision. Mark it ready, or send it back if the family must fix or add something.",
+                1 => "1 document waits for a decision. Accept it or send it back, then choose the next step.",
+                _ => $"{waiting} documents wait for a decision. Accept each one or send it back, then choose the next step."
+            };
+        }
+    }
+
+    /// <summary>The reviewer's words for a document's state (the family sees DocumentStatusDisplay's).</summary>
+    private static string StaffLabel(DocumentStatus status) => status switch
+    {
+        DocumentStatus.PendingReview => "Waits for your decision",
+        DocumentStatus.Complete => "Accepted",
+        DocumentStatus.NeedsCorrection => "Sent back",
+        DocumentStatus.Missing => "Not sent yet",
+        DocumentStatus.NotApplicable => "Not needed",
+        _ => status.ToString()
+    };
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _detail = await Staff.GetReviewAsync(Reference);
+        if (_reasonFor is not null && _detail?.Checklist.Items.FirstOrDefault(i => i.Name == _reasonFor) is not { Status: DocumentStatus.PendingReview or DocumentStatus.Missing })
+            CloseReason();
+    }
+
+    private Task StartAsync() => RunAsync(v => Workflow.StartReviewAsync(Reference, v), "Review started. The family has been told.");
+
+    private Task ReadyAsync() => RunAsync(v => Workflow.MarkReadyAsync(Reference, v), "Marked ready for processing. The family has been told.");
+
+    private Task SendBackAsync() => RunAsync(v => Workflow.RequestCorrectionsAsync(Reference, v), "Sent back to the family with your notes.");
+
+    private Task CompleteAsync() => RunAsync(v => Workflow.CompleteAsync(Reference, v), "Marked complete. The family has been told processing is finished.");
+
+    private Task AcceptAsync(string document) =>
+        RunAsync(v => Workflow.DecideDocumentAsync(Reference, v, document, true, null), $"{document} accepted.");
+
+    private async Task RejectAsync(string document)
+    {
+        _reasonError = ReviewRules.ReasonProblem(_reason);
+        if (_reasonError is not null)
+        {
+            _focusReason = true;
+            return;
+        }
+        var wasMissing = _detail?.Checklist.Items.FirstOrDefault(i => i.Name == document)?.Status == DocumentStatus.Missing;
+        if (await RunAsync(v => Workflow.DecideDocumentAsync(Reference, v, document, false, _reason),
+                wasMissing ? $"{document} asked for." : $"{document} sent back."))
+            CloseReason();
+    }
+
+    private void OpenReason(string document)
+    {
+        _reasonFor = document;
+        _reason = null;
+        _reasonError = null;
+        _focusReason = true;
+        _status = null;
+    }
+
+    private void CloseReason()
+    {
+        _reasonFor = null;
+        _reason = null;
+        _reasonError = null;
+    }
+
+    /// <summary>Run an action against the version on screen; a stale or refused action says why and saves nothing.</summary>
+    private async Task<bool> RunAsync(Func<int, Task<ReviewResult>> action, string done)
+    {
+        if (_detail is null || _busy) return false;
+        _busy = true;
+        _error = null;
+        _status = null;
+        var result = await action(_detail.Current.Version);
+        _busy = false;
+        if (result.Succeeded) _status = done;
+        else _error = result.Error;
+        if (result.Conflict) await LoadAsync();
+        return result.Succeeded;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusReason && _reasonFor is not null)
+        {
+            _focusReason = false;
+            await _reasonBox.FocusAsync();
+        }
+    }
+}

@@ -1,5 +1,8 @@
 using MediAssist.Web.Components;
+using MediAssist.Web.Data;
 using MediAssist.Web.Services;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +13,15 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton(TimeProvider.System);
 // One shared in-memory store, so every portal reads the same fictional story.
 builder.Services.AddSingleton<MockPortalStore>();
-// Each user's own drafts and submissions: per circuit, kept in that user's browser storage.
+// A fixed application name keeps browser data readable when the app moves to another folder
+// (D9a; changing it reset earlier prototype data once).
+builder.Services.AddDataProtection().SetApplicationName("MediAssist");
+// The shared workflow store (D9a): submitted applications, uploads, reviews and their notifications.
+var workflowDb = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "mediassist.db");
+Directory.CreateDirectory(Path.GetDirectoryName(workflowDb)!);
+builder.Services.AddDbContextFactory<WorkflowDbContext>(o => o.UseSqlite($"Data Source={workflowDb}"));
+builder.Services.AddSingleton<WorkflowService>();
+// Each user's own drafts, profiles and preferences: per circuit, kept in that user's browser storage.
 builder.Services.AddScoped<IWorkspaceStorage, ProtectedLocalWorkspaceStorage>();
 builder.Services.AddScoped<ApplicationWorkspace>();
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
@@ -20,6 +31,8 @@ builder.Services.AddScoped<UiPreferences>();
 builder.Services.AddScoped<PageSectionState>();
 
 var app = builder.Build();
+
+await app.Services.GetRequiredService<WorkflowService>().InitializeAsync();
 
 if (!app.Environment.IsDevelopment())
 {

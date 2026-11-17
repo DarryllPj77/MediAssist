@@ -11,7 +11,10 @@ public interface IStaffPortalDataService
 {
     Task<StaffUser> GetUserAsync(PortalRole role, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(PortalRole role, CancellationToken cancellationToken = default);
+    /// <summary>Applications an administrator works on (submitted through ready for processing), from the shared store.</summary>
     Task<IReadOnlyList<ReviewQueueItem>> GetReviewQueueAsync(CancellationToken cancellationToken = default);
+    /// <summary>One application for review (D9a), or null when there is none with that reference.</summary>
+    Task<ReviewDetail?> GetReviewAsync(string reference, CancellationToken cancellationToken = default);
     /// <summary>Authorization requests waiting for or given an administrator decision (D9 reviews them).</summary>
     Task<IReadOnlyList<AuthorizationRequest>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RunnerRequestItem>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default);

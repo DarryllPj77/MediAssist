@@ -3,18 +3,20 @@ using MediAssist.Web.Models;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// One user's drafts, submitted applications, simulated document uploads, patient profiles and
-/// authorization requests. Registered per
-/// circuit (scoped), loaded from that user's browser storage once the page is interactive and
-/// written back on every change, so nothing mutable is shared between users. <see cref="Changed"/>
-/// tells pages to re-query.
+/// One user's view of their applications. Drafts (and uploads to drafts), patient profiles,
+/// authorization and runner requests, read states and account changes are theirs alone: per
+/// circuit (scoped), loaded from their browser storage once the page is interactive and written
+/// back on every change. Submitted applications, their uploads and review notifications live in
+/// the shared <see cref="WorkflowService"/> (D9a) so administrators can review them; this class
+/// shows the household's part of it and passes submissions and uploads through.
+/// <see cref="Changed"/> tells pages to re-query (also when a reviewer changes something).
 /// <para>
-/// The seeded <see cref="MockPortalStore"/> stays read-only; a local entry with the same reference
-/// (a resumed or submitted seed draft, or a seeded application whose correction was uploaded)
-/// takes its place in the merged view.
+/// The seeded <see cref="MockPortalStore"/> stays read-only; a draft or shared copy with the same
+/// reference takes its place in the merged view.
 /// </para>
 /// </summary>
-public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalStore store, TimeProvider clock)
+public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalStore store, WorkflowService workflow, TimeProvider clock)
+    : IDisposable
 {
     private WorkspaceSnapshot _snapshot = WorkspaceSnapshot.Empty;
     private Task? _loading;
@@ -29,9 +31,30 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public bool LastSaveFailed { get; private set; }
 
     public IReadOnlyList<WizardDraft> Drafts => _snapshot.Drafts;
-    public IReadOnlyList<LocalApplication> Submitted => _snapshot.Submitted;
-    public IReadOnlyList<PortalNotification> Notifications => _snapshot.Notifications;
-    public IReadOnlyList<DocumentUpload> Uploads => _snapshot.Uploads ?? [];
+
+    /// <summary>The household's applications in the shared store (submitted or reviewed), newest first.</summary>
+    public IReadOnlyList<LocalApplication> Submitted =>
+    [
+        .. workflow.State.Applications.Values
+            .Where(a => IsHousehold(a.Application.PatientId))
+            .OrderByDescending(a => a.Application.LastUpdated)
+            .Select(a => a.AsLocal()),
+    ];
+
+    /// <summary>This browser's notifications (profiles, runner requests) and the shared ones (submissions, reviews).</summary>
+    public IReadOnlyList<PortalNotification> Notifications => [.. _snapshot.Notifications, .. workflow.State.Notifications];
+
+    /// <summary>Uploads to drafts (this browser) and to the household's submitted applications (shared).</summary>
+    public IReadOnlyList<DocumentUpload> Uploads =>
+    [
+        .. LocalUploads,
+        .. workflow.State.Uploads.Where(u => workflow.Find(u.ApplicationReference) is { } a && IsHousehold(a.Application.PatientId)),
+    ];
+
+    /// <summary>Uploads kept only in this browser (to drafts).</summary>
+    public int LocalUploadCount => LocalUploads.Count;
+
+    private IReadOnlyList<DocumentUpload> LocalUploads => _snapshot.Uploads ?? [];
     private IReadOnlyList<PatientProfile> LocalProfiles => _snapshot.Profiles ?? [];
     private IReadOnlyList<AuthorizationRequest> LocalRequests => _snapshot.AuthorizationRequests ?? [];
     private IReadOnlyList<RunnerRequestItem> LocalRunnerRequests => _snapshot.RunnerRequests ?? [];
@@ -44,8 +67,14 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     {
         _snapshot = await storage.LoadAsync() ?? WorkspaceSnapshot.Empty;
         IsLoaded = true;
+        workflow.Changed += OnSharedChanged;
         Changed?.Invoke();
     }
+
+    // A submission, upload or review decision (from any browser or the administrator) changed the shared store.
+    private void OnSharedChanged() => Changed?.Invoke();
+
+    public void Dispose() => workflow.Changed -= OnSharedChanged;
 
     // ---- Patient profiles and authorization requests (D4) ----
 
@@ -363,10 +392,11 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     }
 
     /// <summary>
-    /// Mock submission: the draft becomes a Submitted application with a reference number, a
-    /// checklist (missing documents allowed) and its history; a notification confirms it; any
-    /// documents uploaded to the draft move to the new reference. Returns the reference, or null
-    /// when it could not be saved (nothing changes then). The caller validates the choices first.
+    /// Submission: the draft becomes a Submitted application in the shared store, with a reference
+    /// number chosen there, a checklist (missing documents allowed) and its history; a notification
+    /// confirms it; any documents uploaded to the draft move with it. The draft then leaves this
+    /// browser. Returns the reference, or null when it could not be saved (nothing changes then).
+    /// The caller validates the choices first.
     /// </summary>
     public async Task<string?> SubmitAsync(WizardDraft draft)
     {
@@ -375,102 +405,93 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         var program = store.Programs.First(p => p.Id == draft.ProgramId);
         var seed = draft.SourceReference is null ? null
             : store.Applications().FirstOrDefault(a => a.ReferenceNumber == draft.SourceReference);
-
-        var reference = draft.SourceReference ?? ReferenceGenerator.NextReference(
-            store.Applications().Select(a => a.ReferenceNumber).Concat(_snapshot.Submitted.Select(s => s.Application.ReferenceNumber)),
-            now);
-
         var draftKey = draft.SourceReference ?? draft.Id;
-        var uploads = Uploads.Select(u => u.ApplicationReference == draftKey ? u with { ApplicationReference = reference } : u).ToList();
+        var draftUploads = LocalUploads.Where(u => Same(u.ApplicationReference, draftKey)).ToList();
 
-        var checklist = ChecklistFor(reference, program, patient.FullName, draft.SourceReference);
-        var withUploads = Overlay(checklist, uploads);
-        var ready = checklist.ReadyCount;
-        var required = checklist.Items.Count;
-        var toAdd = withUploads.Items.Count(i => DocumentStatusDisplay.NeedsAction(i.Status));
+        var reference = await workflow.SubmitAsync(draft.SourceReference, reference =>
+        {
+            var uploads = draftUploads.Select(u => u with { ApplicationReference = reference }).ToList();
+            var checklist = ChecklistFor(reference, program, patient.FullName, draft.SourceReference);
+            var withUploads = ChecklistOverlay.Apply(checklist, uploads);
+            var ready = checklist.ReadyCount;
+            var required = checklist.Items.Count;
+            var toAdd = withUploads.Items.Count(i => DocumentStatusDisplay.NeedsAction(i.Status));
 
-        var application = new AssistanceApplication(
-            reference, patient.Id, patient.FullName, draft.Hospital!, program.Name,
-            ApplicationStatus.Submitted, ready, required, now,
-            toAdd > 0 ? AddMissing(toAdd) : "Wait for the review to start",
-            program.Id, seed?.CreatedAt ?? draft.CreatedAt);
+            var application = new AssistanceApplication(
+                reference, patient.Id, patient.FullName, draft.Hospital!, program.Name,
+                ApplicationStatus.Submitted, ready, required, now,
+                toAdd > 0 ? WorkflowService.AddMissing(toAdd) : "Wait for the review to start",
+                program.Id, seed?.CreatedAt ?? draft.CreatedAt);
 
-        var sent = required - toAdd;
-        IReadOnlyList<ApplicationEvent> history =
-        [
-            .. EventsFor(draft, reference),
-            new(reference, now, ApplicationEventKind.Submitted, "Application submitted", "You",
-                toAdd > 0 ? $"Sent with {sent} of {required} documents. The rest can follow." : $"Sent with all {required} documents.",
-                ApplicationStatus.Submitted),
-        ];
+            var sent = required - toAdd;
+            IReadOnlyList<ApplicationEvent> history =
+            [
+                .. EventsFor(draft, reference),
+                new(reference, now, ApplicationEventKind.Submitted, "Application submitted", "You",
+                    toAdd > 0 ? $"Sent with {sent} of {required} documents. The rest can follow." : $"Sent with all {required} documents.",
+                    ApplicationStatus.Submitted),
+            ];
+            var notification = new PortalNotification(
+                $"n-{reference}", "Application submitted", $"{reference} was sent for review.", now, false,
+                $"/patient/applications/{reference}");
+            return new Submission(new SharedApplication(application, checklist, history, 0), uploads, notification);
+        });
+        if (reference is null) return null;
 
-        var notification = new PortalNotification(
-            $"n-{reference}", "Application submitted", $"{reference} was sent for review.", now, false,
-            $"/patient/applications/{reference}");
-
-        var before = _snapshot;
+        // The application is saved in the shared store; if this browser can't save, the draft
+        // only reappears here on the next visit.
         _snapshot = _snapshot with
         {
             Drafts = _snapshot.Drafts.Where(d => d.Id != draft.Id).ToList(),
-            Submitted = [new LocalApplication(application, checklist, history), .. _snapshot.Submitted.Where(s => s.Application.ReferenceNumber != reference)],
-            Notifications = [notification, .. _snapshot.Notifications],
-            Uploads = uploads,
+            Uploads = LocalUploads.Where(u => !Same(u.ApplicationReference, draftKey)).ToList(),
         };
-        if (!await PersistAsync())
-        {
-            _snapshot = before;
-            Changed?.Invoke();
-            return null;
-        }
+        await PersistAsync();
         return reference;
     }
 
     // ---- Simulated uploads (D3) ----
 
     /// <summary>
-    /// Record a simulated upload for one document of an application or draft. Validates the file,
-    /// numbers the version (a replacement points at the version it replaces), and, when every
-    /// document a reviewer sent back now has a new copy, returns the application to review.
-    /// Nothing is recorded unless it is saved.
+    /// Record a simulated upload for one document. Uploads to a draft stay in this browser; uploads
+    /// to a submitted application go to the shared store, which also returns a corrected
+    /// application to review. Nothing is recorded unless it is saved.
     /// </summary>
     public async Task<UploadResult> UploadAsync(string reference, string documentName, SampleFile? file)
     {
+        if (!IsDraftReference(reference))
+            return await workflow.UploadAsync(reference, documentName, file, IsHousehold);
+
         if (SimulatedFiles.Validate(file) is string invalid)
             return UploadResult.Invalid(invalid);
 
-        var baseChecklist = BaseChecklist(reference);
-        var item = baseChecklist?.Items.FirstOrDefault(i => i.Name == documentName);
+        var item = BaseChecklist(reference)?.Items.FirstOrDefault(i => i.Name == documentName);
         var previous = LatestUpload(reference, documentName);
         if (item is null || !(DocumentStatusDisplay.NeedsAction(item.Status) || previous is not null))
             return UploadResult.Invalid($"{documentName} cannot be uploaded for this application.");
 
-        var now = clock.GetLocalNow();
         var upload = new DocumentUpload(
             Guid.NewGuid().ToString("N")[..12], reference, documentName,
-            file!.FileName, file.ContentType, file.SizeBytes, now,
+            file!.FileName, file.ContentType, file.SizeBytes, clock.GetLocalNow(),
             (previous?.Version ?? 0) + 1, previous?.Id);
 
         var before = _snapshot;
-        _snapshot = _snapshot with { Uploads = [.. Uploads, upload] };
-
-        // Correction round: every document the reviewer sent back has a new copy.
-        var corrected = false;
-        if (CurrentApplication(reference) is { Status: ApplicationStatus.NeedsCorrection } application
-            && baseChecklist!.Items.Where(i => i.Status == DocumentStatus.NeedsCorrection)
-                .All(i => LatestUpload(reference, i.Name) is not null))
-        {
-            ReturnToReview(application, baseChecklist, now);
-            corrected = true;
-        }
-
+        _snapshot = _snapshot with { Uploads = [.. LocalUploads, upload] };
         if (!await PersistAsync())
         {
             _snapshot = before;
             Changed?.Invoke();
             return UploadResult.Invalid("We couldn’t save that upload in this browser. Try again.");
         }
-        return UploadResult.Saved(upload, corrected);
+        return UploadResult.Saved(upload, false);
     }
+
+    /// <summary>A draft (this browser's, or a seeded one not submitted yet) rather than a submitted application.</summary>
+    private bool IsDraftReference(string reference) =>
+        FindDraftByKey(reference) is not null
+        || (!workflow.State.Applications.ContainsKey(reference) && CurrentApplication(reference)?.Status == ApplicationStatus.Draft);
+
+    private WizardDraft? FindDraftByKey(string reference) =>
+        _snapshot.Drafts.FirstOrDefault(d => Same(d.SourceReference ?? d.Id, reference));
 
     /// <summary>The newest upload of a document, if any.</summary>
     public DocumentUpload? LatestUpload(string reference, string documentName) =>
@@ -485,91 +506,29 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     /// new copy is "being reviewed" (its old reviewer note is answered and moves to the history).
     /// Readiness is still the reviewer's call, so "Ready" counts do not change.
     /// </summary>
-    public ApplicationChecklist WithUploads(ApplicationChecklist checklist) => Overlay(checklist, Uploads);
+    public ApplicationChecklist WithUploads(ApplicationChecklist checklist) => ChecklistOverlay.Apply(checklist, Uploads);
 
     /// <summary>History entries for the user's uploads to an application.</summary>
-    public IReadOnlyList<ApplicationEvent> UploadEvents(string reference)
-    {
-        var baseItems = BaseChecklist(reference)?.Items.ToDictionary(i => i.Name, i => i.Status) ?? [];
-        return UploadsFor(reference).Select(u =>
-        {
-            var title = u.Version > 1 ? $"{u.DocumentName} replaced (version {u.Version})"
-                : baseItems.GetValueOrDefault(u.DocumentName) == DocumentStatus.NeedsCorrection ? $"Corrected {Lower(u.DocumentName)} uploaded"
-                : $"{u.DocumentName} uploaded";
-            return new ApplicationEvent(reference, u.UploadedAt, ApplicationEventKind.DocumentUploaded, title, "You",
-                $"{u.FileName} · {SimulatedFiles.FormatSize(u.SizeBytes)}");
-        }).ToList();
-    }
+    public IReadOnlyList<ApplicationEvent> UploadEvents(string reference) =>
+        WorkflowService.UploadEvents(reference, Uploads, BaseChecklist(reference));
 
-    private static string Lower(string name) => name.Length > 0 ? char.ToLowerInvariant(name[0]) + name[1..] : name;
-
-    private static ApplicationChecklist Overlay(ApplicationChecklist checklist, IEnumerable<DocumentUpload> uploads)
-    {
-        var uploaded = uploads
-            .Where(u => string.Equals(u.ApplicationReference, checklist.ApplicationReference, StringComparison.OrdinalIgnoreCase))
-            .Select(u => u.DocumentName)
-            .ToHashSet();
-        if (uploaded.Count == 0) return checklist;
-
-        return checklist with
-        {
-            Items = checklist.Items.Select(i => uploaded.Contains(i.Name) && DocumentStatusDisplay.NeedsAction(i.Status)
-                ? i with { Status = DocumentStatus.PendingReview, ReviewerNote = null }
-                : i).ToList()
-        };
-    }
-
-    /// <summary>The application (local copy, draft or seed) behind a reference, before uploads.</summary>
+    /// <summary>The household's application behind a reference (shared copy, draft or seed), before uploads.</summary>
     private AssistanceApplication? CurrentApplication(string reference)
     {
-        if (_snapshot.Submitted.FirstOrDefault(s => Same(s.Application.ReferenceNumber, reference)) is { } local) return local.Application;
-        if (_snapshot.Drafts.FirstOrDefault(d => Same(d.SourceReference ?? d.Id, reference)) is { } draft) return DraftAsApplication(draft);
-        return store.Applications().FirstOrDefault(a => Same(a.ReferenceNumber, reference) && IsHousehold(a.PatientId));
+        if (workflow.State.Applications.TryGetValue(reference, out var shared))
+            return IsHousehold(shared.Application.PatientId) ? shared.Application : null;
+        if (FindDraftByKey(reference) is { } draft) return DraftAsApplication(draft);
+        return workflow.Find(reference) is { } seeded && IsHousehold(seeded.Application.PatientId) ? seeded.Application : null;
     }
 
     /// <summary>The checklist behind a reference, before uploads.</summary>
     private ApplicationChecklist? BaseChecklist(string reference)
     {
-        if (_snapshot.Submitted.FirstOrDefault(s => Same(s.Application.ReferenceNumber, reference)) is { } local) return local.Checklist;
-        if (_snapshot.Drafts.FirstOrDefault(d => Same(d.SourceReference ?? d.Id, reference)) is { } draft) return DraftChecklistBase(draft);
+        if (workflow.State.Applications.TryGetValue(reference, out var shared))
+            return IsHousehold(shared.Application.PatientId) ? shared.Checklist : null;
+        if (FindDraftByKey(reference) is { } draft) return DraftChecklistBase(draft);
         return CurrentApplication(reference) is null ? null : store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, reference));
     }
-
-    /// <summary>The corrected application goes back to Under review (Phase 1 rule), with history and a notification.</summary>
-    private void ReturnToReview(AssistanceApplication application, ApplicationChecklist baseChecklist, DateTimeOffset now)
-    {
-        var reference = application.ReferenceNumber;
-        var existing = _snapshot.Submitted.FirstOrDefault(s => Same(s.Application.ReferenceNumber, reference));
-        var events = existing?.Events ?? store.Events().Where(e => e.ApplicationReference == reference).OrderBy(e => e.At).ToList();
-        var stillMissing = Overlay(baseChecklist, Uploads).Items.Count(i => DocumentStatusDisplay.NeedsAction(i.Status));
-
-        var updated = application with
-        {
-            Status = ApplicationStatus.UnderReview,
-            LastUpdated = now,
-            NextStep = stillMissing > 0 ? AddMissing(stillMissing) : "Wait for the reviewer to check the corrected document",
-        };
-        IReadOnlyList<ApplicationEvent> history =
-        [
-            .. events,
-            new(reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
-                "Every document the reviewer asked for has a new copy, so the application is back in review.",
-                ApplicationStatus.UnderReview),
-        ];
-        var notification = new PortalNotification($"n-{reference}-corrected", "Correction sent",
-            $"{reference} is back in review with your corrected document.", now, false,
-            $"/patient/applications/{reference}");
-
-        _snapshot = _snapshot with
-        {
-            Submitted = [new LocalApplication(updated, existing?.Checklist ?? baseChecklist, history),
-                         .. _snapshot.Submitted.Where(s => !Same(s.Application.ReferenceNumber, reference))],
-            Notifications = [notification, .. _snapshot.Notifications.Where(n => n.Id != notification.Id)],
-        };
-    }
-
-    private static string AddMissing(int count) =>
-        count == 1 ? "Add the missing document" : $"Add the {count} missing documents";
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
