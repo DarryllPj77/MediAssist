@@ -1,0 +1,88 @@
+@page "/runner/history"
+@inherits RunnerWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    Task history (D10): the chosen runner's finished errands and the ones they declined or handed
+    back (or the office gave to someone else), newest first.
+*@
+
+<PageTitle>Task history · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="history-title" ImageKey="@ImageSlots.HeroKeyForPath("runner/history")" Compact="true"
+               Title="Task history"
+               TitleFilipino="Kasaysayan ng mga gawain"
+               Lead="@LeadText"
+               LeadFilipino="Salamat sa bawat natapos na gawain.">
+        <Eyebrow>Runner · @CurrentRunner</Eyebrow>
+    </SplitHero>
+
+    <section class="staffreq" aria-labelledby="history-list-title">
+        <h2 id="history-list-title" class="visually-hidden">Past errands</h2>
+        @if (_entries.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="clock" Title="No past errands yet" Message="Errands you finish or hand back appear here." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="rhist">
+                @foreach (var (task, outcome, at, note) in _entries)
+                {
+                    <li class="rhist__row">
+                        <span class="rhist__icon" aria-hidden="true"><Icon Name="@(outcome == "Done" ? "check-circle" : "x-circle")" Size="18" /></span>
+                        <div class="rhist__text">
+                            <a class="rhist__title" href="@($"{RoleNavigation.RunnerTasks.Href}/{task.Id}")">@task.Request.Errand</a>
+                            <p class="rhist__meta">@outcome · <time datetime="@DisplayFormat.Machine(at)">@DisplayFormat.DateTime(at)</time> · <span class="tabular">@task.Request.ApplicationReference</span></p>
+                            @if (note is not null)
+                            {
+                                <p class="rhist__note">@note</p>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    private IReadOnlyList<(RunnerTaskView Task, string Outcome, DateTimeOffset At, string? Note)> _entries = [];
+
+    private string LeadText
+    {
+        get
+        {
+            var done = _entries.Count(e => e.Outcome == "Done");
+            return done switch
+            {
+                0 => "Your finished and handed-back errands.",
+                1 => "1 errand done. Your finished and handed-back errands are here.",
+                _ => $"{done} errands done. Your finished and handed-back errands are here."
+            };
+        }
+    }
+
+    protected override async Task LoadAsync()
+    {
+        var tasks = await Staff.GetRunnerTasksAsync();
+        _entries =
+        [
+            .. tasks.SelectMany(t =>
+            {
+                var mine = t.Request.Steps?.Where(s => s.Runner == CurrentRunner).ToList() ?? [];
+                var ended = mine.Where(s => s.Kind is RunnerStepKind.Completed or RunnerStepKind.Declined or RunnerStepKind.HandedBack)
+                    .Select(s => (t, s.Kind == RunnerStepKind.Completed ? "Done" : s.Kind == RunnerStepKind.Declined ? "Declined" : "Handed back", s.At, s.Note))
+                    .ToList();
+                // Given to another runner by the office without a decline from this runner.
+                if (ended.Count == 0 && t.Request.RunnerName != CurrentRunner && mine.Count > 0)
+                    ended.Add((t, "Given to another runner", mine.Max(s => s.At), (string?)null));
+                return ended;
+            })
+            .OrderByDescending(e => e.Item3),
+        ];
+    }
+}

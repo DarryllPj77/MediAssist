@@ -1,0 +1,43 @@
+/* Runner task history (D10). */
+
+.rhist {
+    margin: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-lg);
+}
+
+.rhist__row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-block-end: 1px solid var(--color-border);
+}
+
+.rhist__row:last-child {
+    border-block-end: 0;
+}
+
+.rhist__icon {
+    color: var(--color-navy);
+    padding-block-start: 2px;
+}
+
+.rhist__title {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-target);
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.rhist__meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.rhist__note {
+    margin-block-start: var(--space-1);
+    color: var(--color-text);
+}

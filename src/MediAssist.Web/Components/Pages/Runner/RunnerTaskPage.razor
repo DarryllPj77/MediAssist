@@ -1,0 +1,276 @@
+@page "/runner/tasks/{Item}"
+@inherits RunnerWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    One errand for the chosen runner (D10). Only what the errand needs (Phase 1 rule): errand, place
+    and district, when, the patient's first name, the reference and the family's notes — never
+    documents or medical details. One next step per stage: accept or decline (with a reason); on
+    my way; done (optional note); hand back (with a reason) before it's done. Declining or handing
+    back returns the request to the office. The application's status never changes. Every step
+    carries the version on screen; a stale step saves nothing and shows the latest.
+*@
+
+<PageTitle>@(_task?.Request.Errand ?? "Errand") · MediAssist</PageTitle>
+
+<div class="page page--wide rtask">
+    <div class="rtask__back">
+        <AppButton Variant="AppButton.ButtonVariant.Quiet" Href="@RoleNavigation.RunnerTasks.Href" IconStart="chevron-left">My assignments</AppButton>
+    </div>
+
+    @if (_task is null || !Visible)
+    {
+        <header class="page__head">
+            <p class="eyebrow">Errand</p>
+            <h1 class="page__title serif" tabindex="-1">This errand isn’t yours</h1>
+        </header>
+        <Panel>
+            <EmptyState IconName="route" Title="Not assigned to you"
+                        Message="@($"This errand isn't assigned to {CurrentRunner}. Check My assignments, or switch runner in settings.")" />
+        </Panel>
+    }
+    else
+    {
+        var r = _task.Request;
+        <header class="page__head">
+            <p class="eyebrow"><span class="tabular">@r.ApplicationReference</span> · Errand for @_task.ContactFirstName</p>
+            <h1 class="page__title serif" tabindex="-1">@r.Errand</h1>
+            <p class="rtask__meta">
+                <Badge Text="@RunnerTaskStatusDisplay.Label(r.Status)" Tone="@RunnerTaskStatusDisplay.Tone(r.Status)" IconName="@RunnerTaskStatusDisplay.Icon(r.Status)" />
+            </p>
+        </header>
+
+        <p class="rtask__status" role="status">@_status</p>
+        @if (_error is not null)
+        {
+            <p class="field__error rtask__error" role="alert"><Icon Name="alert-circle" Size="18" /> @_error</p>
+        }
+
+        @if (Mine)
+        {
+            <Panel LabelledBy="step-title">
+                <h2 id="step-title" class="rtask__title" tabindex="-1" @ref="_stepTitle">Next step</h2>
+                <ChevronStepper Steps="StepperSteps.ForRunnerTask(r.Status)" AriaLabel="Progress of this errand" ShowFilipino="false" />
+
+                @if (_reasonFor is { } kind)
+                {
+                    <div class="rtask__form">
+                        <label class="field__label" for="task-reason">@(kind == RunnerStepKind.Declined ? "Why can't you take it?" : "Why are you handing it back?")</label>
+                        <textarea id="task-reason" class="input rtask__textarea" rows="3" maxlength="@RunnerRules.NotesMaxLength"
+                                  @bind="_reason" @ref="_reasonBox"
+                                  aria-describedby="task-reason-hint @(_reasonError is null ? null : "task-reason-error")"
+                                  aria-invalid="@(_reasonError is null ? null : "true")"></textarea>
+                        <p id="task-reason-hint" class="field__hint">The office sees this and assigns another runner. The family is told a new runner is coming.</p>
+                        <FieldError Id="task-reason-error" Message="@_reasonError" />
+                        <div class="rtask__actions">
+                            <AppButton Variant="AppButton.ButtonVariant.Secondary" Disabled="_busy" OnClick="() => StepAsync(kind, _reason)">
+                                @(kind == RunnerStepKind.Declined ? "Decline errand" : "Hand back errand")
+                            </AppButton>
+                            <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="CloseReason">Cancel</AppButton>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @switch (r.Status)
+                    {
+                        case RunnerTaskStatus.Assigned:
+                            <p class="rtask__hint">The office assigned this errand to you. Accept it if you can do it by the time needed.</p>
+                            <div class="rtask__actions">
+                                <AppButton IconStart="check" Disabled="_busy" OnClick="() => StepAsync(RunnerStepKind.Accepted, null)">Accept errand</AppButton>
+                                <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="x-circle" OnClick="() => OpenReason(RunnerStepKind.Declined)">Decline</AppButton>
+                            </div>
+                            break;
+                        case RunnerTaskStatus.Accepted:
+                            <p class="rtask__hint">Tell the family when you set off.</p>
+                            <div class="rtask__actions">
+                                <AppButton IconStart="route" Disabled="_busy" OnClick="() => StepAsync(RunnerStepKind.Started, null)">I’m on my way</AppButton>
+                                <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="x-circle" OnClick="() => OpenReason(RunnerStepKind.HandedBack)">Hand back</AppButton>
+                            </div>
+                            break;
+                        case RunnerTaskStatus.InProgress:
+                            <div class="rtask__form">
+                                <label class="field__label" for="task-note">Note for the office <span class="rtask__optional">(optional)</span></label>
+                                <textarea id="task-note" class="input rtask__textarea" rows="2" maxlength="@RunnerRules.NotesMaxLength"
+                                          @bind="_note" aria-describedby="task-note-hint"></textarea>
+                                <p id="task-note-hint" class="field__hint">For example, who received the papers. The family sees it too.</p>
+                            </div>
+                            <div class="rtask__actions">
+                                <AppButton IconStart="check-circle" Disabled="_busy" OnClick="() => StepAsync(RunnerStepKind.Completed, _note)">Mark done</AppButton>
+                                <AppButton Variant="AppButton.ButtonVariant.Quiet" IconStart="x-circle" OnClick="() => OpenReason(RunnerStepKind.HandedBack)">Hand back</AppButton>
+                            </div>
+                            break;
+                        case RunnerTaskStatus.Completed:
+                            <p class="rtask__hint">Done@(r.ClosedAt is { } closed ? $" {DisplayFormat.DateTime(closed)}" : "").@(r.CompletionNote is { } n ? $" Your note: {n}" : "")</p>
+                            break;
+                    }
+                }
+            </Panel>
+        }
+        else
+        {
+            <p class="rtask__flag"><Icon Name="info" Size="18" />
+                @(MySteps.LastOrDefault()?.Kind switch
+                {
+                    RunnerStepKind.Declined => "You declined this errand, so it’s no longer yours. It stays here for your history.",
+                    RunnerStepKind.HandedBack => "You handed this errand back, so it’s no longer yours. It stays here for your history.",
+                    _ => "The office gave this errand to another runner. It stays here for your history."
+                })
+            </p>
+        }
+
+        <Panel LabelledBy="details-title">
+            <h2 id="details-title" class="rtask__title">The errand</h2>
+            <dl class="sreq__facts rtask__facts">
+                <div><dt>Where</dt><dd>@r.Place</dd></div>
+                <div><dt>District</dt><dd>@(_task.District.Length > 0 ? _task.District : "Ask the office")</dd></div>
+                <div><dt>Needed by</dt><dd>@DisplayFormat.DateTime(r.NeededBy)@(r.TimeWindow is null ? "" : $" ({r.TimeWindow.Split(',')[0].ToLowerInvariant()})")</dd></div>
+                <div><dt>For</dt><dd>@_task.ContactFirstName</dd></div>
+            </dl>
+            @if (r.Notes is not null)
+            {
+                <p class="sreq__note"><span class="visually-hidden">The family's notes: </span>@r.Notes</p>
+            }
+            <h3 class="rtask__subtitle">Runners never</h3>
+            <ul class="rtask__never">
+                @foreach (var rule in RunnerRules.NotAllowed)
+                {
+                    <li><Icon Name="x-circle" Size="16" /> @rule</li>
+                }
+            </ul>
+        </Panel>
+
+        @if (MySteps.Count > 0)
+        {
+            <Panel LabelledBy="steps-title">
+                <h2 id="steps-title" class="rtask__title">What you did</h2>
+                <ol class="rtask__steps" reversed>
+                    @foreach (var step in MySteps.OrderByDescending(s => s.At))
+                    {
+                        <li>
+                            <span class="rtask__step">@StepLabel(step.Kind)</span>
+                            <time datetime="@DisplayFormat.Machine(step.At)">@DisplayFormat.DateTime(step.At)</time>
+                            @if (step.Note is not null)
+                            {
+                                <p class="rtask__step-note">@step.Note</p>
+                            }
+                        </li>
+                    }
+                </ol>
+            </Panel>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string Item { get; set; } = "";
+
+    private RunnerTaskView? _task;
+    private string? _status;
+    private string? _error;
+    private bool _busy;
+    private string? _note;
+
+    private RunnerStepKind? _reasonFor;
+    private string? _reason;
+    private string? _reasonError;
+    private ElementReference _reasonBox;
+    private ElementReference _stepTitle;
+    private bool _focusReason;
+    private bool _focusStep;
+
+    // Declining or handing back keeps the runner's name on the request (so the office sees who), but it is no longer theirs.
+    private bool Mine => _task?.Request.RunnerName == CurrentRunner && _task.Request.Status != RunnerTaskStatus.Declined;
+    private bool Visible => Mine || MySteps.Count > 0;
+
+    private IReadOnlyList<RunnerStep> MySteps =>
+        [.. _task?.Request.Steps?.Where(s => s.Runner == CurrentRunner) ?? []];
+
+    private static string StepLabel(RunnerStepKind kind) => kind switch
+    {
+        RunnerStepKind.Assigned => "Assigned to you",
+        RunnerStepKind.Accepted => "You accepted",
+        RunnerStepKind.Started => "You set off",
+        RunnerStepKind.Completed => "You marked it done",
+        RunnerStepKind.Declined => "You declined",
+        RunnerStepKind.HandedBack => "You handed it back",
+        _ => kind.ToString()
+    };
+
+    protected override Task LoadAsync()
+    {
+        _task = Workflow.RunnerTask(Item);
+        if (_reasonFor is not null && !Mine) CloseReason();
+        return Task.CompletedTask;
+    }
+
+    private void OpenReason(RunnerStepKind kind)
+    {
+        _reasonFor = kind;
+        _reason = null;
+        _reasonError = null;
+        _status = null;
+        _error = null;
+        _focusReason = true;
+    }
+
+    private void CloseReason()
+    {
+        _reasonFor = null;
+        _reason = null;
+        _reasonError = null;
+    }
+
+    private async Task StepAsync(RunnerStepKind kind, string? note)
+    {
+        if (_task is null || _busy) return;
+        if (kind is RunnerStepKind.Declined or RunnerStepKind.HandedBack && Mine
+            && RunnerRules.StepProblem(_task.Request, CurrentRunner, kind, note) is string problem)
+        {
+            _reasonError = problem;
+            _focusReason = true;
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _status = null;
+        var result = await Workflow.RunnerStepAsync(_task.Id, _task.Shared.Version, CurrentRunner, kind, note);
+        _busy = false;
+        if (result.Succeeded)
+        {
+            _status = kind switch
+            {
+                RunnerStepKind.Accepted => "Errand accepted. The family has been told.",
+                RunnerStepKind.Started => "Marked on your way.",
+                RunnerStepKind.Completed => "Errand done. The family and the office have been told.",
+                RunnerStepKind.Declined => "Declined. The office will assign another runner.",
+                _ => "Handed back. The office will assign another runner."
+            };
+            _note = null;
+            CloseReason();
+            _focusStep = true;
+        }
+        else
+        {
+            _error = result.Error;
+        }
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (_focusReason && _reasonFor is not null)
+        {
+            _focusReason = false;
+            await _reasonBox.FocusAsync();
+        }
+        else if (_focusStep && Mine)
+        {
+            _focusStep = false;
+            await _stepTitle.FocusAsync();
+        }
+    }
+}

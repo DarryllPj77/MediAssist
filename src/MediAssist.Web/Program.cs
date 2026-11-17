@@ -28,6 +28,7 @@ builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataServi
 builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
 builder.Services.AddScoped<PortalLayoutInterop>();
 builder.Services.AddScoped<UiPreferences>();
+builder.Services.AddScoped<RunnerSession>();
 builder.Services.AddScoped<PageSectionState>();
 
 var app = builder.Build();

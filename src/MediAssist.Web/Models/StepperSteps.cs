@@ -40,7 +40,7 @@ public static class StepperSteps
     [
         ("Assigned", "Naitalaga"),
         ("Accepted", "Tinanggap"),
-        ("In progress", "Ginagawa"),
+        ("On the way", "Papunta na"),
         ("Completed", "Natapos"),
     ];
 

@@ -19,5 +19,6 @@ public interface IStaffPortalDataService
     Task<IReadOnlyList<SharedAuthorization>> GetAuthorizationRequestsAsync(CancellationToken cancellationToken = default);
     /// <summary>Runner requests from every family (D9b), with versions for assignment.</summary>
     Task<IReadOnlyList<SharedRunnerRequest>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<RunnerTask>> GetRunnerTasksAsync(CancellationToken cancellationToken = default);
+    /// <summary>The chosen runner's tasks (D10): assigned now, or had before, with only what each errand needs.</summary>
+    Task<IReadOnlyList<RunnerTaskView>> GetRunnerTasksAsync(CancellationToken cancellationToken = default);
 }

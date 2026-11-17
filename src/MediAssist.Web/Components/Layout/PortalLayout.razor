@@ -16,6 +16,7 @@
 @inject PageSectionState PageSection
 @inject ApplicationWorkspace Workspace
 @inject UiPreferences Prefs
+@inject RunnerSession Runner
 
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
@@ -98,6 +99,7 @@
         PageSection.Changed += OnPageSectionChanged;
         Workspace.Changed += OnWorkspaceChanged;
         Prefs.Changed += OnPreferencesChanged;
+        Runner.Changed += OnRunnerChanged;
         await LoadRoleAsync(RoleNavigation.ForPath(_path));
     }
 
@@ -135,6 +137,8 @@
         // The patient's own drafts and submissions live in their browser: read them now that
         // the page is interactive. Pages showing applications refresh when this completes.
         if (_set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
+        // The runner portal shows the runner chosen in settings (D10, no sign-in).
+        if (_set.Role == PortalRole.Runner) await Runner.EnsureLoadedAsync();
 
         _self = DotNetObjectReference.Create(this);
         var watch = await Interop.WatchWideViewportAsync(_self);
@@ -170,6 +174,13 @@
 
     private void OnPreferencesChanged() => _ = InvokeAsync(StateHasChanged);
 
+    private void OnRunnerChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_set.Role != PortalRole.Runner) return;
+        _userName = (await Staff.GetUserAsync(PortalRole.Runner)).FullName;
+        StateHasChanged();
+    });
+
     // A submission adds a notification and Settings can rename the account: keep the bell and name current.
     private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
     {
@@ -191,6 +202,7 @@
             {
                 await LoadRoleAsync(set);
                 if (set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
+                if (set.Role == PortalRole.Runner) await Runner.EnsureLoadedAsync();
             }
             StateHasChanged();
         });
@@ -202,6 +214,7 @@
         PageSection.Changed -= OnPageSectionChanged;
         Workspace.Changed -= OnWorkspaceChanged;
         Prefs.Changed -= OnPreferencesChanged;
+        Runner.Changed -= OnRunnerChanged;
         if (_viewportWatchId is int id)
         {
             try { await Interop.UnwatchWideViewportAsync(id); }

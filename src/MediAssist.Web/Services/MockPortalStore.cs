@@ -333,34 +333,37 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
 
     // ---- Runner errands ----
 
+    /// <summary>
+    /// Seeded runner requests (all accounts). Since D10 an assigned request is also the runner's
+    /// task, so there is one list: rr-33 and rr-24 replace the separate runner tasks of earlier phases.
+    /// </summary>
     public IReadOnlyList<RunnerRequestItem> RunnerRequests()
     {
         var t = Today;
+        const string Paolo = "Paolo Dizon";
         return
         [
             new("rr-31", "MA-2026-00452", "Deliver original hospital bill to the social service office",
                 "San Isidro General Hospital", t.AddDays(1).AddHours(14), RunnerTaskStatus.PendingAssignment, null),
             new("rr-29", "MA-2026-00431", "Pick up approved medicine voucher",
-                "Bayview Medical Center", t.AddHours(16), RunnerTaskStatus.Accepted, "Paolo Dizon"),
+                "Bayview Medical Center, social service office", t.AddHours(16), RunnerTaskStatus.Accepted, Paolo,
+                Steps: [new(t.AddDays(-2).AddHours(11), RunnerStepKind.Assigned, Paolo),
+                        new(t.AddDays(-2).AddHours(13), RunnerStepKind.Accepted, Paolo)]),
             new("rr-27", "MA-2026-00395", "Submit laboratory quotation",
-                "Northridge Children's Hospital", t.AddDays(2).AddHours(10), RunnerTaskStatus.Declined, "Liza Manalo"),
-        ];
-    }
-
-    public IReadOnlyList<RunnerTask> RunnerTasks()
-    {
-        var t = Today;
-        return
-        [
-            new("rt-29", "MA-2026-00431", "Pick up approved medicine voucher",
-                "Bayview Medical Center, social service office", "Bayview district", t.AddHours(16),
-                RunnerTaskStatus.Accepted, "Maria"),
-            new("rt-33", "MA-2026-00317", "Return signed acknowledgement form",
-                "San Isidro General Hospital, billing office", "San Isidro", t.AddDays(1).AddHours(11),
-                RunnerTaskStatus.Assigned, "Jose"),
-            new("rt-24", "MA-2026-00362", "Deliver laboratory results to the program office",
-                "Bayview Medical Center, laboratory", "Bayview district", t.AddDays(-1).AddHours(15),
-                RunnerTaskStatus.Completed, "Maria"),
+                "Northridge Children's Hospital", t.AddDays(2).AddHours(10), RunnerTaskStatus.Declined, "Liza Manalo",
+                Steps: [new(t.AddDays(-3).AddHours(9), RunnerStepKind.Assigned, "Liza Manalo"),
+                        new(t.AddDays(-3).AddHours(15), RunnerStepKind.Declined, "Liza Manalo",
+                            "I can't reach Northridge before the office closes that day.")]),
+            new("rr-33", "MA-2026-00317", "Return signed acknowledgement form",
+                "San Isidro General Hospital, billing office", t.AddDays(1).AddHours(11), RunnerTaskStatus.Assigned, Paolo,
+                Steps: [new(t.AddHours(-2), RunnerStepKind.Assigned, Paolo)]),
+            new("rr-24", "MA-2026-00362", "Deliver laboratory results to the program office",
+                "Bayview Medical Center, laboratory", t.AddDays(-1).AddHours(15), RunnerTaskStatus.Completed, Paolo,
+                ClosedAt: t.AddDays(-1).AddHours(14).AddMinutes(30),
+                Steps: [new(t.AddDays(-3).AddHours(10), RunnerStepKind.Assigned, Paolo),
+                        new(t.AddDays(-3).AddHours(12), RunnerStepKind.Accepted, Paolo),
+                        new(t.AddDays(-1).AddHours(13), RunnerStepKind.Started, Paolo),
+                        new(t.AddDays(-1).AddHours(14).AddMinutes(30), RunnerStepKind.Completed, Paolo, "Left with the program office front desk.")]),
         ];
     }
 }

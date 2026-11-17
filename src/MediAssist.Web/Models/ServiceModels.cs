@@ -63,10 +63,10 @@ public sealed record ReviewQueueItem(
     bool AuthorizationPending,
     int AwaitingDecision = 0);
 
-/// <summary>An optional runner request as the administrator sees it.</summary>
 /// <summary>
-/// An optional runner request. The optional fields were added in D6 for requests made in the
-/// patient portal (they default, so seeded records and older snapshots still read).
+/// An optional runner request; once assigned it is also the runner's task (D10). The optional
+/// fields were added in D6 (patient requests), D9b (<see cref="AssignedAt"/>) and D10
+/// (<see cref="Steps"/>); they default, so seeded and older records still read.
 /// </summary>
 public sealed record RunnerRequestItem(
     string Id,
@@ -81,15 +81,37 @@ public sealed record RunnerRequestItem(
     string? Notes = null,
     DateTimeOffset? RequestedAt = null,
     DateTimeOffset? ClosedAt = null,
-    DateTimeOffset? AssignedAt = null);
+    DateTimeOffset? AssignedAt = null,
+    IReadOnlyList<RunnerStep>? Steps = null)
+{
+    /// <summary>The reason the latest runner gave for declining or handing back, if any.</summary>
+    public string? HandBackReason => Status == RunnerTaskStatus.Declined
+        ? Steps?.LastOrDefault(s => s.Kind is RunnerStepKind.Declined or RunnerStepKind.HandedBack)?.Note
+        : null;
 
-/// <summary>A runner's assigned task: only the minimum information the errand needs (Phase 1 rule).</summary>
-public sealed record RunnerTask(
-    string Id,
-    string ApplicationReference,
-    string Errand,
-    string Place,
-    string District,
-    DateTimeOffset Due,
-    RunnerTaskStatus Status,
-    string ContactFirstName);
+    /// <summary>The runner's note when the errand was done, if any.</summary>
+    public string? CompletionNote => Steps?.LastOrDefault(s => s.Kind == RunnerStepKind.Completed)?.Note;
+}
+
+/// <summary>What happened to a runner request, in order (D10): who did what, when, and why.</summary>
+public enum RunnerStepKind
+{
+    Assigned,
+    Accepted,
+    Started,
+    Completed,
+    Declined,
+    HandedBack
+}
+
+public sealed record RunnerStep(DateTimeOffset At, RunnerStepKind Kind, string Runner, string? Note = null);
+
+/// <summary>
+/// A runner's task as the runner sees it: only what the errand needs (Phase 1 rule) — the errand,
+/// place and district, when, the patient's first name, the reference and the family's notes.
+/// </summary>
+public sealed record RunnerTaskView(SharedRunnerRequest Shared, string District, string ContactFirstName)
+{
+    public RunnerRequestItem Request => Shared.Request;
+    public string Id => Shared.Id;
+}

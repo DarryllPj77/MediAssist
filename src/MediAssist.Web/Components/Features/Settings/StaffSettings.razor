@@ -1,8 +1,11 @@
 @*
     Settings for administrators and runners (D8). Staff accounts have no sign-in in this prototype,
-    so their details are read-only; display preferences are the same as the patient's.
+    so their details are read-only; display preferences are the same as the patient's. The runner
+    portal also chooses which fictional runner it shows (D10, kept in this browser).
 *@
+@implements IDisposable
 @inject IStaffPortalDataService Staff
+@inject RunnerSession Runner
 
 <div class="page settings">
     <header class="page__head">
@@ -28,6 +31,32 @@
         </p>
     </Panel>
 
+    @if (Role == PortalRole.Runner)
+    {
+        <Panel LabelledBy="viewing-title">
+            <h2 id="viewing-title" class="settings__title">Viewing as</h2>
+            <p class="settings__intro">
+                This prototype has no sign-in. Choose which fictional runner's errands to show; it changes the
+                runner portal in this browser only.
+            </p>
+            <fieldset class="option-list">
+                <legend class="visually-hidden">Runner</legend>
+                @foreach (var r in StaffDecisionRules.Runners)
+                {
+                    <label class="option-card">
+                        <input type="radio" name="viewing-as" checked="@(Runner.Current.Name == r.Name)" disabled="@(!Runner.IsLoaded)"
+                               @onchange="() => ChooseAsync(r.Name)" />
+                        <span class="option-card__text">
+                            <span class="option-card__title">@r.Name</span>
+                            <span class="option-card__meta">@r.Area</span>
+                        </span>
+                    </label>
+                }
+            </fieldset>
+            <p class="settings__status" role="status">@_status</p>
+        </Panel>
+    }
+
     <Panel LabelledBy="display-title">
         <h2 id="display-title" class="settings__title">Display</h2>
         <p class="settings__intro">These choices are kept in this browser and apply to every portal you open in it.</p>
@@ -39,8 +68,28 @@
     [Parameter, EditorRequired] public PortalRole Role { get; set; }
 
     private StaffUser? _user;
+    private string? _status;
 
     private string RoleLabel => Role == PortalRole.Runner ? "Runner" : "Administrator";
 
+    protected override void OnInitialized() => Runner.Changed += OnRunnerChanged;
+
     protected override async Task OnParametersSetAsync() => _user = await Staff.GetUserAsync(Role);
+
+    protected override Task OnAfterRenderAsync(bool firstRender) =>
+        firstRender && Role == PortalRole.Runner ? Runner.EnsureLoadedAsync() : Task.CompletedTask;
+
+    private void OnRunnerChanged() => _ = InvokeAsync(async () =>
+    {
+        _user = await Staff.GetUserAsync(Role);
+        StateHasChanged();
+    });
+
+    private async Task ChooseAsync(string name)
+    {
+        var kept = await Runner.SetAsync(name);
+        _status = kept ? $"Now viewing as {name}." : $"Viewing as {name} for now, but this browser couldn’t keep it for your next visit.";
+    }
+
+    public void Dispose() => Runner.Changed -= OnRunnerChanged;
 }

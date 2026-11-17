@@ -3,6 +3,7 @@
 
 const SIDEBAR_KEY = "mediassist.sidebar";
 const FILIPINO_KEY = "mediassist.filipino";
+const RUNNER_KEY = "mediassist.runner";
 const WIDE_QUERY = "(min-width: 75em)";
 const TABLET_QUERY = "(min-width: 48em)";
 const watchers = new Map();
@@ -24,6 +25,15 @@ export function getFilipinoPreference() {
 
 export function setFilipinoPreference(value) {
     try { localStorage.setItem(FILIPINO_KEY, value); return true; } catch { return false; }
+}
+
+// The fictional runner the runner portal shows (D10; a demo choice, not a sign-in).
+export function getRunnerPreference() {
+    try { return localStorage.getItem(RUNNER_KEY); } catch { return null; }
+}
+
+export function setRunnerPreference(value) {
+    try { localStorage.setItem(RUNNER_KEY, value); return true; } catch { return false; }
 }
 
 export function watchWideViewport(dotNetRef) {

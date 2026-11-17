@@ -1,0 +1,38 @@
+@*
+    One runner errand as a card (runner dashboard and My assignments, D10): only what the errand
+    needs, its progress and one way into the task.
+*@
+
+<article class="task" aria-labelledby="@($"task-{Task.Id}")">
+    <div class="task__head">
+        <h3 id="@($"task-{Task.Id}")" class="task__title">@Task.Request.Errand</h3>
+        <p class="task__due">
+            <Icon Name="clock" Size="16" />
+            @(Task.Request.Status == RunnerTaskStatus.Completed ? "Due" : "Needed by") <time datetime="@DisplayFormat.Machine(Task.Request.NeededBy)">@DisplayFormat.Relative(Task.Request.NeededBy, Now)</time>
+        </p>
+    </div>
+    <p class="task__place"><Icon Name="hospital" Size="16" /> @Task.Request.Place@(Task.District.Length > 0 ? $" · {Task.District}" : "")</p>
+    <p class="task__meta">For @Task.ContactFirstName · <span class="ref">@Task.Request.ApplicationReference</span></p>
+    <ChevronStepper Steps="StepperSteps.ForRunnerTask(Task.Request.Status)"
+                    AriaLabel="@($"Progress of task {Task.Id}")"
+                    ShowFilipino="false" />
+    <div class="task__action">
+        <AppButton Variant="AppButton.ButtonVariant.Secondary"
+                   Href="@($"{RoleNavigation.RunnerTasks.Href}/{Task.Id}")"
+                   IconEnd="arrow-right">
+            @ActionLabel<span class="visually-hidden">: @Task.Request.Errand</span>
+        </AppButton>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public RunnerTaskView Task { get; set; } = default!;
+    [Parameter, EditorRequired] public DateTimeOffset Now { get; set; }
+
+    private string ActionLabel => Task.Request.Status switch
+    {
+        RunnerTaskStatus.Assigned => "Review and accept",
+        RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress => "Update progress",
+        _ => "View errand"
+    };
+}

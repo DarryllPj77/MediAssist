@@ -9,7 +9,7 @@ public static class RunnerTaskStatusDisplay
         RunnerTaskStatus.PendingAssignment => "Waiting for a runner",
         RunnerTaskStatus.Assigned => "Assigned",
         RunnerTaskStatus.Accepted => "Accepted",
-        RunnerTaskStatus.InProgress => "In progress",
+        RunnerTaskStatus.InProgress => "On the way",
         RunnerTaskStatus.Completed => "Completed",
         RunnerTaskStatus.Declined => "Declined, needs a new runner",
         RunnerTaskStatus.Cancelled => "Cancelled",

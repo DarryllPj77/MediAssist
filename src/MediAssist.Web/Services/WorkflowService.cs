@@ -440,7 +440,7 @@ public sealed class WorkflowService(
                 },
                 Version = current.Version + 1,
             };
-            var notice = new PortalNotification($"n-auth-{id}-{(approve ? "approved" : "rejected")}-{now:yyyyMMddHHmmssfff}",
+            var notice = new PortalNotification($"n-auth-{id}-{(approve ? "approved" : "rejected")}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}",
                 approve ? "Authorization approved" : "Authorization not approved",
                 approve ? $"You can now apply and follow applications for {current.PatientName}."
                         : $"Your request to act for {current.PatientName} wasn't approved. See the reviewer's note.",
@@ -535,13 +535,89 @@ public sealed class WorkflowService(
             var assigned = new SharedRunnerRequest(current.Request with
             {
                 Status = RunnerTaskStatus.Assigned, RunnerName = runner, AssignedAt = now,
+                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, RunnerStepKind.Assigned, runner!)],
             }, current.Version + 1);
-            var notice = new PortalNotification($"n-{id}-assigned-{now:yyyyMMddHHmmssfff}",
+            var notice = new PortalNotification($"n-{id}-assigned-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}",
                 reassigned ? "Runner changed" : "Runner assigned",
                 $"{runner} will help with “{current.Request.Errand}” for {current.Request.ApplicationReference}.",
                 now, false, "/patient/runner");
             var forAccount = Find(current.Request.ApplicationReference) is { } application && ForAccount(application.Application.PatientId);
             result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice] : [], RunnerRequests: [assigned]))
+                ? ReviewResult.Done
+                : ReviewResult.SaveFailed;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+        if (result.Succeeded) Changed?.Invoke();
+        return result;
+    }
+
+    // ---- Runner tasks (D10) ----
+
+    /// <summary>
+    /// A runner's tasks: every request assigned to them now, and those they had before (declined,
+    /// handed back) for their history. Each shows only what the errand needs.
+    /// </summary>
+    public IReadOnlyList<RunnerTaskView> RunnerTasksFor(string runner) =>
+    [
+        .. AllRunnerRequests()
+            .Where(r => r.Request.RunnerName == runner || (r.Request.Steps?.Any(s => s.Runner == runner) ?? false))
+            .Select(RunnerView),
+    ];
+
+    public RunnerTaskView? RunnerTask(string id) => FindRunnerRequest(id) is { } r ? RunnerView(r) : null;
+
+    private RunnerTaskView RunnerView(SharedRunnerRequest r)
+    {
+        var place = r.Request.Place;
+        var hospital = store.Hospitals.FirstOrDefault(h => place.StartsWith(h.Name, StringComparison.OrdinalIgnoreCase));
+        var patient = Find(r.Request.ApplicationReference)?.Application.PatientName ?? "";
+        return new RunnerTaskView(r, hospital?.District ?? "", patient.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "the family");
+    }
+
+    /// <summary>
+    /// The assigned runner takes a step: accept, decline (with a reason), on the way, done (with an
+    /// optional note) or hand back (with a reason). Declining or handing back returns the request to
+    /// the administrator. The application's status never changes.
+    /// </summary>
+    public async Task<ReviewResult> RunnerStepAsync(string id, int expectedVersion, string runner, RunnerStepKind kind, string? note)
+    {
+        ReviewResult result;
+        await _gate.WaitAsync();
+        try
+        {
+            var current = FindRunnerRequest(id);
+            if (current is null) return ReviewResult.Refused("That errand doesn't exist.");
+            if (current.Version != expectedVersion) return ReviewResult.Stale;
+            if (RunnerRules.StepProblem(current.Request, runner, kind, note) is string problem) return ReviewResult.Refused(problem);
+
+            var now = clock.GetLocalNow();
+            var text = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+            var status = RunnerRules.StatusAfter(kind);
+            var updated = new SharedRunnerRequest(current.Request with
+            {
+                Status = status,
+                ClosedAt = status == RunnerTaskStatus.Completed ? now : current.Request.ClosedAt,
+                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, kind, runner, text)],
+            }, current.Version + 1);
+
+            var errand = current.Request.Errand;
+            var reference = current.Request.ApplicationReference;
+            var first = runner.Split(' ')[0];
+            PortalNotification? notice = kind switch
+            {
+                RunnerStepKind.Accepted => new($"n-{id}-accepted-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", "Runner accepted",
+                    $"{first} accepted “{errand}” for {reference}.", now, false, "/patient/runner"),
+                RunnerStepKind.Completed => new($"n-{id}-done-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", "Runner errand done",
+                    $"{first} finished “{errand}” for {reference}.", now, false, "/patient/runner"),
+                RunnerStepKind.Declined or RunnerStepKind.HandedBack => new($"n-{id}-handback-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", "Finding another runner",
+                    $"Your runner can't do “{errand}”. The office will assign another.", now, false, "/patient/runner"),
+                _ => null
+            };
+            var forAccount = notice is not null && Find(reference) is { } application && ForAccount(application.Application.PatientId);
+            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice!] : [], RunnerRequests: [updated]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -648,7 +724,7 @@ public sealed class WorkflowService(
 
     /// <summary>A notification for the account holder, unique per change (repeated rounds don't collide).</summary>
     private static PortalNotification Notice(string reference, string kind, string title, string message, DateTimeOffset now) =>
-        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmssfff}", title, message, now, false, $"/patient/applications/{reference}");
+        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", title, message, now, false, $"/patient/applications/{reference}");
 
     public static string AddMissing(int count) =>
         count == 1 ? "Add the missing document" : $"Add the {count} missing documents";

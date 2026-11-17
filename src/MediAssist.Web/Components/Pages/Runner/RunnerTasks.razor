@@ -1,0 +1,91 @@
+@page "/runner/tasks"
+@inherits RunnerWorkflowPage
+@inject IStaffPortalDataService Staff
+@inject TimeProvider Clock
+
+@*
+    My assignments (D10): the chosen runner's errands by stage — To accept, In progress, Done
+    (?show=accept|progress|done; default: everything still open). Updates live.
+*@
+
+<PageTitle>My assignments · MediAssist</PageTitle>
+
+<div class="page page--wide">
+    <SplitHero TitleId="assignments-title" ImageKey="@ImageSlots.HeroKeyForPath("runner/tasks")" Compact="true"
+               Title="My assignments"
+               TitleFilipino="Aking mga gawain"
+               Lead="@LeadText"
+               LeadFilipino="Gawin lamang ang nakasulat na gawain.">
+        <Eyebrow>Runner · @CurrentRunner</Eyebrow>
+    </SplitHero>
+
+    <section class="staffreq" aria-labelledby="assignment-list-title">
+        <h2 id="assignment-list-title" class="visually-hidden">Errands</h2>
+        <FilterChips Chips="Chips" AriaLabel="Errands by stage" Noun="errand" />
+
+        @if (_items.Count == 0)
+        {
+            <Panel>
+                <EmptyState IconName="route" Title="Nothing here" Message="No errand of yours is at this stage." />
+            </Panel>
+        }
+        else
+        {
+            <ul role="list" class="staffreq__list">
+                @foreach (var task in _items)
+                {
+                    <li><RunnerTaskCard Task="task" Now="_now" /></li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "show")] public string? Show { get; set; }
+
+    private IReadOnlyList<RunnerTaskView> _mine = [];
+    private IReadOnlyList<RunnerTaskView> _items = [];
+    private DateTimeOffset _now;
+
+    private static bool ToAccept(RunnerTaskView t) => t.Request.Status == RunnerTaskStatus.Assigned;
+    private static bool InProgress(RunnerTaskView t) => t.Request.Status is RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress;
+    private static bool Done(RunnerTaskView t) => t.Request.Status == RunnerTaskStatus.Completed;
+
+    private IReadOnlyList<FilterChips.Chip> Chips =>
+    [
+        new("Open", RoleNavigation.RunnerTasks.Href, _mine.Count(t => ToAccept(t) || InProgress(t)), Active: Show is null),
+        new("To accept", $"{RoleNavigation.RunnerTasks.Href}?show=accept", _mine.Count(ToAccept), Active: Show == "accept",
+            Attention: _mine.Any(ToAccept)),
+        new("In progress", $"{RoleNavigation.RunnerTasks.Href}?show=progress", _mine.Count(InProgress), Active: Show == "progress"),
+        new("Done", $"{RoleNavigation.RunnerTasks.Href}?show=done", _mine.Count(Done), Active: Show == "done"),
+    ];
+
+    private string LeadText
+    {
+        get
+        {
+            var toAccept = _mine.Count(ToAccept);
+            return toAccept switch
+            {
+                0 => "Every errand assigned to you is accepted. Update each one as you go.",
+                1 => "1 errand waits for you to accept or decline it.",
+                _ => $"{toAccept} errands wait for you to accept or decline them."
+            };
+        }
+    }
+
+    protected override async Task LoadAsync()
+    {
+        _now = Clock.GetLocalNow();
+        _mine = [.. (await Staff.GetRunnerTasksAsync()).Where(t => t.Request.RunnerName == CurrentRunner && t.Request.Status != RunnerTaskStatus.Declined)];
+        IEnumerable<RunnerTaskView> shown = Show switch
+        {
+            "accept" => _mine.Where(ToAccept),
+            "progress" => _mine.Where(InProgress),
+            "done" => _mine.Where(Done).OrderByDescending(t => t.Request.ClosedAt),
+            _ => _mine.Where(t => ToAccept(t) || InProgress(t)),
+        };
+        _items = Show == "done" ? [.. shown] : [.. shown.OrderBy(t => t.Request.NeededBy)];
+    }
+}

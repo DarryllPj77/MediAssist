@@ -1,0 +1,134 @@
+/* Runner errand page (D10). Fact list styles come from .sreq__facts in pages.css. */
+
+.rtask {
+    display: grid;
+    gap: var(--space-6);
+}
+
+.rtask__back {
+    margin-block-end: calc(-1 * var(--space-3));
+}
+
+.rtask__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.rtask__status:empty {
+    display: none;
+}
+
+.rtask__status {
+    color: var(--color-text);
+    font-weight: var(--weight-semibold);
+}
+
+.rtask__error,
+.rtask__flag {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.rtask__flag {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border-card);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.rtask__title {
+    margin-block-end: var(--space-4);
+    color: var(--color-navy);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+}
+
+.rtask__title:focus {
+    outline: none;
+}
+
+.rtask__subtitle {
+    margin-block: var(--space-5) var(--space-2);
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.rtask__hint {
+    max-width: 62ch;
+    margin-block: var(--space-4);
+    color: var(--color-text);
+}
+
+.rtask__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.rtask__form {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 40rem;
+    margin-block: var(--space-4);
+}
+
+.rtask__textarea {
+    min-height: 4.5rem;
+    resize: vertical;
+}
+
+.rtask__optional {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+}
+
+.rtask__facts {
+    margin-block-end: var(--space-4);
+}
+
+.rtask__never {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.rtask__never li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text);
+}
+
+.rtask__steps {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.rtask__steps li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding-block-end: var(--space-3);
+    border-block-end: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.rtask__step {
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.rtask__step-note {
+    flex-basis: 100%;
+    color: var(--color-text);
+}

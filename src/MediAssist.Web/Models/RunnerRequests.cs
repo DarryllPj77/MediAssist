@@ -56,6 +56,50 @@ public static class RunnerRules
         "Make medical or financial decisions for you",
     ];
 
+    public const int RunnerNoteMin = 10;
+
+    /// <summary>
+    /// Whether this runner may take this step now (D10). Only the assigned runner acts. Assigned →
+    /// accept or decline; accepted → on the way; on the way → done; accepted or on the way → hand
+    /// back. Declining and handing back need a reason (10–200 characters); a done note is optional.
+    /// </summary>
+    public static string? StepProblem(RunnerRequestItem request, string runner, RunnerStepKind kind, string? note)
+    {
+        if (request.RunnerName != runner) return "This errand isn't assigned to you.";
+        var fits = kind switch
+        {
+            RunnerStepKind.Accepted or RunnerStepKind.Declined => request.Status == RunnerTaskStatus.Assigned,
+            RunnerStepKind.Started => request.Status == RunnerTaskStatus.Accepted,
+            RunnerStepKind.Completed => request.Status == RunnerTaskStatus.InProgress,
+            RunnerStepKind.HandedBack => request.Status is RunnerTaskStatus.Accepted or RunnerTaskStatus.InProgress,
+            _ => false
+        };
+        if (!fits) return request.Status switch
+        {
+            RunnerTaskStatus.Completed => "This errand is already done.",
+            RunnerTaskStatus.Declined or RunnerTaskStatus.Cancelled => "This errand is no longer yours.",
+            _ => "That step doesn't fit where this errand is now."
+        };
+
+        var length = note?.Trim().Length ?? 0;
+        if (kind is RunnerStepKind.Declined or RunnerStepKind.HandedBack)
+            return length == 0 ? "Say why, so the office can find another runner."
+                : length < RunnerNoteMin ? $"Write at least {RunnerNoteMin} characters so the office understands."
+                : length > NotesMaxLength ? $"Keep it to {NotesMaxLength} characters or fewer."
+                : null;
+        return length > NotesMaxLength ? $"Keep the note to {NotesMaxLength} characters or fewer." : null;
+    }
+
+    /// <summary>The request's status after a runner's step.</summary>
+    public static RunnerTaskStatus StatusAfter(RunnerStepKind kind) => kind switch
+    {
+        RunnerStepKind.Accepted => RunnerTaskStatus.Accepted,
+        RunnerStepKind.Started => RunnerTaskStatus.InProgress,
+        RunnerStepKind.Completed => RunnerTaskStatus.Completed,
+        RunnerStepKind.Assigned => RunnerTaskStatus.Assigned,
+        _ => RunnerTaskStatus.Declined
+    };
+
     /// <summary>Field errors keyed "application", "errand", "date", "window", "notes", "confirm".</summary>
     public static Dictionary<string, string> Validate(AssistanceApplication? application, bool hasOpenRequest, RunnerErrand? errand,
         DateOnly? date, string? window, string? notes, bool confirmed, DateOnly today)

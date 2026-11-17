@@ -78,9 +78,13 @@
                             For <a href="@ApplicationsHref.Detail(r.ApplicationReference)">@(app?.ProgramName ?? "application") · @r.ApplicationReference</a>
                             @if (app is not null) { <span> (@app.PatientName)</span> }
                         </p>
-                        @if (r.RunnerName is not null)
+                        @if (r.RunnerName is not null && r.Status != RunnerTaskStatus.Declined)
                         {
                             <p class="rcard__runner">Runner: @r.RunnerName</p>
+                        }
+                        @if (r.Status == RunnerTaskStatus.Completed && r.CompletionNote is { } done)
+                        {
+                            <p class="rcard__notes">Runner's note: “@done”</p>
                         }
                         @if (r.Notes is not null)
                         {

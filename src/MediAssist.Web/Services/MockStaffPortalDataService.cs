@@ -4,15 +4,15 @@ using MediAssist.Web.Navigation;
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// The staff portals' view. Reviews, authorization requests and runner requests come from the
-/// shared <see cref="WorkflowService"/> (D9a, D9b), so administrators see what families send from
-/// any browser; staff names and runner tasks still come from the seeded <see cref="MockPortalStore"/> (D10).
+/// The staff portals' view. Reviews, authorization requests, runner requests and runner tasks come
+/// from the shared <see cref="WorkflowService"/> (D9a, D9b, D10), so staff see what families send
+/// from any browser. The runner portal shows the runner chosen in settings (<see cref="RunnerSession"/>).
 /// </summary>
-public sealed class MockStaffPortalDataService(MockPortalStore store, WorkflowService workflow) : IStaffPortalDataService
+public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerSession runner) : IStaffPortalDataService
 {
     public Task<StaffUser> GetUserAsync(PortalRole role, CancellationToken cancellationToken = default) =>
         Task.FromResult(role == PortalRole.Runner
-            ? new StaffUser("Paolo", "Dizon")
+            ? new StaffUser(runner.Current.Name.Split(' ')[0], runner.Current.Name[(runner.Current.Name.IndexOf(' ') + 1)..])
             : new StaffUser("Ana", "Reyes"));
 
     public Task<int> GetUnreadCountAsync(PortalRole role, CancellationToken cancellationToken = default) =>
@@ -57,6 +57,6 @@ public sealed class MockStaffPortalDataService(MockPortalStore store, WorkflowSe
     public Task<IReadOnlyList<SharedRunnerRequest>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(workflow.AllRunnerRequests());
 
-    public Task<IReadOnlyList<RunnerTask>> GetRunnerTasksAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(store.RunnerTasks());
+    public Task<IReadOnlyList<RunnerTaskView>> GetRunnerTasksAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(workflow.RunnerTasksFor(runner.Current.Name));
 }

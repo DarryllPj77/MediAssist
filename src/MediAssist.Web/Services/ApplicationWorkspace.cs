@@ -331,8 +331,9 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     /// <summary>
     /// History entries for runner requests on an application: this account's requests and
-    /// cancellations, and every assignment an administrator made (seeded requests already have
-    /// their own "requested" entry in the seeded history).
+    /// cancellations, and every runner step (assigned, accepted, on the way, done, handed back).
+    /// Seeded requests already have their own "requested" entry in the seeded history. A runner's
+    /// reason for handing back stays with the office.
     /// </summary>
     public IReadOnlyList<ApplicationEvent> RunnerEvents(string reference) =>
     [
@@ -343,14 +344,26 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             if (own)
                 events.Add(new(reference, r.RequestedAt ?? r.NeededBy, ApplicationEventKind.RunnerRequested,
                     "Runner help requested", "You", $"{r.Errand} at {r.Place}."));
-            if (r.AssignedAt is { } assigned)
-                events.Add(new(reference, assigned, ApplicationEventKind.RunnerRequested, $"Runner assigned: {r.RunnerName}", "MediAssist",
-                    "Runner help doesn't change the application's status."));
+            if (r.Steps is { } steps)
+                events.AddRange(steps.Select(s => RunnerStepEvent(reference, s)));
+            else if (r.AssignedAt is { } assigned)
+                events.Add(RunnerStepEvent(reference, new RunnerStep(assigned, RunnerStepKind.Assigned, r.RunnerName ?? "a runner")));
             if (own && r.Status == RunnerTaskStatus.Cancelled && r.ClosedAt is { } closed)
                 events.Add(new(reference, closed, ApplicationEventKind.RunnerRequested, "Runner request cancelled", "You"));
             return events;
         }),
     ];
+
+    private static ApplicationEvent RunnerStepEvent(string reference, RunnerStep step) => step.Kind switch
+    {
+        RunnerStepKind.Assigned => new(reference, step.At, ApplicationEventKind.RunnerRequested, $"Runner assigned: {step.Runner}", "MediAssist",
+            "Runner help doesn't change the application's status."),
+        RunnerStepKind.Accepted => new(reference, step.At, ApplicationEventKind.RunnerRequested, $"Runner accepted: {step.Runner}", "Runner"),
+        RunnerStepKind.Started => new(reference, step.At, ApplicationEventKind.RunnerRequested, "Runner on the way", "Runner"),
+        RunnerStepKind.Completed => new(reference, step.At, ApplicationEventKind.RunnerRequested, "Runner errand done", "Runner", step.Note),
+        _ => new(reference, step.At, ApplicationEventKind.RunnerRequested, "Runner can't help", "MediAssist",
+            "The office will assign another runner."),
+    };
 
     // ---- Drafts ----
 

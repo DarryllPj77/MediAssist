@@ -63,7 +63,13 @@
                         }
                         @if (r.Status == RunnerTaskStatus.Declined && r.RunnerName is not null)
                         {
-                            <p class="sreq__warn"><Icon Name="alert-triangle" Size="18" /> @r.RunnerName declined. Choose another runner.</p>
+                            <p class="sreq__warn"><Icon Name="alert-triangle" Size="18" />
+                                @(r.Steps?.LastOrDefault()?.Kind == RunnerStepKind.HandedBack ? $"{r.RunnerName} handed it back" : $"{r.RunnerName} declined")@(r.HandBackReason is { } why ? $": “{why}”" : ".") Choose another runner.
+                            </p>
+                        }
+                        @if (r.Status == RunnerTaskStatus.Completed && r.CompletionNote is { } done)
+                        {
+                            <p class="sreq__note"><span class="visually-hidden">Runner's note: </span>@done</p>
                         }
 
                         @if (canAssign)
