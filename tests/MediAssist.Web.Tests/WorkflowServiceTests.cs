@@ -10,26 +10,12 @@ namespace MediAssist.Web.Tests;
 /// <summary>The shared workflow store (D9a) against a real SQLite file, one per test.</summary>
 public sealed class WorkflowServiceTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"mediassist-test-{Guid.NewGuid():N}.db");
-    private readonly FixedClock _clock = new(DateTimeOffset.Parse("2026-11-17T09:00:00+08:00"));
-
-    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
-    {
-        public DateTimeOffset Now { get; set; } = now;
-        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
-        public override TimeZoneInfo LocalTimeZone { get; } =
-            TimeZoneInfo.CreateCustomTimeZone("PH", TimeSpan.FromHours(8), "Philippines", "Philippines");
-    }
-
-    private sealed class Factory(string path) : IDbContextFactory<WorkflowDbContext>
-    {
-        public WorkflowDbContext CreateDbContext() =>
-            new(new DbContextOptionsBuilder<WorkflowDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
-    }
+    private readonly TestDatabase _db = new();
+    private readonly TestClock _clock = new();
 
     private async Task<WorkflowService> StartAsync()
     {
-        var service = new WorkflowService(new Factory(_path), new MockPortalStore(_clock), _clock, NullLogger<WorkflowService>.Instance);
+        var service = new WorkflowService(_db, new MockPortalStore(_clock), _clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }
@@ -158,9 +144,5 @@ public sealed class WorkflowServiceTests : IDisposable
         Assert.False(result.Conflict);
     }
 
-    public void Dispose()
-    {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        if (System.IO.File.Exists(_path)) System.IO.File.Delete(_path);
-    }
+    public void Dispose() => _db.Dispose();
 }

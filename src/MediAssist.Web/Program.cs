@@ -17,7 +17,10 @@ builder.Services.AddSingleton<MockPortalStore>();
 // (D9a; changing it reset earlier prototype data once).
 builder.Services.AddDataProtection().SetApplicationName("MediAssist");
 // The shared workflow store (D9a): submitted applications, uploads, reviews and their notifications.
-var workflowDb = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "mediassist.db");
+// Path from configuration (`Workflow:DatabasePath`, M3.3) so tests can use a throwaway file;
+// relative paths are under the content root. Default: App_Data/mediassist.db.
+var workflowDb = Path.Combine(builder.Environment.ContentRootPath,
+    builder.Configuration["Workflow:DatabasePath"] ?? Path.Combine("App_Data", "mediassist.db"));
 Directory.CreateDirectory(Path.GetDirectoryName(workflowDb)!);
 builder.Services.AddDbContextFactory<WorkflowDbContext>(o => o.UseSqlite($"Data Source={workflowDb}"));
 builder.Services.AddSingleton<WorkflowService>();

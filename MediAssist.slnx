@@ -3,6 +3,7 @@
     <Project Path="src/MediAssist.Web/MediAssist.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MediAssist.Web.E2E/MediAssist.Web.E2E.csproj" />
     <Project Path="tests/MediAssist.Web.Tests/MediAssist.Web.Tests.csproj" />
   </Folder>
 </Solution>

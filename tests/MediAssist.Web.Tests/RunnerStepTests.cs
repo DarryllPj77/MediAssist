@@ -9,26 +9,13 @@ namespace MediAssist.Web.Tests;
 /// <summary>Runner steps (D10): the rules alone, then whole errands against SQLite.</summary>
 public sealed class RunnerStepTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"mediassist-test-{Guid.NewGuid():N}.db");
+    private readonly TestDatabase _db = new();
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-11-17T09:00:00+08:00");
-
-    private sealed class Clock : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
-        public override TimeZoneInfo LocalTimeZone { get; } =
-            TimeZoneInfo.CreateCustomTimeZone("PH", TimeSpan.FromHours(8), "Philippines", "Philippines");
-    }
-
-    private sealed class Factory(string path) : IDbContextFactory<WorkflowDbContext>
-    {
-        public WorkflowDbContext CreateDbContext() =>
-            new(new DbContextOptionsBuilder<WorkflowDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
-    }
 
     private async Task<WorkflowService> StartAsync()
     {
-        var clock = new Clock();
-        var service = new WorkflowService(new Factory(_path), new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
+        var clock = new TestClock(Now);
+        var service = new WorkflowService(_db, new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }
@@ -124,9 +111,5 @@ public sealed class RunnerStepTests : IDisposable
             t.Request.RunnerName == "Paolo Dizon" || t.Request.Steps!.Any(s => s.Runner == "Paolo Dizon")));
     }
 
-    public void Dispose()
-    {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        if (File.Exists(_path)) File.Delete(_path);
-    }
+    public void Dispose() => _db.Dispose();
 }

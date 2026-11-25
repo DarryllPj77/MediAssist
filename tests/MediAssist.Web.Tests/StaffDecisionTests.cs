@@ -9,27 +9,14 @@ namespace MediAssist.Web.Tests;
 /// <summary>Authorization decisions and runner assignment (D9b): rules alone, then against SQLite.</summary>
 public sealed class StaffDecisionTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"mediassist-test-{Guid.NewGuid():N}.db");
+    private readonly TestDatabase _db = new();
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-11-17T09:00:00+08:00");
     private static readonly DateOnly Today = DateOnly.FromDateTime(Now.Date);
 
-    private sealed class Clock : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
-        public override TimeZoneInfo LocalTimeZone { get; } =
-            TimeZoneInfo.CreateCustomTimeZone("PH", TimeSpan.FromHours(8), "Philippines", "Philippines");
-    }
-
-    private sealed class Factory(string path) : IDbContextFactory<WorkflowDbContext>
-    {
-        public WorkflowDbContext CreateDbContext() =>
-            new(new DbContextOptionsBuilder<WorkflowDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
-    }
-
     private async Task<WorkflowService> StartAsync()
     {
-        var clock = new Clock();
-        var service = new WorkflowService(new Factory(_path), new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
+        var clock = new TestClock(Now);
+        var service = new WorkflowService(_db, new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }
@@ -138,16 +125,12 @@ public sealed class StaffDecisionTests : IDisposable
     public async Task A_database_from_D9a_gets_the_new_tables_on_start()
     {
         await StartAsync();
-        await using (var db = new Factory(_path).CreateDbContext())
+        await using (var db = _db.CreateDbContext())
             await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\";");
 
         var workflow = await StartAsync();
         Assert.True((await workflow.AssignRunnerAsync("rr-31", 0, "Ramil Ocampo")).Succeeded);
     }
 
-    public void Dispose()
-    {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        if (File.Exists(_path)) File.Delete(_path);
-    }
+    public void Dispose() => _db.Dispose();
 }

@@ -12,32 +12,11 @@ namespace MediAssist.Web.Tests;
 /// </summary>
 public sealed class FamilyScopeTests : IDisposable
 {
-    private readonly string _path = Path.Combine(Path.GetTempPath(), $"mediassist-test-{Guid.NewGuid():N}.db");
+    private readonly TestDatabase _db = new();
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-11-25T09:00:00+08:00");
     private static readonly Guid Lia = Guid.Parse("6f1d2c1e-0000-4000-8000-0000000000a3");
 
-    private sealed class Clock : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => Now.ToUniversalTime();
-        public override TimeZoneInfo LocalTimeZone { get; } =
-            TimeZoneInfo.CreateCustomTimeZone("PH", TimeSpan.FromHours(8), "Philippines", "Philippines");
-    }
-
-    private sealed class Factory(string path) : IDbContextFactory<WorkflowDbContext>
-    {
-        public WorkflowDbContext CreateDbContext() =>
-            new(new DbContextOptionsBuilder<WorkflowDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
-    }
-
-    /// <summary>One browser's storage, kept in memory.</summary>
-    private sealed class BrowserStorage : IWorkspaceStorage
-    {
-        private WorkspaceSnapshot? _saved;
-        public Task<WorkspaceSnapshot?> LoadAsync() => Task.FromResult(_saved);
-        public Task<bool> SaveAsync(WorkspaceSnapshot snapshot) { _saved = snapshot; return Task.FromResult(true); }
-    }
-
-    private readonly Clock _clock = new();
+    private readonly TestClock _clock = new(Now);
     private MockPortalStore? _store;
     private WorkflowService? _workflow;
 
@@ -46,7 +25,7 @@ public sealed class FamilyScopeTests : IDisposable
         _store ??= new MockPortalStore(_clock);
         if (_workflow is null)
         {
-            _workflow = new WorkflowService(new Factory(_path), _store, _clock, NullLogger<WorkflowService>.Instance);
+            _workflow = new WorkflowService(_db, _store, _clock, NullLogger<WorkflowService>.Instance);
             await _workflow.InitializeAsync();
         }
         return _workflow;
@@ -55,7 +34,7 @@ public sealed class FamilyScopeTests : IDisposable
     private async Task<ApplicationWorkspace> BrowserAsync()
     {
         var workflow = await WorkflowAsync();
-        var workspace = new ApplicationWorkspace(new BrowserStorage(), _store!, workflow, _clock);
+        var workspace = new ApplicationWorkspace(new MemoryBrowserStorage(), _store!, workflow, _clock);
         await workspace.EnsureLoadedAsync();
         return workspace;
     }
@@ -131,9 +110,5 @@ public sealed class FamilyScopeTests : IDisposable
         Assert.Equal(AuthorizationStatus.PendingReview, browser.Household.Single(p => p.Id == ana.Id).Authorization);
     }
 
-    public void Dispose()
-    {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        if (File.Exists(_path)) File.Delete(_path);
-    }
+    public void Dispose() => _db.Dispose();
 }

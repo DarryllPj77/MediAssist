@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # MediAssist shared workflow database (D9, created on first run)
 src/MediAssist.Web/App_Data/
+
+# The browser test project (M3.3); the template's *.e2e pattern above matches its folder name on Windows.
+!/tests/MediAssist.Web.E2E/
