@@ -43,9 +43,13 @@
             </p>
         </header>
 
-        @if (_detail.AuthorizationPending)
+        @if (_detail.Authorization == AuthorizationStanding.Pending)
         {
             <p class="review__flag"><Icon Name="shield-check" Size="18" /> The patient's authorization is still being reviewed. Approve it before this review starts.</p>
+        }
+        else if (_detail.Authorization == AuthorizationStanding.Rejected)
+        {
+            <p class="review__flag"><Icon Name="alert-triangle" Size="18" /> The patient's authorization wasn't approved. This review can start once the family's new request is approved.</p>
         }
 
         <p class="review__status" role="status">@_status</p>

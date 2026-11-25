@@ -42,8 +42,21 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             .Select(a => a.AsLocal()),
     ];
 
-    /// <summary>This browser's notifications (profiles, runner requests) and the shared ones (submissions, reviews).</summary>
-    public IReadOnlyList<PortalNotification> Notifications => [.. _snapshot.Notifications, .. workflow.State.Notifications];
+    /// <summary>
+    /// This browser's notifications and the shared ones about this family's patients (M3.2). A
+    /// shared notification names its patient; an older one without a patient is shown only when it
+    /// links to one of this family's applications.
+    /// </summary>
+    public IReadOnlyList<PortalNotification> Notifications =>
+        [.. _snapshot.Notifications, .. workflow.State.Notifications.Where(IsForThisFamily)];
+
+    private bool IsForThisFamily(PortalNotification n)
+    {
+        if (n.PatientId is { } patientId) return IsHousehold(patientId);
+        const string prefix = "/patient/applications/";
+        return n.Href is { } href && href.StartsWith(prefix, StringComparison.Ordinal)
+            && CurrentApplication(href[prefix.Length..]) is not null;
+    }
 
     /// <summary>Uploads to drafts (this browser) and to the household's submitted applications (shared).</summary>
     public IReadOnlyList<DocumentUpload> Uploads =>
@@ -169,7 +182,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             file!.FileName, file.ContentType, file.SizeBytes, now);
         var href = $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, Household)}";
         var notification = new PortalNotification($"n-auth-{request.Id}", "Authorization requested",
-            $"Your request to act for {patient.FullName} is being reviewed.", now, false, href);
+            $"Your request to act for {patient.FullName} is being reviewed.", now, false, href, patientId);
 
         // The request goes to the shared store so an administrator can decide; the profile's status follows it.
         var shared = new SharedAuthorization(request, patient.FullName, patient.Relationship, patient.DateOfBirth, href, 0);
@@ -213,13 +226,16 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     }
 
     /// <summary>
-    /// Remove everything this user saved in this browser (drafts, submissions, uploads, profiles,
-    /// requests, read states and account changes). Returns false when it could not be saved.
+    /// Remove what this user saved in this browser (drafts, uploads to drafts, profiles, read
+    /// states and account changes). Added patients with applications or requests in the shared
+    /// store are kept (M3.2), so the family can still see and follow them. Returns false when it
+    /// could not be saved.
     /// </summary>
     public async Task<bool> ClearAsync()
     {
         var before = _snapshot;
-        _snapshot = WorkspaceSnapshot.Empty;
+        var keep = LocalProfiles.Where(p => store.Household.All(s => s.Id != p.Id) && workflow.HasRecordsFor(p.Id)).ToList();
+        _snapshot = WorkspaceSnapshot.Empty with { Profiles = keep };
         if (!await PersistAsync())
         {
             _snapshot = before;
@@ -306,6 +322,10 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         var open = application is not null && RunnerRequests.Any(r =>
             Same(r.ApplicationReference, application.ReferenceNumber) && RunnerRules.IsOpen(r.Status));
         var errors = RunnerRules.Validate(application, open, errand, date, window, notes, confirmed, DateOnly.FromDateTime(now.Date));
+        // No runner help while the patient's authorization stands rejected (M3.2).
+        if (!errors.ContainsKey("application") && application is not null
+            && workflow.Authorization(application.PatientId) == AuthorizationStanding.Rejected)
+            errors["application"] = $"{application.PatientName}'s authorization wasn't approved, so runner help isn't available for this application.";
         if (errors.Count > 0) return RunnerRequestResult.Failed(errors);
 
         var hospital = store.Hospitals.FirstOrDefault(h => h.Name == application!.HospitalName);
@@ -318,7 +338,8 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             neededBy, RunnerTaskStatus.PendingAssignment, null,
             errand, window, string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), now);
         var notification = new PortalNotification($"n-{request.Id}", "Runner help requested",
-            $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false, "/patient/runner");
+            $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false, "/patient/runner",
+            application.PatientId);
 
         return await workflow.RequestRunnerAsync(request, notification)
             ? RunnerRequestResult.Saved(request)
@@ -427,7 +448,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             ];
             var notification = new PortalNotification(
                 $"n-{reference}", "Application submitted", $"{reference} was sent for review.", now, false,
-                $"/patient/applications/{reference}");
+                $"/patient/applications/{reference}", patient.Id);
             return new Submission(new SharedApplication(application, checklist, history, 0), uploads, notification);
         });
         if (reference is null) return null;

@@ -60,11 +60,13 @@ public class ReviewRulesTests
     }
 
     [Fact]
-    public void Review_waits_for_a_pending_authorization()
+    public void Review_waits_for_an_approved_authorization()
     {
-        Assert.NotNull(ReviewRules.StartProblem(ApplicationStatus.Submitted, authorizationPending: true));
-        Assert.Null(ReviewRules.StartProblem(ApplicationStatus.Submitted, authorizationPending: false));
-        Assert.NotNull(ReviewRules.StartProblem(ApplicationStatus.UnderReview, authorizationPending: false));
+        Assert.NotNull(ReviewRules.StartProblem(ApplicationStatus.Submitted, AuthorizationStanding.Pending));
+        Assert.NotNull(ReviewRules.StartProblem(ApplicationStatus.Submitted, AuthorizationStanding.Rejected));
+        Assert.Null(ReviewRules.StartProblem(ApplicationStatus.Submitted, AuthorizationStanding.Approved));
+        Assert.Null(ReviewRules.StartProblem(ApplicationStatus.Submitted, AuthorizationStanding.NotNeeded));
+        Assert.NotNull(ReviewRules.StartProblem(ApplicationStatus.UnderReview, AuthorizationStanding.NotNeeded));
     }
 
     [Fact]

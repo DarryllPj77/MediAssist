@@ -87,8 +87,25 @@ public sealed class WorkflowService(
     public DocumentUpload? LatestUpload(string reference, string documentName) => Latest(State.Uploads, reference, documentName);
 
     /// <summary>True while the patient's latest authorization request waits for an administrator.</summary>
-    public bool AuthorizationPending(Guid patientId) =>
-        LatestAuthorization(patientId)?.Request.Status == AuthorizationRequestStatus.Pending;
+    public bool AuthorizationPending(Guid patientId) => Authorization(patientId) == AuthorizationStanding.Pending;
+
+    /// <summary>
+    /// Whether the account may act for this patient (M3.2): the latest request decides. A patient
+    /// with no request needs none (the account holder, or a seeded patient of another account),
+    /// since a family member can't apply without asking first.
+    /// </summary>
+    public AuthorizationStanding Authorization(Guid patientId) => LatestAuthorization(patientId)?.Request.Status switch
+    {
+        null => AuthorizationStanding.NotNeeded,
+        AuthorizationRequestStatus.Approved => AuthorizationStanding.Approved,
+        AuthorizationRequestStatus.Rejected => AuthorizationStanding.Rejected,
+        _ => AuthorizationStanding.Pending
+    };
+
+    /// <summary>True when the patient has any shared application or authorization request (so a family must keep their profile).</summary>
+    public bool HasRecordsFor(Guid patientId) =>
+        State.Applications.Values.Any(a => a.Application.PatientId == patientId)
+        || State.Authorizations.Values.Any(a => a.Request.PatientId == patientId);
 
     /// <summary>The application's history with its uploads, oldest first (the administrator's view).</summary>
     public IReadOnlyList<ApplicationEvent> History(SharedApplication application) =>
@@ -197,7 +214,7 @@ public sealed class WorkflowService(
                 events = [.. events, new(current.Reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
                     "Every document the reviewer asked for has a new copy, so the application is back in review.",
                     ApplicationStatus.UnderReview)];
-                notifications.Add(Notice(current.Reference, "corrected", "Correction sent",
+                notifications.Add(Notice(current.Application.PatientId, current.Reference, "corrected", "Correction sent",
                     $"{current.Reference} is back in review with your corrected document.", now));
             }
             else if (application.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview)
@@ -228,7 +245,7 @@ public sealed class WorkflowService(
     public Task<ReviewResult> StartReviewAsync(string reference, int expectedVersion) =>
         ActAsync(reference, expectedVersion, (current, _, now) =>
         {
-            if (ReviewRules.StartProblem(current.Application.Status, AuthorizationPending(current.Application.PatientId)) is string problem)
+            if (ReviewRules.StartProblem(current.Application.Status, Authorization(current.Application.PatientId)) is string problem)
                 return Change.Refuse(problem);
             var application = current.Application with
             {
@@ -239,7 +256,7 @@ public sealed class WorkflowService(
                 Application = application,
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReviewStarted, "Review started", Reviewer,
                     Status: ApplicationStatus.UnderReview)],
-            }, notification: Notice(current.Reference, "review", "Review started", $"{current.Reference} is now under review.", now));
+            }, notification: Notice(current.Application.PatientId, current.Reference, "review", "Review started", $"{current.Reference} is now under review.", now));
         });
 
     /// <summary>Accept a document, or send it back (or ask for a missing one) with a reason the family will see.</summary>
@@ -285,7 +302,7 @@ public sealed class WorkflowService(
                 Application = current.Application with { Status = ApplicationStatus.NeedsCorrection, LastUpdated = now, NextStep = next },
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.CorrectionRequested, "Correction requested",
                     Reviewer, detail, ApplicationStatus.NeedsCorrection)],
-            }, notification: Notice(current.Reference, "correction", "Correction requested",
+            }, notification: Notice(current.Application.PatientId, current.Reference, "correction", "Correction requested",
                 flagged.Count == 1 ? $"{current.Reference} needs a new copy of the {Lower(flagged[0].Name)}."
                     : $"{current.Reference} needs new copies of {flagged.Count} documents.", now));
         });
@@ -303,7 +320,7 @@ public sealed class WorkflowService(
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReadyForProcessing, "Review finished",
                     Reviewer, "All documents were accepted. The program office will process the application.",
                     ApplicationStatus.ReadyForProcessing)],
-            }, notification: Notice(current.Reference, "ready", "Review finished",
+            }, notification: Notice(current.Application.PatientId, current.Reference, "ready", "Review finished",
                 $"{current.Reference} passed review and is with the program office.", now));
         });
 
@@ -321,7 +338,7 @@ public sealed class WorkflowService(
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.Completed, "Application completed", "MediAssist",
                     "Internal processing is finished. The program office decides on any assistance and contacts the family.",
                     ApplicationStatus.Completed)],
-            }, notification: Notice(current.Reference, "completed", "Application completed",
+            }, notification: Notice(current.Application.PatientId, current.Reference, "completed", "Application completed",
                 $"Internal processing for {current.Reference} is finished.", now));
         });
 
@@ -444,7 +461,7 @@ public sealed class WorkflowService(
                 approve ? "Authorization approved" : "Authorization not approved",
                 approve ? $"You can now apply and follow applications for {current.PatientName}."
                         : $"Your request to act for {current.PatientName} wasn't approved. See the reviewer's note.",
-                now, false, current.PatientHref);
+                now, false, current.PatientHref, current.Request.PatientId);
             result = await CommitAsync(State, new Writes(Notifications: [notice], Authorizations: [decided]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
@@ -483,6 +500,9 @@ public sealed class WorkflowService(
         try
         {
             if (AllRunnerRequests().Any(r => Same(r.Request.ApplicationReference, request.ApplicationReference) && RunnerRules.IsOpen(r.Request.Status)))
+                return false;
+            // No runner help for a patient whose authorization wasn't approved (M3.2).
+            if (Find(request.ApplicationReference) is { } application && Authorization(application.Application.PatientId) == AuthorizationStanding.Rejected)
                 return false;
             saved = await CommitAsync(State, new Writes(Notifications: [notification], RunnerRequests: [new SharedRunnerRequest(request, 1)]));
         }
@@ -529,6 +549,9 @@ public sealed class WorkflowService(
             if (current.Version != expectedVersion) return ReviewResult.Stale;
             if (StaffDecisionRules.AssignProblem(current.Request.Status, current.Request.RunnerName, runner) is string problem)
                 return ReviewResult.Refused(problem);
+            if (Find(current.Request.ApplicationReference) is { } application
+                && Authorization(application.Application.PatientId) == AuthorizationStanding.Rejected)
+                return ReviewResult.Refused("The patient's authorization wasn't approved, so no runner can be assigned until a new request is approved.");
 
             var now = clock.GetLocalNow();
             var reassigned = current.Request.Status == RunnerTaskStatus.Assigned;
@@ -541,8 +564,9 @@ public sealed class WorkflowService(
                 reassigned ? "Runner changed" : "Runner assigned",
                 $"{runner} will help with “{current.Request.Errand}” for {current.Request.ApplicationReference}.",
                 now, false, "/patient/runner");
-            var forAccount = Find(current.Request.ApplicationReference) is { } application && ForAccount(application.Application.PatientId);
-            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice] : [], RunnerRequests: [assigned]))
+            var patientId = Find(current.Request.ApplicationReference)?.Application.PatientId;
+            var forAccount = patientId is { } pid && ForAccount(pid);
+            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice with { PatientId = patientId }] : [], RunnerRequests: [assigned]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -616,8 +640,9 @@ public sealed class WorkflowService(
                     $"Your runner can't do “{errand}”. The office will assign another.", now, false, "/patient/runner"),
                 _ => null
             };
-            var forAccount = notice is not null && Find(reference) is { } application && ForAccount(application.Application.PatientId);
-            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice!] : [], RunnerRequests: [updated]))
+            var patientId = Find(reference)?.Application.PatientId;
+            var forAccount = notice is not null && patientId is { } pid && ForAccount(pid);
+            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice! with { PatientId = patientId }] : [], RunnerRequests: [updated]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -722,9 +747,10 @@ public sealed class WorkflowService(
     private static DocumentUpload? Latest(IEnumerable<DocumentUpload> uploads, string reference, string documentName) =>
         uploads.Where(u => Same(u.ApplicationReference, reference) && u.DocumentName == documentName).MaxBy(u => u.Version);
 
-    /// <summary>A notification for the account holder, unique per change (repeated rounds don't collide).</summary>
-    private static PortalNotification Notice(string reference, string kind, string title, string message, DateTimeOffset now) =>
-        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", title, message, now, false, $"/patient/applications/{reference}");
+    /// <summary>A notification about one patient's application, unique per change (repeated rounds don't collide).</summary>
+    private static PortalNotification Notice(Guid patientId, string reference, string kind, string title, string message, DateTimeOffset now) =>
+        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", title, message, now, false,
+            $"/patient/applications/{reference}", patientId);
 
     public static string AddMissing(int count) =>
         count == 1 ? "Add the missing document" : $"Add the {count} missing documents";

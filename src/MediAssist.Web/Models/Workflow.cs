@@ -49,13 +49,16 @@ public sealed record ReviewResult(bool Succeeded, string? Error, bool Conflict =
     public static ReviewResult SaveFailed { get; } = new(false, "The change couldn’t be saved. Try again.");
 }
 
+/// <summary>Whether the account may act for a patient, from their latest authorization request (M3.2).</summary>
+public enum AuthorizationStanding { NotNeeded, Pending, Approved, Rejected }
+
 /// <summary>Everything the administrator's review page shows for one application.</summary>
 public sealed record ReviewDetail(
     SharedApplication Current,
     ApplicationChecklist Checklist,
     IReadOnlyDictionary<string, DocumentUpload> LatestUploads,
     IReadOnlyList<ApplicationEvent> History,
-    bool AuthorizationPending)
+    AuthorizationStanding Authorization)
 {
     public AssistanceApplication Application => Current.Application;
 }
@@ -98,9 +101,11 @@ public static class ReviewRules
     public static IReadOnlyList<ApplicationStatus> Open { get; } =
         [ApplicationStatus.Submitted, ApplicationStatus.UnderReview, ApplicationStatus.NeedsCorrection, ApplicationStatus.ReadyForProcessing];
 
-    public static string? StartProblem(ApplicationStatus status, bool authorizationPending) =>
+    /// <summary>A review starts on a submitted application whose patient the account may act for (M3.2: not after a rejection).</summary>
+    public static string? StartProblem(ApplicationStatus status, AuthorizationStanding authorization) =>
         status != ApplicationStatus.Submitted ? "Only a submitted application can start review."
-        : authorizationPending ? "Review the patient's authorization first. The review can start once it is approved."
+        : authorization == AuthorizationStanding.Pending ? "Review the patient's authorization first. The review can start once it is approved."
+        : authorization == AuthorizationStanding.Rejected ? "The patient's authorization wasn't approved. The review can start once the family's new request is approved."
         : null;
 
     /// <summary>

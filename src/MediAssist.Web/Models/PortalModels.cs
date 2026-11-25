@@ -98,6 +98,8 @@ public sealed record ActionItem(
 /// <summary>
 /// An in-app notification. <see cref="Href"/> (added in D7, optional so older records still read)
 /// points at what it is about: an application, a patient profile or the runner page.
+/// <see cref="PatientId"/> (M3.2) names the patient it concerns, so a shared notification is shown
+/// only to the family whose patient it is; older records without it fall back to their link.
 /// </summary>
 public sealed record PortalNotification(
     string Id,
@@ -105,7 +107,8 @@ public sealed record PortalNotification(
     string Message,
     DateTimeOffset CreatedAt,
     bool IsRead,
-    string? Href = null);
+    string? Href = null,
+    Guid? PatientId = null);
 
 /// <summary>The user's own read/unread choice for one notification (D7), overriding its default.</summary>
 public sealed record NotificationReadState(string Id, bool IsRead);

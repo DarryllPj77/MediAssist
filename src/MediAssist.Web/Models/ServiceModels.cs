@@ -61,7 +61,8 @@ public sealed record ReviewQueueItem(
     int DocumentsRequired,
     DateTimeOffset WaitingSince,
     bool AuthorizationPending,
-    int AwaitingDecision = 0);
+    int AwaitingDecision = 0,
+    bool AuthorizationRejected = false);
 
 /// <summary>
 /// An optional runner request; once assigned it is also the runner's task (D10). The optional

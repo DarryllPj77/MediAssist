@@ -29,7 +29,8 @@ public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerS
                     a.Reference, a.Application.PatientName, a.Application.ProgramName, a.Application.HospitalName, a.Application.Status,
                     checklist.ReadyCount, checklist.Items.Count, a.Application.LastUpdated,
                     AuthorizationPending: workflow.AuthorizationPending(a.Application.PatientId),
-                    AwaitingDecision: checklist.Items.Count(i => i.Status == DocumentStatus.PendingReview));
+                    AwaitingDecision: checklist.Items.Count(i => i.Status == DocumentStatus.PendingReview),
+                    AuthorizationRejected: workflow.Authorization(a.Application.PatientId) == AuthorizationStanding.Rejected);
             })
             .ToList();
         return Task.FromResult(queue);
@@ -46,7 +47,7 @@ public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerS
             .ToDictionary(u => u.DocumentName);
         return Task.FromResult<ReviewDetail?>(new ReviewDetail(
             current, workflow.Effective(current), latest, workflow.History(current),
-            workflow.AuthorizationPending(current.Application.PatientId)));
+            workflow.Authorization(current.Application.PatientId)));
     }
 
     /// <summary>Authorization requests from every family (D9b), newest first.</summary>
