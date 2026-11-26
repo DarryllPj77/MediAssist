@@ -34,7 +34,9 @@ public sealed record ApplicationEvent(
     string Title,
     string Actor,
     string? Detail = null,
-    ApplicationStatus? Status = null);
+    ApplicationStatus? Status = null,
+    string? ActorId = null,
+    string? ActorName = null);
 
 /// <summary>Everything the application detail page shows, assembled by the data service.</summary>
 public sealed record ApplicationDetail(

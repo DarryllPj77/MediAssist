@@ -1,10 +1,11 @@
 @page "/patient/settings"
 @inherits WorkspaceAwarePage
 @inject IPatientPortalDataService Data
+@inject IAccountService Accounts
 
 @*
     Patient settings (D8). Account: first and last name and an optional email, validated in
-    ApplicationWorkspace.SaveAccountAsync; the "You" patient profile takes the same name. Display:
+    IAccountService (on the sign-in account since M3.4b; the email is read-only); the "You" patient profile takes the same name. Display:
     sidebar layout and Filipino helper text (DisplayPreferences). Saved data: what this browser
     holds, and clearing it behind a confirmation. Nothing here is shared with staff or other devices.
 *@
@@ -47,11 +48,9 @@
             </div>
 
             <div class="field">
-                <label class="field__label" for="st-email">Email <span class="settings__optional">(optional)</span></label>
-                <input id="st-email" class="input" type="email" autocomplete="email" maxlength="@AccountRules.EmailMax"
-                       @bind="_email" @bind:after="Edited" aria-invalid="@Invalid("email")" aria-describedby="@Described("email", "st-email-hint")" />
-                <p id="st-email-hint" class="field__hint">MediAssist sends no email in this prototype. Use an address ending in example.com.</p>
-                <FieldError Id="st-email-error" Message="@ErrorFor("email")" />
+                <p class="field__label">Sign-in email</p>
+                <p class="settings__fixed">@_email</p>
+                <p class="field__hint">Your email signs you in, so it can't be changed here.</p>
             </div>
 
             <div class="settings__actions">
@@ -164,7 +163,7 @@
     {
         _saving = true;
         _accountStatus = null;
-        var result = await Workspace.SaveAccountAsync(_first, _last, _email);
+        var result = await Accounts.SaveNameAsync(_first, _last);
         _saving = false;
         _errors = result.Errors;
         _saveError = result.SaveError;
@@ -173,7 +172,6 @@
             _edited = false;
             _first = saved.FirstName;
             _last = saved.LastName;
-            _email = saved.Email;
             _accountStatus = "Your details are saved.";
         }
     }

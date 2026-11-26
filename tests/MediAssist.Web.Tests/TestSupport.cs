@@ -59,6 +59,28 @@ public sealed class MemoryBrowserStorage : IWorkspaceStorage
     }
 }
 
+/// <summary>Fictional signed-in accounts for tests (M3.4b).</summary>
+public static class TestActors
+{
+    public static Actor Patient { get; } = new("user-maria", "Maria Santos", Data.Roles.Patient);
+    public static Actor Admin { get; } = new("user-ana", "Ana Reyes", Data.Roles.Administrator);
+
+    public static Actor Runner(string name) => new($"user-{name.Split(' ')[0].ToLowerInvariant()}", name, Data.Roles.Runner);
+}
+
+/// <summary>A fixed "who is signed in" for workspaces under test.</summary>
+public sealed class FixedActor(Actor actor) : ICurrentActor
+{
+    public Task<Actor> GetAsync() => Task.FromResult(actor);
+}
+
+/// <summary>The seeded account's details, without Identity.</summary>
+public sealed class StubAccountService(MockPortalStore store) : IAccountService
+{
+    public Task<PortalUser> GetCurrentAsync() => Task.FromResult(store.CurrentUser);
+    public Task<AccountResult> SaveNameAsync(string? firstName, string? lastName) => throw new NotSupportedException();
+}
+
 /// <summary>The real services over a test database and clock: one shared store, any number of browsers.</summary>
 public sealed class TestHarness : IDisposable
 {
@@ -91,7 +113,7 @@ public sealed class TestHarness : IDisposable
     /// <summary>A loaded patient workspace for one browser (its own storage unless one is given).</summary>
     public async Task<ApplicationWorkspace> BrowserAsync(MemoryBrowserStorage? storage = null)
     {
-        var workspace = new ApplicationWorkspace(storage ?? new MemoryBrowserStorage(), Store, Workflow, Clock);
+        var workspace = new ApplicationWorkspace(storage ?? new MemoryBrowserStorage(), Store, Workflow, Clock, new FixedActor(TestActors.Patient));
         await workspace.EnsureLoadedAsync();
         return workspace;
     }

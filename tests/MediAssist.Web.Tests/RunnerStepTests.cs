@@ -58,9 +58,9 @@ public sealed class RunnerStepTests : IDisposable
         int V() => workflow.FindRunnerRequest("rr-27")!.Version;
 
         // rr-27 was declined by Liza (seeded); the office gives it to Ramil, who declines too.
-        Assert.True((await workflow.AssignRunnerAsync("rr-27", V(), "Ramil Ocampo")).Succeeded);
-        Assert.False((await workflow.RunnerStepAsync("rr-27", V(), "Cora Bautista", RunnerStepKind.Accepted, null)).Succeeded);
-        Assert.True((await workflow.RunnerStepAsync("rr-27", V(), "Ramil Ocampo", RunnerStepKind.Declined, Reason)).Succeeded);
+        Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-27", V(), "Ramil Ocampo")).Succeeded);
+        Assert.False((await workflow.RunnerStepAsync(TestActors.Runner("Cora Bautista"), "rr-27", V(), RunnerStepKind.Accepted, null)).Succeeded);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Ramil Ocampo"), "rr-27", V(), RunnerStepKind.Declined, Reason)).Succeeded);
 
         var declined = workflow.FindRunnerRequest("rr-27")!.Request;
         Assert.Equal(RunnerTaskStatus.Declined, declined.Status);
@@ -68,10 +68,10 @@ public sealed class RunnerStepTests : IDisposable
         Assert.NotNull(StaffDecisionRules.AssignProblem(declined.Status, declined.RunnerName, "Ramil Ocampo"));
         Assert.Contains(workflow.State.Notifications, n => n.Title == "Finding another runner");
 
-        Assert.True((await workflow.AssignRunnerAsync("rr-27", V(), "Cora Bautista")).Succeeded);
-        Assert.True((await workflow.RunnerStepAsync("rr-27", V(), "Cora Bautista", RunnerStepKind.Accepted, null)).Succeeded);
-        Assert.True((await workflow.RunnerStepAsync("rr-27", V(), "Cora Bautista", RunnerStepKind.Started, null)).Succeeded);
-        Assert.True((await workflow.RunnerStepAsync("rr-27", V(), "Cora Bautista", RunnerStepKind.Completed, "Left with the cashier.")).Succeeded);
+        Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-27", V(), "Cora Bautista")).Succeeded);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Cora Bautista"), "rr-27", V(), RunnerStepKind.Accepted, null)).Succeeded);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Cora Bautista"), "rr-27", V(), RunnerStepKind.Started, null)).Succeeded);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Cora Bautista"), "rr-27", V(), RunnerStepKind.Completed, "Left with the cashier.")).Succeeded);
 
         var done = workflow.FindRunnerRequest("rr-27")!.Request;
         Assert.Equal(RunnerTaskStatus.Completed, done.Status);
@@ -92,11 +92,11 @@ public sealed class RunnerStepTests : IDisposable
         var workflow = await StartAsync();
         var seen = workflow.FindRunnerRequest("rr-29")!.Version; // Paolo accepted (seeded)
 
-        Assert.True((await workflow.RunnerStepAsync("rr-29", seen, "Paolo Dizon", RunnerStepKind.Started, null)).Succeeded);
-        var stale = await workflow.RunnerStepAsync("rr-29", seen, "Paolo Dizon", RunnerStepKind.HandedBack, Reason);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Paolo Dizon"), "rr-29", seen, RunnerStepKind.Started, null)).Succeeded);
+        var stale = await workflow.RunnerStepAsync(TestActors.Runner("Paolo Dizon"), "rr-29", seen, RunnerStepKind.HandedBack, Reason);
         Assert.True(stale.Conflict);
 
-        Assert.True((await workflow.RunnerStepAsync("rr-29", seen + 1, "Paolo Dizon", RunnerStepKind.HandedBack, Reason)).Succeeded);
+        Assert.True((await workflow.RunnerStepAsync(TestActors.Runner("Paolo Dizon"), "rr-29", seen + 1, RunnerStepKind.HandedBack, Reason)).Succeeded);
         Assert.Equal(RunnerTaskStatus.Declined, workflow.FindRunnerRequest("rr-29")!.Request.Status);
     }
 

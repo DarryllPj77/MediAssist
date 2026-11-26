@@ -165,7 +165,7 @@
         _error = null;
         _status = null;
         var runner = ChoiceFor(item.Request);
-        var result = await Workflow.AssignRunnerAsync(item.Id, item.Version, runner);
+        var result = await Workflow.AssignRunnerAsync(Me, item.Id, item.Version, runner);
         _busy = false;
         if (result.Succeeded)
         {

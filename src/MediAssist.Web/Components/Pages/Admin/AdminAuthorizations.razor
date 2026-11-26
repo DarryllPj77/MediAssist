@@ -62,6 +62,10 @@
                         {
                             <p class="sreq__note"><span class="visually-hidden">Decision note: </span>@r.ReviewerNote</p>
                         }
+                        @if (!waiting && a.DecidedByName is { Length: > 0 } decidedBy)
+                        {
+                            <p class="sreq__hint">Decided by @decidedBy@(r.DecidedAt is { } at ? $", {DisplayFormat.DateTime(at)}" : "")</p>
+                        }
 
                         @if (waiting)
                         {
@@ -174,7 +178,7 @@
     }
 
     private Task ApproveAsync(SharedAuthorization a) =>
-        RunAsync(Workflow.DecideAuthorizationAsync(a.Id, a.Version, true, null), $"Approved: {a.PatientName}. The family has been told.");
+        RunAsync(Workflow.DecideAuthorizationAsync(Me, a.Id, a.Version, true, null), $"Approved: {a.PatientName}. The family has been told.");
 
     private async Task RejectAsync(SharedAuthorization a)
     {
@@ -184,7 +188,7 @@
             _focusNote = true;
             return;
         }
-        if (await RunAsync(Workflow.DecideAuthorizationAsync(a.Id, a.Version, false, _note), $"Not approved: {a.PatientName}. The family has your note."))
+        if (await RunAsync(Workflow.DecideAuthorizationAsync(Me, a.Id, a.Version, false, _note), $"Not approved: {a.PatientName}. The family has your note."))
             CloseNote();
     }
 

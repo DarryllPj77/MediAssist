@@ -10,6 +10,12 @@ namespace MediAssist.Web.Components;
 public abstract class StaffWorkflowPage : ComponentBase, IDisposable
 {
     [Inject] protected WorkflowService Workflow { get; set; } = default!;
+    [Inject] private ICurrentActor CurrentActor { get; set; } = default!;
+
+    /// <summary>The signed-in account taking actions on this page (M3.4b).</summary>
+    protected MediAssist.Web.Models.Actor Me { get; private set; } = MediAssist.Web.Models.Actor.Nobody;
+
+    protected override async Task OnInitializedAsync() => Me = await CurrentActor.GetAsync();
 
     /// <summary>(Re)read everything the page shows.</summary>
     protected abstract Task LoadAsync();

@@ -23,7 +23,7 @@
                     <div class="entry__text">
                         <p class="entry__title">@e.Title</p>
                         <p class="entry__meta">
-                            @e.Actor<span aria-hidden="true"> · </span><span class="visually-hidden">, </span><time datetime="@DisplayFormat.Machine(e.At)">@DisplayFormat.DateTime(e.At)</time>
+                            @(ShowNames && e.ActorName is { Length: > 0 } name && e.Actor != name ? $"{name} ({e.Actor})" : e.Actor)<span aria-hidden="true"> · </span><span class="visually-hidden">, </span><time datetime="@DisplayFormat.Machine(e.At)">@DisplayFormat.DateTime(e.At)</time>
                         </p>
                         @if (e.Detail is not null)
                         {
@@ -46,6 +46,8 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ApplicationEvent> Events { get; set; } = [];
     [Parameter] public string HeadingId { get; set; } = "history-title";
+    /// <summary>Staff views (M3.4b): show the account that made each entry, as "Ana Reyes (Reviewer)".</summary>
+    [Parameter] public bool ShowNames { get; set; }
 
     private static string IconFor(ApplicationEventKind kind) => kind switch
     {

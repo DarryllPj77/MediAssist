@@ -10,13 +10,10 @@ namespace MediAssist.Web.Services;
 /// Simulated uploads (D3) are applied on top: checklists show uploaded documents as being
 /// reviewed, the history lists each upload, and the application's "updated" time follows them.
 /// </summary>
-public sealed class MockPatientPortalDataService(MockPortalStore store, ApplicationWorkspace workspace) : IPatientPortalDataService
+public sealed class MockPatientPortalDataService(MockPortalStore store, ApplicationWorkspace workspace, IAccountService accounts) : IPatientPortalDataService
 {
-    /// <summary>The seeded account with the user's own changes from Settings (D8).</summary>
-    public Task<PortalUser> GetCurrentUserAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(workspace.Account is { } a
-            ? store.CurrentUser with { FirstName = a.FirstName, LastName = a.LastName, Email = a.Email }
-            : store.CurrentUser);
+    /// <summary>The signed-in account's name and email (M3.4b).</summary>
+    public Task<PortalUser> GetCurrentUserAsync(CancellationToken cancellationToken = default) => accounts.GetCurrentAsync();
 
     public Task<IReadOnlyList<PatientProfile>> GetPatientProfilesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(workspace.Household);

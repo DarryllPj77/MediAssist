@@ -49,6 +49,21 @@ public sealed record ReviewResult(bool Succeeded, string? Error, bool Conflict =
     public static ReviewResult SaveFailed { get; } = new(false, "The change couldn’t be saved. Try again.");
 }
 
+/// <summary>
+/// The account taking a shared action (M3.4b): its id, name and role. Every change in the shared
+/// workflow checks the role here (pages also require it) and records who did it; families still see
+/// "Reviewer" for staff, staff see the name.
+/// </summary>
+public sealed record Actor(string UserId, string Name, string Role)
+{
+    public static Actor Nobody { get; } = new("", "", "");
+
+    public bool Is(string role) => UserId.Length > 0 && Role == role;
+
+    /// <summary>Why this actor may not take an action that needs <paramref name="role"/>, or null.</summary>
+    public string? Problem(string role) => Is(role) ? null : $"Only a signed-in {role.ToLowerInvariant()} account can do this.";
+}
+
 /// <summary>Whether the account may act for a patient, from their latest authorization request (M3.2).</summary>
 public enum AuthorizationStanding { NotNeeded, Pending, Approved, Rejected }
 
@@ -164,7 +179,9 @@ public sealed record SharedAuthorization(
     string Relationship,
     DateOnly? DateOfBirth,
     string PatientHref,
-    int Version)
+    int Version,
+    string? DecidedById = null,
+    string? DecidedByName = null)
 {
     public string Id => Request.Id;
 }

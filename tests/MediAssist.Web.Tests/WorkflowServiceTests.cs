@@ -45,8 +45,8 @@ public sealed class WorkflowServiceTests : IDisposable
     public async Task Each_submission_gets_its_own_reference_and_survives_a_restart()
     {
         var workflow = await StartAsync();
-        var first = await workflow.SubmitAsync(null, NewApplication());
-        var second = await workflow.SubmitAsync(null, NewApplication());
+        var first = await workflow.SubmitAsync(TestActors.Patient, null, NewApplication());
+        var second = await workflow.SubmitAsync(TestActors.Patient, null, NewApplication());
 
         Assert.NotNull(first);
         Assert.NotNull(second);
@@ -62,15 +62,15 @@ public sealed class WorkflowServiceTests : IDisposable
     public async Task A_full_review_round_with_one_correction()
     {
         var workflow = await StartAsync();
-        var reference = (await workflow.SubmitAsync(null, NewApplication()))!;
+        var reference = (await workflow.SubmitAsync(TestActors.Patient, null, NewApplication()))!;
         int Version() => workflow.Find(reference)!.Version;
 
-        Assert.True((await workflow.StartReviewAsync(reference, Version())).Succeeded);
-        Assert.False((await workflow.MarkReadyAsync(reference, Version())).Succeeded); // nothing accepted yet
+        Assert.True((await workflow.StartReviewAsync(TestActors.Admin, reference, Version())).Succeeded);
+        Assert.False((await workflow.MarkReadyAsync(TestActors.Admin, reference, Version())).Succeeded); // nothing accepted yet
 
-        Assert.True((await workflow.DecideDocumentAsync(reference, Version(), "Prescription", false, "The doctor's signature is missing.")).Succeeded);
-        Assert.True((await workflow.DecideDocumentAsync(reference, Version(), "Valid ID", false, "Please send a valid government ID.")).Succeeded);
-        Assert.True((await workflow.RequestCorrectionsAsync(reference, Version())).Succeeded);
+        Assert.True((await workflow.DecideDocumentAsync(TestActors.Admin, reference, Version(), "Prescription", false, "The doctor's signature is missing.")).Succeeded);
+        Assert.True((await workflow.DecideDocumentAsync(TestActors.Admin, reference, Version(), "Valid ID", false, "Please send a valid government ID.")).Succeeded);
+        Assert.True((await workflow.RequestCorrectionsAsync(TestActors.Admin, reference, Version())).Succeeded);
 
         var sentBack = workflow.Find(reference)!;
         Assert.Equal(ApplicationStatus.NeedsCorrection, sentBack.Application.Status);
@@ -78,17 +78,17 @@ public sealed class WorkflowServiceTests : IDisposable
         Assert.Contains(workflow.State.Notifications, n => n.Title == "Correction requested");
 
         // One new copy is not enough; the second returns the application to review.
-        var first = await workflow.UploadAsync(reference, "Prescription", File("rx-signed.pdf"), _ => true);
+        var first = await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("rx-signed.pdf"), _ => true);
         Assert.False(first.CorrectionSent);
-        var second = await workflow.UploadAsync(reference, "Valid ID", File("id.pdf"), _ => true);
+        var second = await workflow.UploadAsync(TestActors.Patient, reference, "Valid ID", File("id.pdf"), _ => true);
         Assert.True(second.CorrectionSent);
         Assert.Equal(ApplicationStatus.UnderReview, workflow.Find(reference)!.Application.Status);
         Assert.Equal(2, workflow.LatestUpload(reference, "Prescription")!.Version);
 
-        Assert.True((await workflow.DecideDocumentAsync(reference, Version(), "Prescription", true, null)).Succeeded);
-        Assert.True((await workflow.DecideDocumentAsync(reference, Version(), "Valid ID", true, null)).Succeeded);
-        Assert.True((await workflow.MarkReadyAsync(reference, Version())).Succeeded);
-        Assert.True((await workflow.CompleteAsync(reference, Version())).Succeeded);
+        Assert.True((await workflow.DecideDocumentAsync(TestActors.Admin, reference, Version(), "Prescription", true, null)).Succeeded);
+        Assert.True((await workflow.DecideDocumentAsync(TestActors.Admin, reference, Version(), "Valid ID", true, null)).Succeeded);
+        Assert.True((await workflow.MarkReadyAsync(TestActors.Admin, reference, Version())).Succeeded);
+        Assert.True((await workflow.CompleteAsync(TestActors.Admin, reference, Version())).Succeeded);
 
         var done = workflow.Find(reference)!;
         Assert.Equal(ApplicationStatus.Completed, done.Application.Status);
@@ -100,11 +100,11 @@ public sealed class WorkflowServiceTests : IDisposable
     public async Task A_stale_version_changes_nothing()
     {
         var workflow = await StartAsync();
-        var reference = (await workflow.SubmitAsync(null, NewApplication()))!;
+        var reference = (await workflow.SubmitAsync(TestActors.Patient, null, NewApplication()))!;
         var seen = workflow.Find(reference)!.Version;
-        await workflow.StartReviewAsync(reference, seen);
+        await workflow.StartReviewAsync(TestActors.Admin, reference, seen);
 
-        var result = await workflow.DecideDocumentAsync(reference, seen, "Prescription", true, null);
+        var result = await workflow.DecideDocumentAsync(TestActors.Admin, reference, seen, "Prescription", true, null);
 
         Assert.True(result.Conflict);
         Assert.Equal(UploadReviewState.Pending, workflow.LatestUpload(reference, "Prescription")!.ReviewState);
@@ -114,12 +114,12 @@ public sealed class WorkflowServiceTests : IDisposable
     public async Task An_accepted_document_cannot_be_replaced_and_scope_is_checked()
     {
         var workflow = await StartAsync();
-        var reference = (await workflow.SubmitAsync(null, NewApplication()))!;
-        await workflow.StartReviewAsync(reference, workflow.Find(reference)!.Version);
-        await workflow.DecideDocumentAsync(reference, workflow.Find(reference)!.Version, "Prescription", true, null);
+        var reference = (await workflow.SubmitAsync(TestActors.Patient, null, NewApplication()))!;
+        await workflow.StartReviewAsync(TestActors.Admin, reference, workflow.Find(reference)!.Version);
+        await workflow.DecideDocumentAsync(TestActors.Admin, reference, workflow.Find(reference)!.Version, "Prescription", true, null);
 
-        Assert.False((await workflow.UploadAsync(reference, "Prescription", File("again.pdf"), _ => true)).Succeeded);
-        Assert.False((await workflow.UploadAsync(reference, "Valid ID", File("id.pdf"), _ => false)).Succeeded);
+        Assert.False((await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("again.pdf"), _ => true)).Succeeded);
+        Assert.False((await workflow.UploadAsync(TestActors.Patient, reference, "Valid ID", File("id.pdf"), _ => false)).Succeeded);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class WorkflowServiceTests : IDisposable
         var workflow = await StartAsync();
         Assert.Equal(0, workflow.Find("MA-2026-00452")!.Version);
 
-        Assert.True((await workflow.StartReviewAsync("MA-2026-00452", 0)).Succeeded);
+        Assert.True((await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00452", 0)).Succeeded);
 
         var restarted = await StartAsync();
         Assert.Equal(1, restarted.Find("MA-2026-00452")!.Version);
@@ -139,7 +139,7 @@ public sealed class WorkflowServiceTests : IDisposable
     public async Task Review_cannot_start_while_the_patients_authorization_is_pending()
     {
         var workflow = await StartAsync();
-        var result = await workflow.StartReviewAsync("MA-2026-00395", 0); // Lia's authorization is being reviewed
+        var result = await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00395", 0); // Lia's authorization is being reviewed
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
     }

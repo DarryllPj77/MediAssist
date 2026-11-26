@@ -236,7 +236,7 @@
         _busy = true;
         _error = null;
         _status = null;
-        var result = await Workflow.RunnerStepAsync(_task.Id, _task.Shared.Version, CurrentRunner, kind, note);
+        var result = await Workflow.RunnerStepAsync(Me, _task.Id, _task.Shared.Version, kind, note);
         _busy = false;
         if (result.Succeeded)
         {

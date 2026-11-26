@@ -52,14 +52,14 @@ public sealed class StaffDecisionTests : IDisposable
     {
         var workflow = await StartAsync();
         Assert.True(workflow.AuthorizationPending(Lia));
-        Assert.False((await workflow.StartReviewAsync("MA-2026-00395", 0)).Succeeded);
+        Assert.False((await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00395", 0)).Succeeded);
 
-        Assert.True((await workflow.DecideAuthorizationAsync("auth-lia", 0, approve: true, note: null)).Succeeded);
+        Assert.True((await workflow.DecideAuthorizationAsync(TestActors.Admin, "auth-lia", 0, approve: true, note: null)).Succeeded);
 
         Assert.False(workflow.AuthorizationPending(Lia));
         Assert.Equal(AuthorizationRequestStatus.Approved, workflow.LatestAuthorization(Lia)!.Request.Status);
         Assert.Contains(workflow.State.Notifications, n => n.Title == "Authorization approved" && n.Href == "/patient/patients/lia");
-        Assert.True((await workflow.StartReviewAsync("MA-2026-00395", 0)).Succeeded);
+        Assert.True((await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00395", 0)).Succeeded);
 
         var restarted = await StartAsync();
         Assert.Equal(AuthorizationRequestStatus.Approved, restarted.FindAuthorization("auth-lia")!.Request.Status);
@@ -69,17 +69,17 @@ public sealed class StaffDecisionTests : IDisposable
     public async Task A_rejected_request_needs_a_note_and_can_be_asked_again()
     {
         var workflow = await StartAsync();
-        Assert.False((await workflow.DecideAuthorizationAsync("auth-lia", 0, approve: false, note: "No")).Succeeded);
-        Assert.True((await workflow.DecideAuthorizationAsync("auth-lia", 0, approve: false, note: "The birth certificate is unreadable.")).Succeeded);
-        Assert.False((await workflow.DecideAuthorizationAsync("auth-lia", 0, approve: true, note: null)).Succeeded); // stale
+        Assert.False((await workflow.DecideAuthorizationAsync(TestActors.Admin, "auth-lia", 0, approve: false, note: "No")).Succeeded);
+        Assert.True((await workflow.DecideAuthorizationAsync(TestActors.Admin, "auth-lia", 0, approve: false, note: "The birth certificate is unreadable.")).Succeeded);
+        Assert.False((await workflow.DecideAuthorizationAsync(TestActors.Admin, "auth-lia", 0, approve: true, note: null)).Succeeded); // stale
 
         var again = new AuthorizationRequest("auth-new", Lia, AuthorizationBasis.ParentOfMinor, "birth-certificate.pdf", "application/pdf", 1000, Now);
         var notice = new PortalNotification("n-auth-new", "Authorization requested", "Sent", Now, false, "/patient/patients/lia");
-        Assert.True(await workflow.RequestAuthorizationAsync(new SharedAuthorization(again, "Lia Santos", "Daughter", Today.AddYears(-13), "/patient/patients/lia", 0), notice));
+        Assert.True(await workflow.RequestAuthorizationAsync(TestActors.Patient, new SharedAuthorization(again, "Lia Santos", "Daughter", Today.AddYears(-13), "/patient/patients/lia", 0), notice));
         Assert.True(workflow.AuthorizationPending(Lia));
 
         // A second request while this one waits is refused (another browser asking at the same time).
-        Assert.False(await workflow.RequestAuthorizationAsync(
+        Assert.False(await workflow.RequestAuthorizationAsync(TestActors.Patient,
             new SharedAuthorization(again with { Id = "auth-dup" }, "Lia Santos", "Daughter", Today.AddYears(-13), "/patient/patients/lia", 0), notice));
     }
 
@@ -89,7 +89,7 @@ public sealed class StaffDecisionTests : IDisposable
         var workflow = await StartAsync();
         var before = workflow.Find("MA-2026-00452")!.Application.Status;
 
-        Assert.True((await workflow.AssignRunnerAsync("rr-31", 0, "Ramil Ocampo")).Succeeded);
+        Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-31", 0, "Ramil Ocampo")).Succeeded);
 
         var assigned = workflow.FindRunnerRequest("rr-31")!;
         Assert.Equal(RunnerTaskStatus.Assigned, assigned.Request.Status);
@@ -97,10 +97,10 @@ public sealed class StaffDecisionTests : IDisposable
         Assert.Equal(before, workflow.Find("MA-2026-00452")!.Application.Status);
         Assert.Empty(workflow.State.Notifications); // MA-2026-00452 belongs to another account
 
-        Assert.False((await workflow.AssignRunnerAsync("rr-27", 0, "Liza Manalo")).Succeeded); // she declined it
-        Assert.True((await workflow.AssignRunnerAsync("rr-27", 0, "Cora Bautista")).Succeeded);
+        Assert.False((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-27", 0, "Liza Manalo")).Succeeded); // she declined it
+        Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-27", 0, "Cora Bautista")).Succeeded);
         Assert.Contains(workflow.State.Notifications, n => n.Title == "Runner assigned");
-        Assert.False((await workflow.AssignRunnerAsync("rr-29", 0, "Ramil Ocampo")).Succeeded); // already accepted
+        Assert.False((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-29", 0, "Ramil Ocampo")).Succeeded); // already accepted
     }
 
     [Fact]
@@ -111,13 +111,13 @@ public sealed class StaffDecisionTests : IDisposable
             Now.AddDays(2), RunnerTaskStatus.PendingAssignment, null, RunnerErrand.SubmitCorrectedDocument, RequestedAt: Now);
         var notice = new PortalNotification("n-rr-family", "Runner help requested", "Sent", Now, false, "/patient/runner");
 
-        Assert.True(await workflow.RequestRunnerAsync(request, notice));
-        Assert.False(await workflow.RequestRunnerAsync(request with { Id = "rr-family-2" }, notice));
+        Assert.True(await workflow.RequestRunnerAsync(TestActors.Patient, request, notice));
+        Assert.False(await workflow.RequestRunnerAsync(TestActors.Patient, request with { Id = "rr-family-2" }, notice));
         Assert.True(workflow.IsFamilyRunnerRequest("rr-family"));
         Assert.False(workflow.IsFamilyRunnerRequest("rr-31"));
 
-        Assert.False(await workflow.CancelRunnerRequestAsync("rr-31", _ => true)); // seeded, not the family's
-        Assert.True(await workflow.CancelRunnerRequestAsync("rr-family", _ => true));
+        Assert.False(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-31", _ => true)); // seeded, not the family's
+        Assert.True(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-family", _ => true));
         Assert.Equal(RunnerTaskStatus.Cancelled, workflow.FindRunnerRequest("rr-family")!.Request.Status);
     }
 
@@ -129,7 +129,7 @@ public sealed class StaffDecisionTests : IDisposable
             await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\";");
 
         var workflow = await StartAsync();
-        Assert.True((await workflow.AssignRunnerAsync("rr-31", 0, "Ramil Ocampo")).Succeeded);
+        Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-31", 0, "Ramil Ocampo")).Succeeded);
     }
 
     public void Dispose() => _db.Dispose();

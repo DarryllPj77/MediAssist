@@ -72,13 +72,13 @@ public sealed class WorkspaceTests
         using var h = await TestHarness.StartAsync();
 
         h.Database.Fail = true;
-        var failed = await h.Workflow.StartReviewAsync("MA-2026-00452", 0);
+        var failed = await h.Workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00452", 0);
         Assert.False(failed.Succeeded);
         Assert.Equal(0, h.Workflow.Find("MA-2026-00452")!.Version);
         Assert.Equal(ApplicationStatus.Submitted, h.Workflow.Find("MA-2026-00452")!.Application.Status);
 
         h.Database.Fail = false;
-        Assert.True((await h.Workflow.StartReviewAsync("MA-2026-00452", 0)).Succeeded);
+        Assert.True((await h.Workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00452", 0)).Succeeded);
     }
 
     [Fact]
@@ -97,12 +97,12 @@ public sealed class WorkspaceTests
     }
 
     [Fact]
-    public async Task The_account_name_belongs_to_the_account()
+    public async Task The_you_profile_follows_the_account_name()
     {
         using var h = await TestHarness.StartAsync();
         var browser = await h.BrowserAsync();
 
-        Assert.True((await browser.SaveAccountAsync("Mariana", "Santos-Cruz", "mariana@example.com")).Succeeded);
+        Assert.True(await browser.SyncSelfNameAsync("Mariana Santos-Cruz"));
         var self = browser.Household.Single(p => p.Authorization == AuthorizationStatus.Self);
         Assert.Equal("Mariana Santos-Cruz", self.FullName);
 
@@ -110,7 +110,10 @@ public sealed class WorkspaceTests
         var edited = await browser.SaveProfileAsync(self.Id, "Someone Else", null, self.DateOfBirth, "Pasig City");
         Assert.True(edited.Succeeded);
         Assert.Equal("Mariana Santos-Cruz", edited.Profile!.FullName);
-        Assert.Equal("Pasig City", edited.Profile.City);
+
+        // Clearing this browser keeps the account's name on the "You" profile.
+        Assert.True(await browser.ClearAsync());
+        Assert.Equal("Mariana Santos-Cruz", browser.Household.Single(p => p.Authorization == AuthorizationStatus.Self).FullName);
     }
 
     [Fact]
@@ -129,7 +132,7 @@ public sealed class WorkspaceTests
     public async Task The_patient_portal_never_shows_another_accounts_application()
     {
         using var h = await TestHarness.StartAsync();
-        var data = new MockPatientPortalDataService(h.Store, await h.BrowserAsync());
+        var data = new MockPatientPortalDataService(h.Store, await h.BrowserAsync(), new StubAccountService(h.Store));
 
         var applications = await data.GetApplicationsAsync();
 

@@ -34,7 +34,7 @@ public sealed class FamilyScopeTests : IDisposable
     private async Task<ApplicationWorkspace> BrowserAsync()
     {
         var workflow = await WorkflowAsync();
-        var workspace = new ApplicationWorkspace(new MemoryBrowserStorage(), _store!, workflow, _clock);
+        var workspace = new ApplicationWorkspace(new MemoryBrowserStorage(), _store!, workflow, _clock, new FixedActor(TestActors.Patient));
         await workspace.EnsureLoadedAsync();
         return workspace;
     }
@@ -63,7 +63,7 @@ public sealed class FamilyScopeTests : IDisposable
         // The office's decision reaches only browser B as well.
         var workflow = await WorkflowAsync();
         var request = workflow.AuthorizationsFor(ana.Id).Single();
-        Assert.True((await workflow.DecideAuthorizationAsync(request.Id, request.Version, approve: true, note: null)).Succeeded);
+        Assert.True((await workflow.DecideAuthorizationAsync(TestActors.Admin, request.Id, request.Version, approve: true, note: null)).Succeeded);
         Assert.Contains(browserB.Notifications, n => n.Title == "Authorization approved");
         Assert.DoesNotContain(browserA.Notifications, n => n.Title == "Authorization approved");
     }
@@ -73,14 +73,14 @@ public sealed class FamilyScopeTests : IDisposable
     {
         var browser = await BrowserAsync();
         var workflow = await WorkflowAsync();
-        Assert.True((await workflow.DecideAuthorizationAsync("auth-lia", 0, approve: false, note: "The birth certificate is unreadable.")).Succeeded);
+        Assert.True((await workflow.DecideAuthorizationAsync(TestActors.Admin, "auth-lia", 0, approve: false, note: "The birth certificate is unreadable.")).Succeeded);
         Assert.Equal(AuthorizationStanding.Rejected, workflow.Authorization(Lia));
 
-        var start = await workflow.StartReviewAsync("MA-2026-00395", 0);
+        var start = await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00395", 0);
         Assert.False(start.Succeeded);
         Assert.Contains("wasn't approved", start.Error);
 
-        var assign = await workflow.AssignRunnerAsync("rr-27", 0, "Cora Bautista");
+        var assign = await workflow.AssignRunnerAsync(TestActors.Admin, "rr-27", 0, "Cora Bautista");
         Assert.False(assign.Succeeded);
 
         var family = await browser.RequestRunnerAsync("MA-2026-00395", RunnerErrand.DeliverDocuments,
@@ -92,8 +92,8 @@ public sealed class FamilyScopeTests : IDisposable
         var file = SimulatedFiles.SamplesFor("Birth certificate")[0];
         Assert.True((await browser.RequestAuthorizationAsync(Lia, AuthorizationBasis.ParentOfMinor, file, confirmed: true)).Succeeded);
         var again = workflow.LatestAuthorization(Lia)!;
-        Assert.True((await workflow.DecideAuthorizationAsync(again.Id, again.Version, approve: true, note: null)).Succeeded);
-        Assert.True((await workflow.StartReviewAsync("MA-2026-00395", 0)).Succeeded);
+        Assert.True((await workflow.DecideAuthorizationAsync(TestActors.Admin, again.Id, again.Version, approve: true, note: null)).Succeeded);
+        Assert.True((await workflow.StartReviewAsync(TestActors.Admin, "MA-2026-00395", 0)).Succeeded);
     }
 
     [Fact]

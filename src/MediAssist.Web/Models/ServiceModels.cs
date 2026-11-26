@@ -105,7 +105,8 @@ public enum RunnerStepKind
     HandedBack
 }
 
-public sealed record RunnerStep(DateTimeOffset At, RunnerStepKind Kind, string Runner, string? Note = null);
+/// <summary>One step; <see cref="ById"/>/<see cref="ByName"/> (M3.4b) record the account that took it (the runner, or the administrator who assigned).</summary>
+public sealed record RunnerStep(DateTimeOffset At, RunnerStepKind Kind, string Runner, string? Note = null, string? ById = null, string? ByName = null);
 
 /// <summary>
 /// A runner's task as the runner sees it: only what the errand needs (Phase 1 rule) — the errand,

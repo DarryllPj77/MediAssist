@@ -16,7 +16,8 @@ namespace MediAssist.Web.Services;
 /// reference takes its place in the merged view.
 /// </para>
 /// </summary>
-public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalStore store, WorkflowService workflow, TimeProvider clock)
+public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalStore store, WorkflowService workflow, TimeProvider clock,
+    ICurrentActor currentActor)
     : IDisposable
 {
     private WorkspaceSnapshot _snapshot = WorkspaceSnapshot.Empty;
@@ -186,43 +187,31 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
         // The request goes to the shared store so an administrator can decide; the profile's status follows it.
         var shared = new SharedAuthorization(request, patient.FullName, patient.Relationship, patient.DateOfBirth, href, 0);
-        return await workflow.RequestAuthorizationAsync(shared, notification)
+        return await workflow.RequestAuthorizationAsync(await currentActor.GetAsync(), shared, notification)
             ? AuthorizationResult.Saved(request)
             : AuthorizationResult.SaveFailed();
     }
 
     // ---- Account details and saved data (D8) ----
 
-    /// <summary>The account holder's own details from Settings, or null while the seeded ones apply.</summary>
-    public AccountDetails? Account => _snapshot.Account;
-
     /// <summary>
-    /// Change the account holder's name and optional email. Validates at this boundary; the "You"
-    /// patient profile takes the same name in the same save. Nothing changes unless it is saved.
+    /// Give the "You" patient profile the account's name (M3.4b: the name lives on the sign-in
+    /// account). Returns false when this browser couldn't save it (nothing changes then).
     /// </summary>
-    public async Task<AccountResult> SaveAccountAsync(string? firstName, string? lastName, string? email)
+    public async Task<bool> SyncSelfNameAsync(string fullName)
     {
-        var errors = AccountRules.Validate(firstName, lastName, email);
-        if (errors.Count > 0) return AccountResult.Failed(errors);
-
-        var account = new AccountDetails(firstName!.Trim(), lastName!.Trim(),
-            string.IsNullOrWhiteSpace(email) ? null : email.Trim());
         var self = Household.FirstOrDefault(p => p.Authorization == AuthorizationStatus.Self);
+        if (self is null || self.FullName == fullName || string.IsNullOrWhiteSpace(fullName)) return true;
 
         var before = _snapshot;
-        _snapshot = _snapshot with
-        {
-            Account = account,
-            Profiles = self is null ? LocalProfiles
-                : [.. LocalProfiles.Where(p => p.Id != self.Id), self with { FullName = $"{account.FirstName} {account.LastName}" }],
-        };
+        _snapshot = _snapshot with { Profiles = [.. LocalProfiles.Where(p => p.Id != self.Id), self with { FullName = fullName }] };
         if (!await PersistAsync())
         {
             _snapshot = before;
             Changed?.Invoke();
-            return AccountResult.SaveFailed();
+            return false;
         }
-        return AccountResult.Saved(account);
+        return true;
     }
 
     /// <summary>
@@ -234,7 +223,9 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public async Task<bool> ClearAsync()
     {
         var before = _snapshot;
-        var keep = LocalProfiles.Where(p => store.Household.All(s => s.Id != p.Id) && workflow.HasRecordsFor(p.Id)).ToList();
+        // Keep added patients with shared records (M3.2) and the "You" profile's account name (M3.4b).
+        var keep = LocalProfiles.Where(p => (store.Household.All(s => s.Id != p.Id) && workflow.HasRecordsFor(p.Id))
+            || p.Authorization == AuthorizationStatus.Self).ToList();
         _snapshot = WorkspaceSnapshot.Empty with { Profiles = keep };
         if (!await PersistAsync())
         {
@@ -341,14 +332,14 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
             $"Your runner request for {application.ReferenceNumber} is waiting for a runner.", now, false, "/patient/runner",
             application.PatientId);
 
-        return await workflow.RequestRunnerAsync(request, notification)
+        return await workflow.RequestRunnerAsync(await currentActor.GetAsync(), request, notification)
             ? RunnerRequestResult.Saved(request)
             : RunnerRequestResult.SaveFailed();
     }
 
     /// <summary>Cancel one of this account's requests while it is still waiting for a runner. False if not allowed or not saved.</summary>
-    public Task<bool> CancelRunnerRequestAsync(string id) =>
-        workflow.CancelRunnerRequestAsync(id, reference => CurrentApplication(reference) is not null);
+    public async Task<bool> CancelRunnerRequestAsync(string id) =>
+        await workflow.CancelRunnerRequestAsync(await currentActor.GetAsync(), id, reference => CurrentApplication(reference) is not null);
 
     /// <summary>
     /// History entries for runner requests on an application: this account's requests and
@@ -423,7 +414,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
         var draftKey = draft.SourceReference ?? draft.Id;
         var draftUploads = LocalUploads.Where(u => Same(u.ApplicationReference, draftKey)).ToList();
 
-        var reference = await workflow.SubmitAsync(draft.SourceReference, reference =>
+        var reference = await workflow.SubmitAsync(await currentActor.GetAsync(), draft.SourceReference, reference =>
         {
             var uploads = draftUploads.Select(u => u with { ApplicationReference = reference }).ToList();
             var checklist = ChecklistFor(reference, program, patient.FullName, draft.SourceReference);
@@ -474,7 +465,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public async Task<UploadResult> UploadAsync(string reference, string documentName, SampleFile? file)
     {
         if (!IsDraftReference(reference))
-            return await workflow.UploadAsync(reference, documentName, file, IsHousehold);
+            return await workflow.UploadAsync(await currentActor.GetAsync(), reference, documentName, file, IsHousehold);
 
         if (SimulatedFiles.Validate(file) is string invalid)
             return UploadResult.Invalid(invalid);

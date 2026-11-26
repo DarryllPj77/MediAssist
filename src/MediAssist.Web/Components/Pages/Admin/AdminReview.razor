@@ -162,7 +162,7 @@
         </Panel>
 
         <Panel>
-            <ActivityHistory Events="_detail.History" />
+            <ActivityHistory Events="_detail.History" ShowNames="true" />
         </Panel>
     }
 </div>
@@ -215,16 +215,16 @@
             CloseReason();
     }
 
-    private Task StartAsync() => RunAsync(v => Workflow.StartReviewAsync(Reference, v), "Review started. The family has been told.");
+    private Task StartAsync() => RunAsync(v => Workflow.StartReviewAsync(Me, Reference, v), "Review started. The family has been told.");
 
-    private Task ReadyAsync() => RunAsync(v => Workflow.MarkReadyAsync(Reference, v), "Marked ready for processing. The family has been told.");
+    private Task ReadyAsync() => RunAsync(v => Workflow.MarkReadyAsync(Me, Reference, v), "Marked ready for processing. The family has been told.");
 
-    private Task SendBackAsync() => RunAsync(v => Workflow.RequestCorrectionsAsync(Reference, v), "Sent back to the family with your notes.");
+    private Task SendBackAsync() => RunAsync(v => Workflow.RequestCorrectionsAsync(Me, Reference, v), "Sent back to the family with your notes.");
 
-    private Task CompleteAsync() => RunAsync(v => Workflow.CompleteAsync(Reference, v), "Marked complete. The family has been told processing is finished.");
+    private Task CompleteAsync() => RunAsync(v => Workflow.CompleteAsync(Me, Reference, v), "Marked complete. The family has been told processing is finished.");
 
     private Task AcceptAsync(string document) =>
-        RunAsync(v => Workflow.DecideDocumentAsync(Reference, v, document, true, null), $"{document} accepted.");
+        RunAsync(v => Workflow.DecideDocumentAsync(Me, Reference, v, document, true, null), $"{document} accepted.");
 
     private async Task RejectAsync(string document)
     {
@@ -235,7 +235,7 @@
             return;
         }
         var wasMissing = _detail?.Checklist.Items.FirstOrDefault(i => i.Name == document)?.Status == DocumentStatus.Missing;
-        if (await RunAsync(v => Workflow.DecideDocumentAsync(Reference, v, document, false, _reason),
+        if (await RunAsync(v => Workflow.DecideDocumentAsync(Me, Reference, v, document, false, _reason),
                 wasMissing ? $"{document} asked for." : $"{document} sent back."))
             CloseReason();
     }

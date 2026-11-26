@@ -72,6 +72,8 @@ builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>(
 builder.Services.AddScoped<PortalLayoutInterop>();
 builder.Services.AddScoped<UiPreferences>();
 builder.Services.AddScoped<RunnerSession>();
+builder.Services.AddScoped<ICurrentActor, ClaimsCurrentActor>();
+builder.Services.AddScoped<IAccountService, IdentityAccountService>();
 builder.Services.AddScoped<PageSectionState>();
 
 var app = builder.Build();

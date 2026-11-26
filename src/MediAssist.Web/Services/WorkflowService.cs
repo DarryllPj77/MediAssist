@@ -132,8 +132,9 @@ public sealed class WorkflowService(
     /// the same one; a resumed seeded draft keeps its own. Returns the reference, or null when it
     /// could not be saved (or that seeded draft was already submitted elsewhere).
     /// </summary>
-    public async Task<string?> SubmitAsync(string? fixedReference, Func<string, Submission> build)
+    public async Task<string?> SubmitAsync(Actor actor, string? fixedReference, Func<string, Submission> build)
     {
+        if (actor.Problem(Data.Roles.Patient) is not null) return null;
         string? reference = null;
         var saved = false;
         await _gate.WaitAsync();
@@ -154,7 +155,12 @@ public sealed class WorkflowService(
             }
 
             var submission = build(reference);
-            var application = submission.Application with { Version = (existing?.Version ?? 0) + 1 };
+            var application = submission.Application with
+            {
+                Version = (existing?.Version ?? 0) + 1,
+                // The family's own entries record which account made them (M3.4b).
+                Events = [.. submission.Application.Events.Select(e => e.Actor == "You" && e.ActorId is null ? Stamp(e, actor) : e)],
+            };
             saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification]));
         }
         finally
@@ -170,8 +176,9 @@ public sealed class WorkflowService(
     /// sent-back document takes a copy; a copy still waiting for review can be replaced; an accepted
     /// one can't. When every sent-back document has a new copy, the application returns to review.
     /// </summary>
-    public async Task<UploadResult> UploadAsync(string reference, string documentName, SampleFile? file, Func<Guid, bool> inScope)
+    public async Task<UploadResult> UploadAsync(Actor actor, string reference, string documentName, SampleFile? file, Func<Guid, bool> inScope)
     {
+        if (actor.Problem(Data.Roles.Patient) is string notAllowed) return UploadResult.Invalid(notAllowed);
         if (SimulatedFiles.Validate(file) is string invalid) return UploadResult.Invalid(invalid);
 
         UploadResult result;
@@ -211,9 +218,9 @@ public sealed class WorkflowService(
                     Status = ApplicationStatus.UnderReview,
                     NextStep = stillMissing > 0 ? AddMissing(stillMissing) : "Wait for the reviewer to check the corrected document",
                 };
-                events = [.. events, new(current.Reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
+                events = [.. events, Stamp(new(current.Reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
                     "Every document the reviewer asked for has a new copy, so the application is back in review.",
-                    ApplicationStatus.UnderReview)];
+                    ApplicationStatus.UnderReview), actor)];
                 notifications.Add(Notice(current.Application.PatientId, current.Reference, "corrected", "Correction sent",
                     $"{current.Reference} is back in review with your corrected document.", now));
             }
@@ -242,8 +249,8 @@ public sealed class WorkflowService(
 
     // ---- Administrator actions (each checks the version the reviewer saw) ----
 
-    public Task<ReviewResult> StartReviewAsync(string reference, int expectedVersion) =>
-        ActAsync(reference, expectedVersion, (current, _, now) =>
+    public Task<ReviewResult> StartReviewAsync(Actor actor, string reference, int expectedVersion) =>
+        ActAsync(actor, reference, expectedVersion, (current, _, now) =>
         {
             if (ReviewRules.StartProblem(current.Application.Status, Authorization(current.Application.PatientId)) is string problem)
                 return Change.Refuse(problem);
@@ -260,8 +267,8 @@ public sealed class WorkflowService(
         });
 
     /// <summary>Accept a document, or send it back (or ask for a missing one) with a reason the family will see.</summary>
-    public Task<ReviewResult> DecideDocumentAsync(string reference, int expectedVersion, string documentName, bool accept, string? reason) =>
-        ActAsync(reference, expectedVersion, (current, effective, now) =>
+    public Task<ReviewResult> DecideDocumentAsync(Actor actor, string reference, int expectedVersion, string documentName, bool accept, string? reason) =>
+        ActAsync(actor, reference, expectedVersion, (current, effective, now) =>
         {
             var item = effective.Items.FirstOrDefault(i => i.Name == documentName);
             if (ReviewRules.DecideProblem(current.Application.Status, item, accept) is string problem) return Change.Refuse(problem);
@@ -290,8 +297,8 @@ public sealed class WorkflowService(
         });
 
     /// <summary>Send the application back to the family with the documents marked for correction.</summary>
-    public Task<ReviewResult> RequestCorrectionsAsync(string reference, int expectedVersion) =>
-        ActAsync(reference, expectedVersion, (current, effective, now) =>
+    public Task<ReviewResult> RequestCorrectionsAsync(Actor actor, string reference, int expectedVersion) =>
+        ActAsync(actor, reference, expectedVersion, (current, effective, now) =>
         {
             if (ReviewRules.CorrectionProblem(current.Application.Status, effective) is string problem) return Change.Refuse(problem);
             var flagged = effective.Items.Where(i => i.Status == DocumentStatus.NeedsCorrection).ToList();
@@ -307,8 +314,8 @@ public sealed class WorkflowService(
                     : $"{current.Reference} needs new copies of {flagged.Count} documents.", now));
         });
 
-    public Task<ReviewResult> MarkReadyAsync(string reference, int expectedVersion) =>
-        ActAsync(reference, expectedVersion, (current, effective, now) =>
+    public Task<ReviewResult> MarkReadyAsync(Actor actor, string reference, int expectedVersion) =>
+        ActAsync(actor, reference, expectedVersion, (current, effective, now) =>
         {
             if (ReviewRules.ReadyProblem(current.Application.Status, effective) is string problem) return Change.Refuse(problem);
             return Change.To(current with
@@ -325,8 +332,8 @@ public sealed class WorkflowService(
         });
 
     /// <summary>Internal processing is finished. This is not a financial decision; the program office makes that.</summary>
-    public Task<ReviewResult> CompleteAsync(string reference, int expectedVersion) =>
-        ActAsync(reference, expectedVersion, (current, _, now) =>
+    public Task<ReviewResult> CompleteAsync(Actor actor, string reference, int expectedVersion) =>
+        ActAsync(actor, reference, expectedVersion, (current, _, now) =>
         {
             if (ReviewRules.CompleteProblem(current.Application.Status) is string problem) return Change.Refuse(problem);
             return Change.To(current with
@@ -350,9 +357,10 @@ public sealed class WorkflowService(
             new(null, updated, uploads ?? [], notification);
     }
 
-    private async Task<ReviewResult> ActAsync(string reference, int expectedVersion,
+    private async Task<ReviewResult> ActAsync(Actor actor, string reference, int expectedVersion,
         Func<SharedApplication, ApplicationChecklist, DateTimeOffset, Change> decide)
     {
+        if (actor.Problem(Data.Roles.Administrator) is string notAllowed) return ReviewResult.Refused(notAllowed);
         ReviewResult result;
         await _gate.WaitAsync();
         try
@@ -364,7 +372,12 @@ public sealed class WorkflowService(
             var change = decide(current, Effective(current), clock.GetLocalNow());
             if (change.Error is not null) return ReviewResult.Refused(change.Error);
 
-            var updated = change.Updated! with { Version = current.Version + 1 };
+            // The reviewer's new history entries record who made them (staff see the name; families see "Reviewer").
+            var updated = change.Updated! with
+            {
+                Version = current.Version + 1,
+                Events = [.. current.Events, .. change.Updated.Events.Skip(current.Events.Count).Select(e => Stamp(e, actor))],
+            };
             var notify = change.Notification is not null && ForAccount(current.Application.PatientId);
             result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification!] : []))
                 ? ReviewResult.Done
@@ -411,8 +424,9 @@ public sealed class WorkflowService(
     /// Save a family's request. Refused while the patient already has one waiting or approved, so
     /// two browsers can't both ask. The family's own checks (basis, file, confirmation) run first.
     /// </summary>
-    public async Task<bool> RequestAuthorizationAsync(SharedAuthorization authorization, PortalNotification notification)
+    public async Task<bool> RequestAuthorizationAsync(Actor actor, SharedAuthorization authorization, PortalNotification notification)
     {
+        if (actor.Problem(Data.Roles.Patient) is not null) return false;
         bool saved;
         await _gate.WaitAsync();
         try
@@ -430,8 +444,9 @@ public sealed class WorkflowService(
     }
 
     /// <summary>Approve, or don't approve with a note the family sees. The family's profile follows.</summary>
-    public async Task<ReviewResult> DecideAuthorizationAsync(string id, int expectedVersion, bool approve, string? note)
+    public async Task<ReviewResult> DecideAuthorizationAsync(Actor actor, string id, int expectedVersion, bool approve, string? note)
     {
+        if (actor.Problem(Data.Roles.Administrator) is string notAllowed) return ReviewResult.Refused(notAllowed);
         ReviewResult result;
         await _gate.WaitAsync();
         try
@@ -456,6 +471,8 @@ public sealed class WorkflowService(
                     ReviewerNote = approve ? "The supporting document matches the request." : note!.Trim(),
                 },
                 Version = current.Version + 1,
+                DecidedById = actor.UserId,
+                DecidedByName = actor.Name,
             };
             var notice = new PortalNotification($"n-auth-{id}-{(approve ? "approved" : "rejected")}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}",
                 approve ? "Authorization approved" : "Authorization not approved",
@@ -493,8 +510,9 @@ public sealed class WorkflowService(
         State.RunnerRequests.ContainsKey(id) && store.RunnerRequests().All(r => r.Id != id);
 
     /// <summary>Save a family's runner request; refused when the application already has one in progress.</summary>
-    public async Task<bool> RequestRunnerAsync(RunnerRequestItem request, PortalNotification notification)
+    public async Task<bool> RequestRunnerAsync(Actor actor, RunnerRequestItem request, PortalNotification notification)
     {
+        if (actor.Problem(Data.Roles.Patient) is not null) return false;
         bool saved;
         await _gate.WaitAsync();
         try
@@ -515,8 +533,9 @@ public sealed class WorkflowService(
     }
 
     /// <summary>The family cancels its own request while it still waits for a runner.</summary>
-    public async Task<bool> CancelRunnerRequestAsync(string id, Func<string, bool> inScope)
+    public async Task<bool> CancelRunnerRequestAsync(Actor actor, string id, Func<string, bool> inScope)
     {
+        if (actor.Problem(Data.Roles.Patient) is not null) return false;
         bool saved;
         await _gate.WaitAsync();
         try
@@ -538,8 +557,9 @@ public sealed class WorkflowService(
     }
 
     /// <summary>Assign (or change) the runner. The application's status never changes with it.</summary>
-    public async Task<ReviewResult> AssignRunnerAsync(string id, int expectedVersion, string? runner)
+    public async Task<ReviewResult> AssignRunnerAsync(Actor actor, string id, int expectedVersion, string? runner)
     {
+        if (actor.Problem(Data.Roles.Administrator) is string notAllowed) return ReviewResult.Refused(notAllowed);
         ReviewResult result;
         await _gate.WaitAsync();
         try
@@ -558,7 +578,7 @@ public sealed class WorkflowService(
             var assigned = new SharedRunnerRequest(current.Request with
             {
                 Status = RunnerTaskStatus.Assigned, RunnerName = runner, AssignedAt = now,
-                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, RunnerStepKind.Assigned, runner!)],
+                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, RunnerStepKind.Assigned, runner!, null, actor.UserId, actor.Name)],
             }, current.Version + 1);
             var notice = new PortalNotification($"n-{id}-assigned-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}",
                 reassigned ? "Runner changed" : "Runner assigned",
@@ -606,8 +626,11 @@ public sealed class WorkflowService(
     /// optional note) or hand back (with a reason). Declining or handing back returns the request to
     /// the administrator. The application's status never changes.
     /// </summary>
-    public async Task<ReviewResult> RunnerStepAsync(string id, int expectedVersion, string runner, RunnerStepKind kind, string? note)
+    public async Task<ReviewResult> RunnerStepAsync(Actor actor, string id, int expectedVersion, RunnerStepKind kind, string? note)
     {
+        // The runner is the signed-in Runner account (M3.4b): its name must be the assigned runner's.
+        if (actor.Problem(Data.Roles.Runner) is string notAllowed) return ReviewResult.Refused(notAllowed);
+        var runner = actor.Name;
         ReviewResult result;
         await _gate.WaitAsync();
         try
@@ -624,7 +647,7 @@ public sealed class WorkflowService(
             {
                 Status = status,
                 ClosedAt = status == RunnerTaskStatus.Completed ? now : current.Request.ClosedAt,
-                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, kind, runner, text)],
+                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, kind, runner, text, actor.UserId, actor.Name)],
             }, current.Version + 1);
 
             var errand = current.Request.Errand;
@@ -726,6 +749,9 @@ public sealed class WorkflowService(
     }
 
     // ---- Helpers ----
+
+    /// <summary>Record which account made a history entry (M3.4b).</summary>
+    private static ApplicationEvent Stamp(ApplicationEvent e, Actor actor) => e with { ActorId = actor.UserId, ActorName = actor.Name };
 
     /// <summary>
     /// True for patients of the prototype's one account (seeded household, or anyone a family added
