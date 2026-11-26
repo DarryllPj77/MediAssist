@@ -8,14 +8,14 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 |---|---|
 | Reviewed | 26 November 2026, Asia/Manila (M3.4a implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `6f7841d` — test: add workspace and validation tests, browser page checks and CI (pushed; `origin/design/premium-civic-imagery` in sync) |
-| Latest application commit | `6f7841d1026c83cfc190df5b90e55b570202bf01` — M3.3 |
-| Latest implementation | M3.4a — Sign-in and roles (**implemented, uncommitted**) |
-| Application changes awaiting commit | M3.4a: ASP.NET Core Identity, sign-in/out pages, seed accounts, route protection, layout and runner from the signed-in account, tests — see “M3.4a Sign-in and Roles” below |
-| Documentation awaiting commit | (1) the post-commit M3.3 hash/push/CI record, preserved; (2) the M3.4 plan and this M3.4a update |
+| Branch HEAD | `4aa960d` — feat(auth): add sign-in, demo accounts and role-based portal access (pushed; `origin/design/premium-civic-imagery` in sync) |
+| Latest application commit | `4aa960d26261ddadf3f24a669e8b50310b3bc6af` — M3.4a |
+| Latest implementation | M3.4a — Sign-in and roles (**committed and pushed**) |
+| Application changes awaiting commit | The CI fix for M3.4a: `Components/Account/Login.razor.css` lets the demo note's file name wrap (sign-in page overflowed 2 px at 320 px on Linux) |
+| Documentation awaiting commit | This post-commit record of the M3.4a hash, message, push and CI run; a commit cannot contain its own hash |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.3 committed and pushed; M3.4 approved (26 November 2026); M3.4a implemented and verified, awaiting commit approval |
-| Next development task | Commit M3.4a (with this document) once approved; then M3.4b — who-did-what, service role checks, account name in Settings |
+| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.3 and M3.4a committed and pushed |
+| Next development task | Commit and push the M3.4a CI fix (once approved) and confirm CI passes; then M3.4b — who did what, service role checks, account name in Settings |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -74,7 +74,7 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | M3.1 — Architecture & security audit | Completed | Plan only | Findings and approved Milestone 3 roadmap below |
 | M3.2 — Workflow fixes (F1–F3) | Completed | **Committed** | `3d834c1`; notifications scoped to the family; review and runner help blocked after a rejected authorization; clearing keeps added patients with shared records |
 | M3.3 — Wider automated tests and CI | Completed | **Committed** | `6f7841d`; workspace, failure, concurrency and validation tests; Playwright page checks; GitHub Actions CI |
-| M3.4a — Sign-in and roles | Implemented and verified | **Uncommitted** | Identity in its own SQLite file with migrations; demo accounts (Development); every portal requires its role; layout and runner from the signed-in account |
+| M3.4a — Sign-in and roles | Completed | **Committed** | `4aa960d`; Identity in its own SQLite file with migrations; demo accounts (Development); every portal requires its role; layout and runner from the signed-in account |
 | M3.4b — Who did what, service role checks, account name | Pending | Approved plan | |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
@@ -107,6 +107,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-17 | `9a50d89` | feat(runner): implement runner task workflows |
 | 2026-11-25 | `3d834c1` | fix(workflow): scope notifications and enforce authorization standing |
 | 2026-11-25 | `6f7841d` | test: add workspace and validation tests, browser page checks and CI |
+| 2026-11-27 | `4aa960d` | feat(auth): add sign-in, demo accounts and role-based portal access |
 
 ## Completed features and workflows
 
@@ -342,7 +343,9 @@ Committed on 25 November 2026 as `6f7841d1026c83cfc190df5b90e55b570202bf01` with
 
 **Approved plan** (26 November 2026, “Approve M3.4”, all recommended choices): ASP.NET Core Identity with cookie sign-in (no registration, email confirmation or password reset yet — no email sending); accounts in a separate SQLite file with EF Core migrations; fictional demo accounts seeded in Development only with one demo password in `appsettings.Development.json`; one portal per role with “Access denied” for the others; the runner is the signed-in account (picker removed); shared actions record who did them and the service checks roles (M3.4b); the patient's name moves to the account (M3.4b); split into M3.4a and M3.4b.
 
-#### M3.4a Sign-in and Roles (uncommitted)
+#### M3.4a Sign-in and Roles
+
+Committed on 27 November 2026 as `4aa960d26261ddadf3f24a669e8b50310b3bc6af` with message `feat(auth): add sign-in, demo accounts and role-based portal access` (application files, the Identity migration, tests, `dotnet-tools.json` and the progress document, which also carried the M3.3 hash/CI record), then pushed: `6f7841d..4aa960d`. `git pull --rebase` beforehand reported the branch up to date. The CI run (GitHub Actions run 45909596777) passed the build and 61 of 61 unit tests but **failed 1 of 17 browser tests**: the signed-out sign-in page overflowed by 2 px at 320 px on Linux Chromium (the unbreakable file name in the demo-accounts note; Linux monospace is wider than Windows). The fix — letting that file name wrap — is implemented and checked locally down to 260 px, but uncommitted.
 
 1. **Accounts** (`Data/Identity.cs`, `Data/IdentitySeeder.cs`): `ApplicationUser` (first and last name), roles Patient, Administrator and Runner, `MediAssistIdentityDbContext` in `App_Data/mediassist-identity.db` (configurable as `Identity:DatabasePath`; git-ignored) with the first migration `Data/Migrations/Identity/…_InitialIdentity`. The app applies migrations at start-up. **In Development only**, it seeds the roles and six fictional accounts — `maria.santos@` (Patient), `ana.reyes@` (Administrator), `paolo.dizon@`, `liza.manalo@`, `ramil.ocampo@`, `cora.bautista@` (Runners), all `@example.com` — with the password in `appsettings.Development.json` (`Seed:DemoPassword`; a demo value, never used outside Development). The account's first and last name are added to the signed-in user (`AppClaimsFactory`). Packages: `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 10.0.15, `Microsoft.EntityFrameworkCore.Design` 10.0.15 (build-time only); `dotnet-ef` 10.0.15 as a local tool (`dotnet-tools.json`).
 2. **Sign-in and sign-out:** `/account/login` (a plain page so the cookie can be set): email, password, “Keep me signed in”, **lockout after 5 failed tries for 5 minutes**, a safe `returnUrl` (local, outside /account) or the account's own portal; in Development it lists the demo accounts (not the password). Sign-out is a form post to `/account/logout` with an antiforgery token, from the sidebar footer, the mobile menu and the access-denied page. Cookie: `MediAssist.Auth`, HttpOnly, SameSite=Lax, secure outside Development, 8-hour sliding expiry.
@@ -406,9 +409,9 @@ The following findings are source-verified unless explicitly described as build 
 | Profiles cannot be removed | D4 adds and edits profiles; there is no archive/remove flow, and an added patient with applications must stay for history | Decide archive rules (D8 or later) |
 | Authorization is not identity verification | Administrators approve from fictional sample files (D9b); nothing verifies a real relationship or identity | Real verification needs authentication and real documents (outside the prototype) |
 | Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
-| ~~Runner identity is a demo choice (D10)~~ — **fixed in M3.4a (uncommitted)** | The runner is the signed-in Runner account | None |
+| ~~Runner identity is a demo choice (D10)~~ — **fixed in M3.4a (`4aa960d`)** | The runner is the signed-in Runner account | None |
 | Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema made with `EnsureCreated` plus create-if-missing for tables added later (no migrations); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
-| ~~No authentication or authorization~~ — **sign-in and roles added in M3.4a (uncommitted)** | Every portal needs its role; the runner is the signed-in account. Shared actions don't yet record the actor or check roles inside the service | M3.4b |
+| ~~No authentication or authorization~~ — **sign-in and roles added in M3.4a (`4aa960d`)** | Every portal needs its role; the runner is the signed-in account. Shared actions don't yet record the actor or check roles inside the service | M3.4b |
 | ~~Shared notifications shown to every browser~~ — **fixed in M3.2 (`3d834c1`)** | Notifications now carry their patient and are shown only to that family | None |
 | ~~Review could start after a rejected authorization~~ — **fixed in M3.2 (`3d834c1`)** | Review start, runner assignment and family runner requests are refused while rejected | None |
 | Added patients live only in the browser | Since M3.2 clearing keeps those with shared records, but another browser or wiped storage still hides their applications from the family | M3.5 |
@@ -434,7 +437,7 @@ Integration testing, mobile/accessibility checks and the known-issue fixes apply
 
 ## Next development task and prerequisites
 
-**Next step: commit M3.4a** (application changes, migration, tests and this document, including the preserved M3.3 hash record) once the owner approves; CI then runs on GitHub. Then **M3.4b** — record who did what on shared actions, role checks inside the shared service, and the patient's name on the account (Settings).
+**Next step: M3.4b** — record who did what on shared actions, role checks inside the shared service, and the patient's name on the account (Settings). M3.4a and its progress update are committed as `4aa960d`; this subsequent M3.4a hash record is uncommitted.
 
 Before M3.4: choose the sign-in approach (ASP.NET Core Identity on the same SQLite database is the recommendation) and the fictional seed accounts for each role.
 
@@ -476,4 +479,5 @@ After each phase:
 | 2026-11-25 | Committed M3.2 and progress documentation (exact message: `fix(workflow): scope notifications and enforce authorization standing`), then pushed (`9a50d89..3d834c1`) | `3d834c12d5a8e6092e118be1a59502acdba416bd` | M3.2 committed and pushed; this actual-hash update is uncommitted |
 | 2026-11-25 | M3.3 implemented and verified: shared test helpers, 19 new tests, Playwright page checks, CI workflow, configurable database path | `3d834c1` + working tree | Committed as `6f7841d` |
 | 2026-11-25 | Committed M3.3 and progress documentation (exact message: `test: add workspace and validation tests, browser page checks and CI`), then pushed (`3d834c1..6f7841d`). The first CI run (GitHub Actions run 45627532729, ubuntu-latest, Chromium) passed every step: 57 of 57 unit and workflow tests and 4 of 4 browser page-check widths (5 min 24 s). | `6f7841d1026c83cfc190df5b90e55b570202bf01` | M3.3 committed and pushed; this actual-hash update is uncommitted |
-| 2026-11-26 | M3.4 plan approved; M3.4a implemented and verified: Identity accounts and roles, sign-in/out, Development seed accounts, route protection, layout and runner from the account, tests | `6f7841d` + working tree | Uncommitted, awaiting approval |
+| 2026-11-26 | M3.4 plan approved; M3.4a implemented and verified: Identity accounts and roles, sign-in/out, Development seed accounts, route protection, layout and runner from the account, tests | `6f7841d` + working tree | Committed as `4aa960d` |
+| 2026-11-27 | Committed M3.4a and progress documentation (exact message: `feat(auth): add sign-in, demo accounts and role-based portal access`), then pushed (`6f7841d..4aa960d`). The CI run (GitHub Actions run 45909596777) passed the build and 61 of 61 unit tests but **failed 1 of 17 browser tests**: the signed-out sign-in page overflowed by 2 px at 320 px on Linux Chromium (the unbreakable file name in the demo-accounts note; Linux monospace is wider than Windows). The fix — letting that file name wrap — is implemented and checked locally down to 260 px, but uncommitted. | `4aa960d26261ddadf3f24a669e8b50310b3bc6af` | M3.4a committed and pushed; this actual-hash update is uncommitted |

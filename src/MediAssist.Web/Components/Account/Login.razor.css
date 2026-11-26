@@ -70,3 +70,8 @@
     color: var(--color-text-muted);
     overflow-wrap: anywhere;
 }
+
+/* A file name can't be allowed to widen the card on narrow screens (Linux monospace is wider). */
+.login__demo-note code {
+    overflow-wrap: anywhere;
+}
