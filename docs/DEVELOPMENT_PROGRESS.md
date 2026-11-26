@@ -6,16 +6,16 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 
 | Field | Verified state |
 |---|---|
-| Reviewed | 25 November 2026, Asia/Manila (M3.3 implementation review) |
+| Reviewed | 26 November 2026, Asia/Manila (M3.4a implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `3d834c1` — fix(workflow): scope notifications and enforce authorization standing (pushed; `origin/design/premium-civic-imagery` in sync) |
-| Latest application commit | `3d834c12d5a8e6092e118be1a59502acdba416bd` — M3.2 |
-| Latest implementation | M3.3 — Wider automated tests and CI (**implemented, uncommitted**) |
-| Application changes awaiting commit | M3.3: test helpers and new tests, a Playwright test project, a CI workflow, configurable database path, `.gitignore` exception — see “M3.3 Wider Automated Tests” below |
-| Documentation awaiting commit | (1) the post-commit M3.2 hash/push record, preserved; (2) this M3.3 update |
+| Branch HEAD | `6f7841d` — test: add workspace and validation tests, browser page checks and CI (pushed; `origin/design/premium-civic-imagery` in sync) |
+| Latest application commit | `6f7841d1026c83cfc190df5b90e55b570202bf01` — M3.3 |
+| Latest implementation | M3.4a — Sign-in and roles (**implemented, uncommitted**) |
+| Application changes awaiting commit | M3.4a: ASP.NET Core Identity, sign-in/out pages, seed accounts, route protection, layout and runner from the signed-in account, tests — see “M3.4a Sign-in and Roles” below |
+| Documentation awaiting commit | (1) the post-commit M3.3 hash/push/CI record, preserved; (2) the M3.4 plan and this M3.4a update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 (A–C, D1–D10) committed and pushed. Milestone 3: M3.1 audit done; M3.2 committed (`3d834c1`); M3.3 implemented and verified, awaiting commit approval |
-| Next development task | Commit M3.3 (with this document) once approved; then M3.4 — sign-in and roles (**plan first**) |
+| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.3 committed and pushed; M3.4 approved (26 November 2026); M3.4a implemented and verified, awaiting commit approval |
+| Next development task | Commit M3.4a (with this document) once approved; then M3.4b — who-did-what, service role checks, account name in Settings |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -38,7 +38,8 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 - D9b verification (17 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `dotnet test` **23 of 23** passed (7 new); `git diff --check` clean. Scripted browser suite at 320, 768, 1024 and 1440 px over 49 routes (including both new pages, their filters and the `?request=` highlight): **196 of 196** page checks pass. Flow checks are listed under D9b below.
 - D10 verification (17 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `dotnet test` **35 of 35** passed (12 new); `git diff --check` clean. Scripted browser suite at 320, 768, 1024 and 1440 px over 51 routes (including every runner page, their filters and five errand pages): **204 of 204** page checks pass. Flow checks are listed under D10 below.
 - M3.2 verification (25 November 2026): `dotnet build` to a separate output folder, **0 errors, 0 warnings**; `dotnet test` **38 of 38** passed (3 new workspace-level regressions; one rule test updated); `git diff --check` clean. Scripted browser suite at 320, 768, 1024 and 1440 px over 51 routes: **204 of 204** page checks pass. Flow checks are listed under M3.2 below.
-- M3.3 verification (25 November 2026): Debug and Release builds of the solution, **0 errors, 0 warnings**; `dotnet test tests/MediAssist.Web.Tests` **57 of 57** passed (19 new); `dotnet test tests/MediAssist.Web.E2E` **4 of 4 widths passed (204 page checks, 5 min 18 s)** against the real app with a throwaway database, in headless Microsoft Edge; `git diff --check` clean. The CI workflow has not run yet (it runs on GitHub after the push).
+- M3.3 verification (25 November 2026): Debug and Release builds of the solution, **0 errors, 0 warnings**; `dotnet test tests/MediAssist.Web.Tests` **57 of 57** passed (19 new); `dotnet test tests/MediAssist.Web.E2E` **4 of 4 widths passed (204 page checks, 5 min 18 s)** against the real app with a throwaway database, in headless Microsoft Edge; `git diff --check` clean. The first CI run (GitHub Actions run 45627532729, ubuntu-latest, Chromium) passed every step: 57 of 57 unit and workflow tests and 4 of 4 browser page-check widths (5 min 24 s).
+- M3.4a verification (26 November 2026): `dotnet build`, **0 errors, 0 warnings**; `dotnet test tests/MediAssist.Web.Tests` **61 of 61** passed (4 new: Identity seeding and role mapping); `dotnet test tests/MediAssist.Web.E2E` **17 of 17 passed (page checks for 4 accounts at 4 widths, 220 page checks, and 13 access tests; 5 min 51 s)**, signed in as each role's demo account; `git diff --check` clean. Flow checks are listed under M3.4a below.
 - No dedicated test project exists in the tracked solution. The browser checks above are scripted in the review session, not committed tests.
 
 To repeat verification from the repository root in PowerShell, without stopping a running app:
@@ -72,7 +73,9 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | D10 — Medical runner workflows | Completed | **Committed** | `9a50d89`; one list of runner requests and tasks; runner picker; accept/decline, on my way, done, hand back; application status independent |
 | M3.1 — Architecture & security audit | Completed | Plan only | Findings and approved Milestone 3 roadmap below |
 | M3.2 — Workflow fixes (F1–F3) | Completed | **Committed** | `3d834c1`; notifications scoped to the family; review and runner help blocked after a rejected authorization; clearing keeps added patients with shared records |
-| M3.3 — Wider automated tests and CI | Implemented and verified | **Uncommitted** | Workspace, failure, concurrency and validation tests; Playwright page checks; GitHub Actions CI |
+| M3.3 — Wider automated tests and CI | Completed | **Committed** | `6f7841d`; workspace, failure, concurrency and validation tests; Playwright page checks; GitHub Actions CI |
+| M3.4a — Sign-in and roles | Implemented and verified | **Uncommitted** | Identity in its own SQLite file with migrations; demo accounts (Development); every portal requires its role; layout and runner from the signed-in account |
+| M3.4b — Who did what, service role checks, account name | Pending | Approved plan | |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -103,6 +106,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-17 | `22846b1` | feat(admin): add authorization approval and runner assignment |
 | 2026-11-17 | `9a50d89` | feat(runner): implement runner task workflows |
 | 2026-11-25 | `3d834c1` | fix(workflow): scope notifications and enforce authorization standing |
+| 2026-11-25 | `6f7841d` | test: add workspace and validation tests, browser page checks and CI |
 
 ## Completed features and workflows
 
@@ -321,7 +325,9 @@ Committed on 25 November 2026 as `3d834c12d5a8e6092e118be1a59502acdba416bd` with
 
 **Flow checks performed (browser, 25 November 2026):** the office didn't approve Lia's request; the review queue flagged MA-2026-00395 “Patient authorization wasn't approved”; its review page explained it and Start review was refused; assigning a runner to rr-27 was refused; the family's runner request for MA-2026-00395 was refused under the application field. F1 and F3 need two separate browsers, so they are covered by the workspace tests rather than the single browser pane.
 
-### M3.3 Wider Automated Tests (uncommitted)
+### M3.3 Wider Automated Tests
+
+Committed on 25 November 2026 as `6f7841d1026c83cfc190df5b90e55b570202bf01` with message `test: add workspace and validation tests, browser page checks and CI` (tests, the Playwright project, the CI workflow, `.gitignore`, `MediAssist.slnx`, `Program.cs` and the progress document, which also carried the M3.2 hash record), then pushed: `3d834c1..6f7841d`. `git pull --rebase` beforehand reported the branch up to date. The first CI run (GitHub Actions run 45627532729, ubuntu-latest, Chromium) passed every step: 57 of 57 unit and workflow tests and 4 of 4 browser page-check widths (5 min 24 s).
 
 1. **Shared test helpers** (`tests/MediAssist.Web.Tests/TestSupport.cs`): `TestClock` (Philippine time, settable), `TestDatabase` (throwaway SQLite file; `Fail` makes every write fail), `MemoryBrowserStorage` (`FailSaves` refuses saves) and `TestHarness` (the real store, shared workflow and any number of browser workspaces). The four existing test classes now use them instead of their own copies.
 2. **New tests (19):**
@@ -331,6 +337,21 @@ Committed on 25 November 2026 as `3d834c12d5a8e6092e118be1a59502acdba416bd` with
 4. **Configurable database path:** `Program.cs` reads `Workflow:DatabasePath` (relative to the content root; default `App_Data/mediassist.db`, unchanged), so tests never touch the development database.
 5. **CI** (`.github/workflows/ci.yml`): on pushes to `main` and `design/premium-civic-imagery` and on pull requests — restore, Release build, unit and workflow tests, install Chromium, browser page checks, keep the test results. Read-only repository permissions.
 6. **Found while preparing the commit:** the template `.gitignore` pattern `*.e2e` (Visual Studio trace files) matched the `MediAssist.Web.E2E` folder on Windows, where Git ignores letter case, so the browser tests would have been left out silently. `.gitignore` now re-includes `/tests/MediAssist.Web.E2E/` (its `obj` and `bin` stay ignored).
+
+### M3.4 Sign-in and Roles
+
+**Approved plan** (26 November 2026, “Approve M3.4”, all recommended choices): ASP.NET Core Identity with cookie sign-in (no registration, email confirmation or password reset yet — no email sending); accounts in a separate SQLite file with EF Core migrations; fictional demo accounts seeded in Development only with one demo password in `appsettings.Development.json`; one portal per role with “Access denied” for the others; the runner is the signed-in account (picker removed); shared actions record who did them and the service checks roles (M3.4b); the patient's name moves to the account (M3.4b); split into M3.4a and M3.4b.
+
+#### M3.4a Sign-in and Roles (uncommitted)
+
+1. **Accounts** (`Data/Identity.cs`, `Data/IdentitySeeder.cs`): `ApplicationUser` (first and last name), roles Patient, Administrator and Runner, `MediAssistIdentityDbContext` in `App_Data/mediassist-identity.db` (configurable as `Identity:DatabasePath`; git-ignored) with the first migration `Data/Migrations/Identity/…_InitialIdentity`. The app applies migrations at start-up. **In Development only**, it seeds the roles and six fictional accounts — `maria.santos@` (Patient), `ana.reyes@` (Administrator), `paolo.dizon@`, `liza.manalo@`, `ramil.ocampo@`, `cora.bautista@` (Runners), all `@example.com` — with the password in `appsettings.Development.json` (`Seed:DemoPassword`; a demo value, never used outside Development). The account's first and last name are added to the signed-in user (`AppClaimsFactory`). Packages: `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 10.0.15, `Microsoft.EntityFrameworkCore.Design` 10.0.15 (build-time only); `dotnet-ef` 10.0.15 as a local tool (`dotnet-tools.json`).
+2. **Sign-in and sign-out:** `/account/login` (a plain page so the cookie can be set): email, password, “Keep me signed in”, **lockout after 5 failed tries for 5 minutes**, a safe `returnUrl` (local, outside /account) or the account's own portal; in Development it lists the demo accounts (not the password). Sign-out is a form post to `/account/logout` with an antiforgery token, from the sidebar footer, the mobile menu and the access-denied page. Cookie: `MediAssist.Auth`, HttpOnly, SameSite=Lax, secure outside Development, 8-hour sliding expiry.
+3. **Access by role:** each portal folder requires its role (`Pages/Patient`, `Pages/Admin`, `Pages/Runner` `_Imports.razor`); the shared staff placeholder was split so each portal keeps its own rule. Signed-out visitors are redirected to sign-in and brought back; another role's portal shows **“This page isn't for your account”** (`/account/access-denied`) — for direct addresses (before rendering) and in-app navigation (`AuthorizeRouteView` → `RedirectToAccount`). `/` sends a signed-in account to its portal.
+4. **The account decides the portal:** `PortalLayout` takes its role from the signed-in user (`RoleNavigation.ForUser`), no longer from the address; signed-out visitors (not-found and error pages only) get the plain account frame. Staff names come from the account.
+5. **Runner identity:** `RunnerSession` is now the signed-in Runner account; the D10 “Viewing as” picker, its setting and its browser storage were removed.
+6. **Tests:** `IdentityTests` (4): migration and seeding create the roles and six accounts once, with names, password and lockout; each role opens its own portal. Browser: the page checks now run signed in as each portal's demo account (plus sign-in, access-denied and not-found pages signed out); new `AccessTests` (13): signed-out visitors sent to sign-in with the page kept, each account lands in its portal, four cross-role attempts denied, a runner can't open another runner's errand, signing out ends access.
+
+**Flow checks performed (browser, 26 November 2026):** signed out, `/` and `/admin` redirected to sign-in with the address kept, and an unknown page still answered 404 in the plain frame; signed in as Ana from `/admin/reviews` and returned there, with her name in the header; `/patient/applications` (direct) and `/runner/tasks` (in-app link) both showed access denied; signing out from there returned to sign-in (“You're signed out.”) and `/admin` redirected again; Paolo landed on `/runner` with only his two errands and no picker in settings; Liza's account locked on the 5th wrong password and refused even the right one while locked.
 
 ## Current architecture
 
@@ -381,16 +402,18 @@ The following findings are source-verified unless explicitly described as build 
 | Persistence and recovery are limited | Browser storage has no account isolation, multi-device sync or cross-tab conflict handling. D3 now reports save failures to the user and rolls back uploads/submissions that were not saved | Idempotency and eventual database persistence |
 | ~~Stored data is tied to the app's build location~~ — **fixed in D9a (`b81d258`)** | Data Protection now uses the fixed application name `MediAssist`; this reset earlier prototype browser data once | None |
 | ~~References are local~~ — **fixed in D9a (`b81d258`)** | References are chosen in the shared store under one gate | None while one server process owns the database |
-| ~~Verification is only partly automated~~ — **addressed in M3.3 (uncommitted)** | 57 unit and workflow tests plus the browser page checks as Playwright tests, run by CI on every push. Component (bUnit) tests and multi-step browser flows are not automated yet | Add flow tests with sign-in (M3.4) |
+| ~~Verification is only partly automated~~ — **addressed in M3.3 (`6f7841d`)** | 57 unit and workflow tests plus the browser page checks as Playwright tests, run by CI on every push. Component (bUnit) tests and multi-step browser flows are not automated yet | Add flow tests with sign-in (M3.4) |
 | Profiles cannot be removed | D4 adds and edits profiles; there is no archive/remove flow, and an added patient with applications must stay for history | Decide archive rules (D8 or later) |
 | Authorization is not identity verification | Administrators approve from fictional sample files (D9b); nothing verifies a real relationship or identity | Real verification needs authentication and real documents (outside the prototype) |
 | Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
-| Runner identity is a demo choice (D10) | “Viewing as” in Runner settings picks one of four fictional runners in this browser; anyone can switch, so it is not access control | Authentication before any real use |
+| ~~Runner identity is a demo choice (D10)~~ — **fixed in M3.4a (uncommitted)** | The runner is the signed-in Runner account | None |
 | Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema made with `EnsureCreated` plus create-if-missing for tables added later (no migrations); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
-| No authentication or authorization (M3.1 audit) | The URL decides the role; anyone can act as administrator or any runner; shared actions record no real actor | M3.4 |
+| ~~No authentication or authorization~~ — **sign-in and roles added in M3.4a (uncommitted)** | Every portal needs its role; the runner is the signed-in account. Shared actions don't yet record the actor or check roles inside the service | M3.4b |
 | ~~Shared notifications shown to every browser~~ — **fixed in M3.2 (`3d834c1`)** | Notifications now carry their patient and are shown only to that family | None |
 | ~~Review could start after a rejected authorization~~ — **fixed in M3.2 (`3d834c1`)** | Review start, runner assignment and family runner requests are refused while rejected | None |
 | Added patients live only in the browser | Since M3.2 clearing keeps those with shared records, but another browser or wiped storage still hides their applications from the family | M3.5 |
+| Demo password in the repository (M3.4a) | `Seed:DemoPassword` in `appsettings.Development.json` seeds the fictional accounts in Development only; nothing is seeded elsewhere | Set real accounts and secrets before any non-development deployment |
+| No registration or password reset (M3.4a) | Accounts are seeded; there is no sign-up, email confirmation or reset because the prototype sends no email | Later milestone |
 
 Only fictional records and simulated documents belong in this prototype. Real medical records, official submissions, payment processing, real dispatch, AI/OCR, SMS/email and production compliance readiness are outside the delivered scope.
 
@@ -411,7 +434,7 @@ Integration testing, mobile/accessibility checks and the known-issue fixes apply
 
 ## Next development task and prerequisites
 
-**Next step: commit M3.3** (tests, the Playwright project, the CI workflow, the database-path setting and this document, including the preserved M3.2 hash record) once the owner approves; the CI run on GitHub then confirms the workflow. After that, **M3.4 — sign-in and roles**, which gets its own plan before any code.
+**Next step: commit M3.4a** (application changes, migration, tests and this document, including the preserved M3.3 hash record) once the owner approves; CI then runs on GitHub. Then **M3.4b** — record who did what on shared actions, role checks inside the shared service, and the patient's name on the account (Settings).
 
 Before M3.4: choose the sign-in approach (ASP.NET Core Identity on the same SQLite database is the recommendation) and the fictional seed accounts for each role.
 
@@ -451,4 +474,6 @@ After each phase:
 | 2026-11-17 | Committed D10 and progress documentation (exact message: `feat(runner): implement runner task workflows`), then pushed (`22846b1..9a50d89`) | `9a50d89332814a8a19f797ef66f3d4fa32996273` | D10 committed and pushed; this actual-hash update is uncommitted |
 | 2026-11-25 | Milestone 3.1 audit (plan only) and roadmap approved; M3.2 implemented and verified: notification scoping, authorization guard, clear keeps patients with records, two-browser tests | `9a50d89` + working tree | Committed as `3d834c1` |
 | 2026-11-25 | Committed M3.2 and progress documentation (exact message: `fix(workflow): scope notifications and enforce authorization standing`), then pushed (`9a50d89..3d834c1`) | `3d834c12d5a8e6092e118be1a59502acdba416bd` | M3.2 committed and pushed; this actual-hash update is uncommitted |
-| 2026-11-25 | M3.3 implemented and verified: shared test helpers, 19 new tests, Playwright page checks, CI workflow, configurable database path | `3d834c1` + working tree | Uncommitted, awaiting approval |
+| 2026-11-25 | M3.3 implemented and verified: shared test helpers, 19 new tests, Playwright page checks, CI workflow, configurable database path | `3d834c1` + working tree | Committed as `6f7841d` |
+| 2026-11-25 | Committed M3.3 and progress documentation (exact message: `test: add workspace and validation tests, browser page checks and CI`), then pushed (`3d834c1..6f7841d`). The first CI run (GitHub Actions run 45627532729, ubuntu-latest, Chromium) passed every step: 57 of 57 unit and workflow tests and 4 of 4 browser page-check widths (5 min 24 s). | `6f7841d1026c83cfc190df5b90e55b570202bf01` | M3.3 committed and pushed; this actual-hash update is uncommitted |
+| 2026-11-26 | M3.4 plan approved; M3.4a implemented and verified: Identity accounts and roles, sign-in/out, Development seed accounts, route protection, layout and runner from the account, tests | `6f7841d` + working tree | Uncommitted, awaiting approval |

@@ -1,0 +1,19 @@
+@page "/"
+@attribute [Authorize]
+@inject NavigationManager Nav
+
+@*
+    The site root (M3.4): signed-out visitors are sent to sign in by the authorization check; a
+    signed-in account goes to its own portal.
+*@
+
+<PageTitle>MediAssist</PageTitle>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null) Nav.NavigateTo(RoleNavigation.ForUser((await AuthState).User).Home.Href, replace: true);
+    }
+}

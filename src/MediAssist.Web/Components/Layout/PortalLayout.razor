@@ -1,5 +1,7 @@
 @*
-    Shared shell for the Patient, Administrator and Runner portals (role chosen by URL in the prototype).
+    Shared shell for the Patient, Administrator and Runner portals. Since M3.4 the signed-in
+    account's role decides the portal (pages also require it); signed-out visitors only reach the
+    not-found and error pages, shown in the plain account frame.
       < 48em : header + content + fixed bottom nav + bottom-sheet drawer
       >= 48em: sidebar (rail by default on tablet) + header + content
       >= 75em: sidebar expanded by default
@@ -16,8 +18,15 @@
 @inject PageSectionState PageSection
 @inject ApplicationWorkspace Workspace
 @inject UiPreferences Prefs
-@inject RunnerSession Runner
 
+@inject AuthenticationStateProvider Auth
+
+@if (!_signedIn)
+{
+    <AccountLayout Body="Body" />
+}
+else
+{
 <a class="skip-link" href="@SkipLinkHref">Skip to main content</a>
 
 <div class="portal" data-sidebar="@SidebarAttribute" data-fil="@(Prefs.ShowFilipino ? null : "hide")" data-role="@_set.Role.ToString().ToLowerInvariant()" @ref="_portal">
@@ -58,6 +67,8 @@
                      OpenChanged="OnDrawerOpenChanged" />
 </div>
 
+}
+
 <div id="blazor-error-ui" data-nosnippet>
     Something went wrong. Reload the page to continue.
     <a href="" class="reload">Reload</a>
@@ -69,6 +80,7 @@
     private string? _userName;
     private int _unreadCount;
     private string _path = "";
+    private bool _signedIn;
 
     private bool _isWideViewport = true;
     private ElementReference _portal;
@@ -99,8 +111,9 @@
         PageSection.Changed += OnPageSectionChanged;
         Workspace.Changed += OnWorkspaceChanged;
         Prefs.Changed += OnPreferencesChanged;
-        Runner.Changed += OnRunnerChanged;
-        await LoadRoleAsync(RoleNavigation.ForPath(_path));
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        _signedIn = user.Identity?.IsAuthenticated == true;
+        if (_signedIn) await LoadRoleAsync(RoleNavigation.ForUser(user));
     }
 
     private async Task LoadRoleAsync(NavSet set)
@@ -134,11 +147,11 @@
             return;
         }
 
+        if (!_signedIn) return;
+
         // The patient's own drafts and submissions live in their browser: read them now that
         // the page is interactive. Pages showing applications refresh when this completes.
         if (_set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
-        // The runner portal shows the runner chosen in settings (D10, no sign-in).
-        if (_set.Role == PortalRole.Runner) await Runner.EnsureLoadedAsync();
 
         _self = DotNetObjectReference.Create(this);
         var watch = await Interop.WatchWideViewportAsync(_self);
@@ -174,13 +187,6 @@
 
     private void OnPreferencesChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private void OnRunnerChanged() => _ = InvokeAsync(async () =>
-    {
-        if (_set.Role != PortalRole.Runner) return;
-        _userName = (await Staff.GetUserAsync(PortalRole.Runner)).FullName;
-        StateHasChanged();
-    });
-
     // A submission adds a notification and Settings can rename the account: keep the bell and name current.
     private void OnWorkspaceChanged() => _ = InvokeAsync(async () =>
     {
@@ -194,18 +200,9 @@
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
+        // The portal follows the account, not the address (M3.4), so only the current path changes.
         _path = Nav.ToBaseRelativePath(e.Location);
-        var set = RoleNavigation.ForPath(_path);
-        _ = InvokeAsync(async () =>
-        {
-            if (set != _set)
-            {
-                await LoadRoleAsync(set);
-                if (set.Role == PortalRole.Patient) await Workspace.EnsureLoadedAsync();
-                if (set.Role == PortalRole.Runner) await Runner.EnsureLoadedAsync();
-            }
-            StateHasChanged();
-        });
+        _ = InvokeAsync(StateHasChanged);
     }
 
     public async ValueTask DisposeAsync()
@@ -214,7 +211,6 @@
         PageSection.Changed -= OnPageSectionChanged;
         Workspace.Changed -= OnWorkspaceChanged;
         Prefs.Changed -= OnPreferencesChanged;
-        Runner.Changed -= OnRunnerChanged;
         if (_viewportWatchId is int id)
         {
             try { await Interop.UnwatchWideViewportAsync(id); }

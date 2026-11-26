@@ -4,27 +4,39 @@ namespace MediAssist.Web.E2E;
 
 /// <summary>
 /// The responsive and accessibility page checks run by hand in every phase since Milestone 2,
-/// committed as tests (M3.3). Every route at 320, 768, 1024 and 1440 px, in a fresh browser (no
-/// saved data; the runner portal shows its default runner), against a fresh shared store:
+/// committed as tests (M3.3). Every route at 320, 768, 1024 and 1440 px, signed in as the portal's
+/// demo account (M3.4) in a fresh browser (no saved data), against a fresh shared store:
 /// no sideways scrolling, 44 px targets, 13 px minimum text, one h1, at most one filled button,
 /// unique ids, working ARIA references, no skipped heading levels, and AA contrast.
 /// </summary>
 [Collection("app")]
 public sealed class PageChecksTests(AppFixture app)
 {
-    public static readonly string[] Routes =
+    /// <summary>Each portal's routes, checked while signed in as that portal's demo account (M3.4); null: signed out.</summary>
+    public static readonly (string? Email, string[] Routes)[] Accounts =
     [
-        "/", "/patient", "/patient/applications", "/patient/applications/MA-2026-00431", "/patient/applications/MA-2026-00418",
-        "/patient/applications/MA-2026-00395", "/patient/applications/new", "/patient/applications/new?step=2", "/patient/documents",
-        "/patient/hospitals", "/patient/hospitals/san-isidro-general", "/patient/notifications", "/patient/notifications?show=unread",
-        "/patient/patients", "/patient/patients/new", "/patient/patients/maria", "/patient/patients/maria/edit", "/patient/patients/lia",
-        "/patient/patients/lia/authorization", "/patient/programs", "/patient/runner", "/patient/runner/new", "/patient/settings",
-        "/admin", "/admin/reviews", "/admin/reviews?stage=review", "/admin/reviews/MA-2026-00452", "/admin/reviews/MA-2026-00431",
-        "/admin/reviews/MA-2026-00418", "/admin/reviews/MA-2026-00395", "/admin/reviews/MA-2026-99999", "/admin/authorizations",
-        "/admin/authorizations?show=decided", "/admin/runners", "/admin/runners?show=assigned", "/admin/runners?show=closed",
-        "/admin/programs", "/admin/users", "/admin/notifications", "/admin/settings", "/runner", "/runner/tasks",
-        "/runner/tasks?show=accept", "/runner/tasks?show=done", "/runner/tasks/rr-33", "/runner/tasks/rr-24", "/runner/tasks/rr-29",
-        "/runner/history", "/runner/notifications", "/runner/settings", "/not-found",
+        (null, ["/account/login", "/account/access-denied", "/not-found"]),
+        ("maria.santos@example.com",
+        [
+            "/", "/patient", "/patient/applications", "/patient/applications/MA-2026-00431", "/patient/applications/MA-2026-00418",
+            "/patient/applications/MA-2026-00395", "/patient/applications/new", "/patient/applications/new?step=2", "/patient/documents",
+            "/patient/hospitals", "/patient/hospitals/san-isidro-general", "/patient/notifications", "/patient/notifications?show=unread",
+            "/patient/patients", "/patient/patients/new", "/patient/patients/maria", "/patient/patients/maria/edit", "/patient/patients/lia",
+            "/patient/patients/lia/authorization", "/patient/programs", "/patient/runner", "/patient/runner/new", "/patient/settings",
+            "/account/access-denied", "/not-found",
+        ]),
+        ("ana.reyes@example.com",
+        [
+            "/admin", "/admin/reviews", "/admin/reviews?stage=review", "/admin/reviews/MA-2026-00452", "/admin/reviews/MA-2026-00431",
+            "/admin/reviews/MA-2026-00418", "/admin/reviews/MA-2026-00395", "/admin/reviews/MA-2026-99999", "/admin/authorizations",
+            "/admin/authorizations?show=decided", "/admin/runners", "/admin/runners?show=assigned", "/admin/runners?show=closed",
+            "/admin/programs", "/admin/users", "/admin/notifications", "/admin/settings",
+        ]),
+        ("paolo.dizon@example.com",
+        [
+            "/runner", "/runner/tasks", "/runner/tasks?show=accept", "/runner/tasks?show=done", "/runner/tasks/rr-33",
+            "/runner/tasks/rr-24", "/runner/tasks/rr-29", "/runner/history", "/runner/notifications", "/runner/settings",
+        ]),
     ];
 
     [Theory]
@@ -34,18 +46,20 @@ public sealed class PageChecksTests(AppFixture app)
     [InlineData(1440)]
     public async Task Every_page_passes_the_checks(int width)
     {
-        await using var context = await app.Browser.NewContextAsync(new() { ViewportSize = new() { Width = width, Height = 900 } });
-        var page = await context.NewPageAsync();
         var failures = new List<string>();
-
-        foreach (var route in Routes)
+        foreach (var (email, routes) in Accounts)
         {
-            await page.GotoAsync(app.BaseUrl + route, new() { WaitUntil = WaitUntilState.Load });
-            // Interactive content (the user's saved data, live counts) arrives after the circuit connects.
-            await page.WaitForSelectorAsync("h1", new() { State = WaitForSelectorState.Attached });
-            await page.WaitForTimeoutAsync(1500);
-            var issues = await page.EvaluateAsync<string[]>(CheckScript, width);
-            if (issues.Length > 0) failures.Add($"{width}px {route}: {string.Join("; ", issues)}");
+            var page = await app.PageAsync(email, width);
+            foreach (var route in routes)
+            {
+                await page.GotoAsync(app.BaseUrl + route, new() { WaitUntil = WaitUntilState.Load });
+                // Interactive content (the user's saved data, live counts) arrives after the circuit connects.
+                await page.WaitForSelectorAsync("h1", new() { State = WaitForSelectorState.Attached });
+                await page.WaitForTimeoutAsync(1500);
+                var issues = await page.EvaluateAsync<string[]>(CheckScript, width);
+                if (issues.Length > 0) failures.Add($"{width}px {email ?? "signed out"} {route}: {string.Join("; ", issues)}");
+            }
+            await page.Context.CloseAsync();
         }
 
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));

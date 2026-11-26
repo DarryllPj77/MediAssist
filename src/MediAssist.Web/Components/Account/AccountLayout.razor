@@ -1,0 +1,26 @@
+@*
+    Layout for sign-in and access pages (M3.4): the brand, one card, and the independence notice.
+    Rendered as plain (non-interactive) pages so sign-in can set its cookie.
+*@
+@inherits LayoutComponentBase
+
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="account">
+    <header class="account__brand">
+        <BrandMark Size="40" />
+        <span class="account__name">
+            <span class="account__wordmark">MediAssist</span>
+            <span class="account__tagline">Tulong-tulong sa pagpapagamot</span>
+        </span>
+    </header>
+
+    <main id="main-content" class="account__card" tabindex="-1">
+        @Body
+    </main>
+
+    <footer class="account__footer">
+        <p>MediAssist is an independent assistance service, not a government agency.</p>
+        <p>This prototype uses fictional people, hospitals, programs and reference numbers.</p>
+    </footer>
+</div>

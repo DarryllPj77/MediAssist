@@ -1,0 +1,72 @@
+.login__title {
+    color: var(--color-navy);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+}
+
+.login__fil {
+    margin-block-end: var(--space-5);
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+}
+
+.login__note {
+    margin-block-end: var(--space-4);
+    color: var(--color-text);
+    font-weight: var(--weight-semibold);
+}
+
+.login__error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-block-end: var(--space-4);
+}
+
+::deep .login__form {
+    display: grid;
+    gap: var(--space-5);
+}
+
+::deep .login__form .btn {
+    justify-self: start;
+}
+
+.login__demo {
+    margin-block-start: var(--space-6);
+    padding-block-start: var(--space-5);
+    border-block-start: 1px solid var(--color-border);
+}
+
+.login__demo-title {
+    color: var(--color-navy);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+}
+
+.login__demo-note {
+    margin-block: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.login__demo-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+}
+
+.login__demo-role {
+    display: inline-block;
+    min-width: 7.5rem;
+    color: var(--color-navy);
+    font-weight: var(--weight-semibold);
+}
+
+.login__demo-email {
+    color: var(--color-text-muted);
+    overflow-wrap: anywhere;
+}

@@ -1,0 +1,42 @@
+@page "/account/access-denied"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+
+@*
+    Shown when a signed-in account opens another role's portal (M3.4). Offers its own portal and
+    signing out (to switch account).
+*@
+
+<PageTitle>Access denied · MediAssist</PageTitle>
+
+<h1 class="denied__title serif">This page isn’t for your account</h1>
+<p class="fil denied__fil" lang="fil">Hindi para sa inyong account ang pahinang ito</p>
+<p class="denied__text">
+    Each MediAssist account opens one portal: patients, administrators and runners each have their own.
+    To use another portal, sign out and sign in with that account.
+</p>
+
+<div class="denied__actions">
+    @if (_user is { Identity.IsAuthenticated: true })
+    {
+        <AppButton Href="@RoleNavigation.ForUser(_user).Home.Href" IconStart="home">Go to my portal</AppButton>
+        <form method="post" action="/account/logout">
+            <AntiforgeryToken />
+            <AppButton Type="submit" Variant="AppButton.ButtonVariant.Secondary" IconStart="arrow-right">Sign out</AppButton>
+        </form>
+    }
+    else
+    {
+        <AppButton Href="/account/login" IconStart="arrow-right">Sign in</AppButton>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private System.Security.Claims.ClaimsPrincipal? _user;
+
+    protected override async Task OnInitializedAsync() =>
+        _user = AuthState is null ? null : (await AuthState).User;
+}

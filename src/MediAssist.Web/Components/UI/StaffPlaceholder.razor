@@ -1,12 +1,10 @@
 @*
     Administrator and Runner pages planned for later milestones: one compact split hero says it
     once (status, name, message, one way back) beside the section's image slot
-    (hero-admin-<section> / hero-runner-<section>, falling back to hero-default).
+    (hero-admin-<section> / hero-runner-<section>, falling back to hero-default). Routed from
+    Pages/Admin/AdminPlaceholder and Pages/Runner/RunnerPlaceholder, so each portal's role rule
+    applies (M3.4).
 *@
-@page "/admin/programs"
-@page "/admin/users"
-@page "/admin/notifications"
-@page "/runner/notifications"
 @inject NavigationManager Nav
 
 <PageTitle>@Title · MediAssist</PageTitle>

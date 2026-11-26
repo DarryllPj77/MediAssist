@@ -24,6 +24,13 @@
 </div>
 
 @code {
-    // Send people back to the home of the portal they were in.
-    private NavSet Set => RoleNavigation.ForPath(Nav.ToBaseRelativePath(Nav.Uri));
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private NavSet Set { get; set; } = RoleNavigation.Patient;
+
+    // Send people back to their own portal's home (signed out: sign-in, via the patient home's rule).
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null) Set = RoleNavigation.ForUser((await AuthState).User);
+    }
 }

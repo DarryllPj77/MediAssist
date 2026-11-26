@@ -44,6 +44,14 @@
                 </ul>
             }
         </nav>
+
+        <form method="post" action="/account/logout" class="nav-drawer__signout">
+            <AntiforgeryToken />
+            <button type="submit" class="nav-drawer__signout-button">
+                <Icon Name="arrow-right" Size="20" />
+                <span>Sign out</span>
+            </button>
+        </form>
     </div>
 </dialog>
 

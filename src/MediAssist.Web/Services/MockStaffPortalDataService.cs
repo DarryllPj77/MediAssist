@@ -6,14 +6,17 @@ namespace MediAssist.Web.Services;
 /// <summary>
 /// The staff portals' view. Reviews, authorization requests, runner requests and runner tasks come
 /// from the shared <see cref="WorkflowService"/> (D9a, D9b, D10), so staff see what families send
-/// from any browser. The runner portal shows the runner chosen in settings (<see cref="RunnerSession"/>).
+/// from any browser. Staff names and the runner come from the signed-in account (M3.4).
 /// </summary>
-public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerSession runner) : IStaffPortalDataService
+public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerSession runner,
+    Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider auth) : IStaffPortalDataService
 {
-    public Task<StaffUser> GetUserAsync(PortalRole role, CancellationToken cancellationToken = default) =>
-        Task.FromResult(role == PortalRole.Runner
-            ? new StaffUser(runner.Current.Name.Split(' ')[0], runner.Current.Name[(runner.Current.Name.IndexOf(' ') + 1)..])
-            : new StaffUser("Ana", "Reyes"));
+    /// <summary>The signed-in staff member's name (M3.4).</summary>
+    public async Task<StaffUser> GetUserAsync(PortalRole role, CancellationToken cancellationToken = default)
+    {
+        var user = (await auth.GetAuthenticationStateAsync()).User;
+        return new StaffUser(user.FindFirst(Data.AppClaims.FirstName)?.Value ?? "", user.FindFirst(Data.AppClaims.LastName)?.Value ?? "");
+    }
 
     public Task<int> GetUnreadCountAsync(PortalRole role, CancellationToken cancellationToken = default) =>
         Task.FromResult(role == PortalRole.Runner ? 1 : 4);
@@ -58,6 +61,9 @@ public sealed class MockStaffPortalDataService(WorkflowService workflow, RunnerS
     public Task<IReadOnlyList<SharedRunnerRequest>> GetRunnerRequestsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(workflow.AllRunnerRequests());
 
-    public Task<IReadOnlyList<RunnerTaskView>> GetRunnerTasksAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(workflow.RunnerTasksFor(runner.Current.Name));
+    public async Task<IReadOnlyList<RunnerTaskView>> GetRunnerTasksAsync(CancellationToken cancellationToken = default)
+    {
+        await runner.EnsureLoadedAsync();
+        return runner.Current is { } current ? workflow.RunnerTasksFor(current.Name) : [];
+    }
 }

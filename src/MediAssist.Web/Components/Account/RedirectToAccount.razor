@@ -1,0 +1,18 @@
+@*
+    Used by the router when an interactive navigation reaches a page the user may not open (M3.4):
+    signed-out users go to sign in (and come back), signed-in users see access denied. Full page
+    loads, so sign-in and its cookie work. First page loads are handled before rendering by the
+    framework's authorization, which redirects the same way.
+*@
+@inject NavigationManager Nav
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var signedIn = AuthState is not null && (await AuthState).User.Identity?.IsAuthenticated == true;
+        var here = "/" + Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.NavigateTo(signedIn ? "/account/access-denied" : $"/account/login?returnUrl={Uri.EscapeDataString(here)}", forceLoad: true);
+    }
+}

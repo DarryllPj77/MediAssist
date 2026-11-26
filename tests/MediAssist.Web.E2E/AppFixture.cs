@@ -7,8 +7,9 @@ using Microsoft.Playwright;
 namespace MediAssist.Web.E2E;
 
 /// <summary>
-/// Starts the built MediAssist app on a free local port with a throwaway database (so your own
-/// App_Data is never touched), and one headless browser for the tests (M3.3).
+/// Starts the built MediAssist app on a free local port with throwaway databases (so your own
+/// App_Data is never touched), and one headless browser for the tests (M3.3). Since M3.4 the app
+/// seeds its fictional demo accounts in Development; <see cref="PageAsync"/> signs in as one.
 /// <para>
 /// The app is found at <c>MEDIASSIST_APP_DLL</c>, else next to these tests in an artifacts layout,
 /// else under <c>src/MediAssist.Web/bin</c>. The browser is Chromium, or the channel in
@@ -21,13 +22,35 @@ public sealed class AppFixture : IAsyncLifetime
     private Process? _app;
     private IPlaywright? _playwright;
     private readonly string _database = Path.Combine(Path.GetTempPath(), $"mediassist-e2e-{Guid.NewGuid():N}.db");
+    private readonly string _identityDatabase = Path.Combine(Path.GetTempPath(), $"mediassist-e2e-identity-{Guid.NewGuid():N}.db");
 
     public string BaseUrl { get; private set; } = "";
     public IBrowser Browser { get; private set; } = default!;
 
+    /// <summary>The Development demo password the app seeds its fictional accounts with (from appsettings.Development.json).</summary>
+    public string DemoPassword { get; private set; } = "";
+
+    /// <summary>A page in a fresh browser context of the given width, signed in as <paramref name="email"/> (null: signed out).</summary>
+    public async Task<IPage> PageAsync(string? email, int width = 1024)
+    {
+        var context = await Browser.NewContextAsync(new() { ViewportSize = new() { Width = width, Height = 900 } });
+        var page = await context.NewPageAsync();
+        if (email is null) return page;
+
+        await page.GotoAsync(BaseUrl + "/account/login");
+        await page.FillAsync("#login-email", email);
+        await page.FillAsync("#login-password", DemoPassword);
+        await page.ClickAsync("form.login__form button[type=submit]");
+        await page.WaitForURLAsync(url => !url.Contains("/account/login", StringComparison.OrdinalIgnoreCase));
+        return page;
+    }
+
     public async Task InitializeAsync()
     {
         var repo = RepoRoot();
+        var settings = System.Text.Json.JsonDocument.Parse(
+            await File.ReadAllTextAsync(Path.Combine(repo, "src", "MediAssist.Web", "appsettings.Development.json")));
+        DemoPassword = settings.RootElement.GetProperty("Seed").GetProperty("DemoPassword").GetString()!;
         var port = FreePort();
         BaseUrl = $"http://127.0.0.1:{port}";
 
@@ -38,7 +61,7 @@ public sealed class AppFixture : IAsyncLifetime
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        foreach (var arg in new[] { AppDll(repo), "--urls", BaseUrl, $"--Workflow:DatabasePath={_database}" })
+        foreach (var arg in new[] { AppDll(repo), "--urls", BaseUrl, $"--Workflow:DatabasePath={_database}", $"--Identity:DatabasePath={_identityDatabase}" })
             start.ArgumentList.Add(arg);
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
         _app = Process.Start(start) ?? throw new InvalidOperationException("Could not start the app.");
@@ -108,7 +131,7 @@ public sealed class AppFixture : IAsyncLifetime
             await _app.WaitForExitAsync();
         }
         _app?.Dispose();
-        foreach (var file in new[] { _database, _database + "-shm", _database + "-wal" })
+        foreach (var file in new[] { _database, _database + "-shm", _database + "-wal", _identityDatabase, _identityDatabase + "-shm", _identityDatabase + "-wal" })
             if (File.Exists(file)) File.Delete(file);
     }
 }

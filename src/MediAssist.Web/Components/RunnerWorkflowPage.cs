@@ -5,34 +5,18 @@ namespace MediAssist.Web.Components;
 
 /// <summary>
 /// A runner portal page (D10): loads again when the shared store changes (an administrator assigns,
-/// a family cancels) and when the runner chosen in settings changes.
+/// a family cancels). The runner is the signed-in Runner account (M3.4).
 /// </summary>
 public abstract class RunnerWorkflowPage : StaffWorkflowPage
 {
     [Inject] protected RunnerSession Runner { get; set; } = default!;
 
-    protected string CurrentRunner => Runner.Current.Name;
+    /// <summary>The signed-in runner's name ("" for an account that isn't a known runner: no errands match).</summary>
+    protected string CurrentRunner => Runner.Current?.Name ?? "";
 
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
-        base.OnInitialized();
-        Runner.Changed += OnRunnerChanged;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender) await Runner.EnsureLoadedAsync();
-    }
-
-    private void OnRunnerChanged() => _ = InvokeAsync(async () =>
-    {
-        await LoadAsync();
-        StateHasChanged();
-    });
-
-    public override void Dispose()
-    {
-        Runner.Changed -= OnRunnerChanged;
-        base.Dispose();
+        await Runner.EnsureLoadedAsync();
+        await base.OnParametersSetAsync();
     }
 }

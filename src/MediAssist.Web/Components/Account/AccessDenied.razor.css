@@ -1,0 +1,22 @@
+.denied__title {
+    color: var(--color-navy);
+    font-size: var(--text-2xl);
+    font-weight: 600;
+}
+
+.denied__fil {
+    margin-block-end: var(--space-4);
+    color: var(--color-gold-text);
+    font-family: var(--font-serif);
+}
+
+.denied__text {
+    margin-block-end: var(--space-5);
+    color: var(--color-text);
+}
+
+.denied__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}

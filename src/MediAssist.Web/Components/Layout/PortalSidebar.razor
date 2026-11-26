@@ -50,6 +50,13 @@
         <p class="sidebar__notice">Independent assistance service. Not a government agency.</p>
 
         <div class="sidebar__footer">
+            <form method="post" action="/account/logout" class="sidebar__signout">
+                <AntiforgeryToken />
+                <button type="submit" class="sidebar__toggle" data-label="Sign out">
+                    <Icon Name="arrow-right" Size="20" />
+                    <span class="sidebar__toggle-label">Sign out</span>
+                </button>
+            </form>
             <button type="button"
                     class="sidebar__toggle"
                     aria-controls="sidebar-nav"

@@ -135,7 +135,13 @@ public static class RoleNavigation
         RunnerNotifications,
         RunnerSettings);
 
-    /// <summary>Prototype role resolution: the URL decides the portal (/admin, /runner, else patient).</summary>
+    /// <summary>The portal of a signed-in account (M3.4): its role decides, not the address.</summary>
+    public static NavSet ForUser(System.Security.Claims.ClaimsPrincipal user) =>
+        user.IsInRole(Data.Roles.Administrator) ? Administrator
+        : user.IsInRole(Data.Roles.Runner) ? Runner
+        : Patient;
+
+    /// <summary>The portal an address belongs to (/admin, /runner, else patient). Not authorization: pages check roles.</summary>
     public static NavSet ForPath(string relativePath)
     {
         var path = Normalize(relativePath);

@@ -1,0 +1,122 @@
+@page "/account/login"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignIn
+@inject UserManager<ApplicationUser> Users
+@inject NavigationManager Nav
+@inject IWebHostEnvironment Environment
+
+@*
+    Sign in (M3.4). A plain page (no live connection) so the sign-in cookie can be set. Email and
+    password, "Remember me", lockout after 5 failed tries for 5 minutes. After signing in, a safe
+    ?returnUrl= (a local path outside /account) is followed; otherwise the account's own portal.
+    In Development the fictional demo accounts are listed; their password is in
+    appsettings.Development.json, never shown here.
+*@
+
+<PageTitle>Sign in · MediAssist</PageTitle>
+
+<h1 class="login__title serif">Sign in</h1>
+<p class="fil login__fil" lang="fil">Mag-sign in</p>
+
+@if (SignedOut)
+{
+    <p class="login__note" role="status">You're signed out.</p>
+}
+@if (_error is not null)
+{
+    <p class="field__error login__error" role="alert" id="login-error"><Icon Name="alert-circle" Size="18" /> @_error</p>
+}
+
+<EditForm Model="Input!" method="post" OnValidSubmit="SignInAsync" FormName="login" class="login__form" novalidate>
+    <DataAnnotationsValidator />
+
+    <div class="field">
+        <label class="field__label" for="login-email">Email</label>
+        <InputText id="login-email" class="input" type="email" autocomplete="username" @bind-Value="Input!.Email"
+                   aria-describedby="@(_error is null ? null : "login-error")" />
+        <ValidationMessage For="() => Input!.Email" class="field__error" />
+    </div>
+
+    <div class="field">
+        <label class="field__label" for="login-password">Password</label>
+        <InputText id="login-password" class="input" type="password" autocomplete="current-password" @bind-Value="Input!.Password" />
+        <ValidationMessage For="() => Input!.Password" class="field__error" />
+    </div>
+
+    <label class="option-card login__remember">
+        <InputCheckbox @bind-Value="Input!.RememberMe" />
+        <span class="option-card__text"><span>Keep me signed in on this device</span></span>
+    </label>
+
+    <AppButton Type="submit" IconStart="arrow-right">Sign in</AppButton>
+</EditForm>
+
+@if (Environment.IsDevelopment())
+{
+    <section class="login__demo" aria-labelledby="demo-title">
+        <h2 id="demo-title" class="login__demo-title">Demo accounts</h2>
+        <p class="login__demo-note">Fictional accounts for this prototype. The shared demo password is in <code>appsettings.Development.json</code>.</p>
+        <ul class="login__demo-list">
+            @foreach (var (email, first, last, role) in IdentitySeeder.Accounts)
+            {
+                <li><span class="login__demo-role">@role</span> @first @last · <span class="login__demo-email">@email</span></li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [SupplyParameterFromForm] private LoginInput? Input { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery(Name = "signedOut")] public bool SignedOut { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string? _error;
+
+    public sealed class LoginInput
+    {
+        [Required(ErrorMessage = "Enter your email.")]
+        [EmailAddress(ErrorMessage = "Enter an email address like name@example.com.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Enter your password.")]
+        public string Password { get; set; } = "";
+
+        public bool RememberMe { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        // Already signed in: go straight to the account's portal.
+        if (AuthState is not null && (await AuthState).User is { Identity.IsAuthenticated: true } user)
+            Nav.NavigateTo(SafeReturnUrl ?? RoleNavigation.ForUser(user).Home.Href);
+    }
+
+    private async Task SignInAsync()
+    {
+        var result = await SignIn.PasswordSignInAsync(Input!.Email.Trim(), Input.Password, Input.RememberMe, lockoutOnFailure: true);
+        if (result.Succeeded)
+        {
+            var user = await Users.FindByEmailAsync(Input.Email.Trim());
+            var roles = user is null ? [] : await Users.GetRolesAsync(user);
+            var home = roles.Contains(Roles.Administrator) ? "/admin" : roles.Contains(Roles.Runner) ? "/runner" : "/patient";
+            Nav.NavigateTo(SafeReturnUrl ?? home);
+            return;
+        }
+        _error = result.IsLockedOut
+            ? "Too many tries. This account is locked for 5 minutes."
+            : "The email or password isn't right. Check them and try again.";
+    }
+
+    /// <summary>Only a local page outside /account is followed after sign-in.</summary>
+    private string? SafeReturnUrl =>
+        ReturnUrl is { } url && url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal)
+        && !url.StartsWith("/\\", StringComparison.Ordinal) && !url.StartsWith("/account", StringComparison.OrdinalIgnoreCase)
+            ? url
+            : null;
+}

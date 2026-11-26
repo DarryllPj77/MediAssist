@@ -1,39 +1,29 @@
+using System.Security.Claims;
+using MediAssist.Web.Data;
 using MediAssist.Web.Models;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace MediAssist.Web.Services;
 
 /// <summary>
-/// Which fictional runner the runner portal shows (D10). The prototype has no sign-in, so the
-/// runner is chosen in Runner settings and kept in this browser (plain localStorage; nothing
-/// personal). This is a demonstration convenience, not authentication. Defaults to the first
-/// runner until the saved choice is read after the page is interactive.
+/// The runner using the runner portal (D10; since M3.4 the signed-in Runner account, replacing the
+/// "Viewing as" choice). Matches the account's name to the prototype's fictional runners; an
+/// account that is not a known runner gets <see cref="Current"/> = null and sees no errands.
 /// </summary>
-public sealed class RunnerSession(PortalLayoutInterop interop)
+public sealed class RunnerSession(AuthenticationStateProvider auth)
 {
     private Task? _loading;
 
-    public event Action? Changed;
-
-    public bool IsLoaded { get; private set; }
-
-    public RunnerProfile Current { get; private set; } = StaffDecisionRules.Runners[0];
+    public RunnerProfile? Current { get; private set; }
 
     public Task EnsureLoadedAsync() => _loading ??= LoadAsync();
 
     private async Task LoadAsync()
     {
-        var saved = await interop.GetRunnerPreferenceAsync();
-        Current = StaffDecisionRules.Runners.FirstOrDefault(r => r.Name == saved) ?? StaffDecisionRules.Runners[0];
-        IsLoaded = true;
-        Changed?.Invoke();
+        var user = (await auth.GetAuthenticationStateAsync()).User;
+        Current = user.IsInRole(Roles.Runner) ? StaffDecisionRules.Runners.FirstOrDefault(r => r.Name == FullName(user)) : null;
     }
 
-    /// <summary>Switch runner now; returns false when the browser would not keep the choice for next time.</summary>
-    public async Task<bool> SetAsync(string name)
-    {
-        if (StaffDecisionRules.Runners.FirstOrDefault(r => r.Name == name) is not { } runner) return false;
-        Current = runner;
-        Changed?.Invoke();
-        return await interop.SetRunnerPreferenceAsync(runner.Name);
-    }
+    public static string FullName(ClaimsPrincipal user) =>
+        $"{user.FindFirstValue(AppClaims.FirstName)} {user.FindFirstValue(AppClaims.LastName)}".Trim();
 }
