@@ -35,7 +35,7 @@ public sealed class IdentityTests : IDisposable
 
         Assert.Equal(Roles.All.Order(), roles.Roles.Select(r => r.Name!).AsEnumerable().Order());
         Assert.Equal(IdentitySeeder.Accounts.Count, users.Users.Count());
-        Assert.Single(await users.GetUsersInRoleAsync(Roles.Patient));
+        Assert.Equal(2, (await users.GetUsersInRoleAsync(Roles.Patient)).Count);
         Assert.Single(await users.GetUsersInRoleAsync(Roles.Administrator));
         Assert.Equal(4, (await users.GetUsersInRoleAsync(Roles.Runner)).Count);
 

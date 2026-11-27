@@ -47,6 +47,15 @@ public sealed class MockPortalStore(TimeProvider timeProvider)
     public bool IsHousehold(Guid patientId) => Household.Any(p => p.Id == patientId);
 
     /// <summary>
+    /// The sign-in account that owns the seeded household and its records (M3.5): the demo patient
+    /// account, set at start-up (null outside Development, so seeded patient data belongs to no one).
+    /// </summary>
+    public string? SeedOwnerId { get; set; }
+
+    /// <summary>The owner of a seeded record about this patient (null for another account's seed, e.g. Ramon).</summary>
+    public string? SeedOwnerOf(Guid patientId) => IsHousehold(patientId) ? SeedOwnerId : null;
+
+    /// <summary>
     /// Seeded authorization requests (Phase 1: an administrator reviews them). Jose's was approved;
     /// Lia's is waiting, which is why MA-2026-00395 is flagged in the review queue. D9 reviews these.
     /// </summary>

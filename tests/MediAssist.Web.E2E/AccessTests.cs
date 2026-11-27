@@ -57,6 +57,22 @@ public sealed class AccessTests(AppFixture app)
     }
 
     [Fact]
+    public async Task Another_patient_account_sees_none_of_marias_records()
+    {
+        var page = await app.PageAsync("jun.delacruz@example.com");
+        await page.GotoAsync(app.BaseUrl + "/patient/applications");
+        await page.WaitForTimeoutAsync(1500);
+        Assert.DoesNotContain("MA-2026-", await page.InnerTextAsync("main"));
+
+        await page.GotoAsync(app.BaseUrl + "/patient/patients");
+        await page.WaitForTimeoutAsync(1500);
+        var main = await page.InnerTextAsync("main");
+        Assert.Contains("Jun Dela Cruz", main);
+        Assert.DoesNotContain("Jose Santos", main);
+        await page.Context.CloseAsync();
+    }
+
+    [Fact]
     public async Task Signing_out_ends_access()
     {
         var page = await app.PageAsync("ana.reyes@example.com");

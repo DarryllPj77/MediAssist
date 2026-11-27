@@ -41,15 +41,31 @@ public static class AppClaims
 public sealed class MediAssistIdentityDbContext(DbContextOptions<MediAssistIdentityDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)
 {
+    /// <summary>Each patient account's own drafts, profiles and read states (M3.5), one JSON row per account.</summary>
+    public DbSet<UserWorkspace> UserWorkspaces => Set<UserWorkspace>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<UserWorkspace>(e =>
+        {
+            e.HasKey(w => w.UserId);
+            e.HasOne<ApplicationUser>().WithOne().HasForeignKey<UserWorkspace>(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         builder.Entity<ApplicationUser>(e =>
         {
             e.Property(u => u.FirstName).HasMaxLength(40);
             e.Property(u => u.LastName).HasMaxLength(40);
         });
     }
+}
+
+/// <summary>A patient account's saved workspace (M3.5): the <c>WorkspaceSnapshot</c> as JSON.</summary>
+public sealed class UserWorkspace
+{
+    public string UserId { get; set; } = "";
+    public string Json { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>Adds the account's first and last name to the signed-in user, beside the role claims Identity adds.</summary>

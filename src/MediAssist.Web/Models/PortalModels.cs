@@ -100,6 +100,7 @@ public sealed record ActionItem(
 /// points at what it is about: an application, a patient profile or the runner page.
 /// <see cref="PatientId"/> (M3.2) names the patient it concerns, so a shared notification is shown
 /// only to the family whose patient it is; older records without it fall back to their link.
+/// <see cref="OwnerId"/> (M3.5) is the account it belongs to; shared notifications show only to it.
 /// </summary>
 public sealed record PortalNotification(
     string Id,
@@ -108,7 +109,8 @@ public sealed record PortalNotification(
     DateTimeOffset CreatedAt,
     bool IsRead,
     string? Href = null,
-    Guid? PatientId = null);
+    Guid? PatientId = null,
+    string? OwnerId = null);
 
 /// <summary>The user's own read/unread choice for one notification (D7), overriding its default.</summary>
 public sealed record NotificationReadState(string Id, bool IsRead);

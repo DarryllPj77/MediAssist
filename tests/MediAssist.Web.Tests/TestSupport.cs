@@ -64,6 +64,8 @@ public static class TestActors
 {
     public static Actor Patient { get; } = new("user-maria", "Maria Santos", Data.Roles.Patient);
     public static Actor Admin { get; } = new("user-ana", "Ana Reyes", Data.Roles.Administrator);
+    /// <summary>A second patient account with no seeded data (M3.5).</summary>
+    public static Actor OtherPatient { get; } = new("user-jun", "Jun Dela Cruz", Data.Roles.Patient);
 
     public static Actor Runner(string name) => new($"user-{name.Split(' ')[0].ToLowerInvariant()}", name, Data.Roles.Runner);
 }
@@ -87,7 +89,7 @@ public sealed class TestHarness : IDisposable
     private TestHarness(TestClock clock)
     {
         Clock = clock;
-        Store = new MockPortalStore(clock);
+        Store = new MockPortalStore(clock) { SeedOwnerId = TestActors.Patient.UserId };
     }
 
     public TestClock Clock { get; }
@@ -110,10 +112,10 @@ public sealed class TestHarness : IDisposable
         return Workflow;
     }
 
-    /// <summary>A loaded patient workspace for one browser (its own storage unless one is given).</summary>
-    public async Task<ApplicationWorkspace> BrowserAsync(MemoryBrowserStorage? storage = null)
+    /// <summary>A loaded patient workspace (its own storage unless one is given; Maria's account unless another is given).</summary>
+    public async Task<ApplicationWorkspace> BrowserAsync(MemoryBrowserStorage? storage = null, Actor? account = null)
     {
-        var workspace = new ApplicationWorkspace(storage ?? new MemoryBrowserStorage(), Store, Workflow, Clock, new FixedActor(TestActors.Patient));
+        var workspace = new ApplicationWorkspace(storage ?? new MemoryBrowserStorage(), Store, Workflow, Clock, new FixedActor(account ?? TestActors.Patient));
         await workspace.EnsureLoadedAsync();
         return workspace;
     }

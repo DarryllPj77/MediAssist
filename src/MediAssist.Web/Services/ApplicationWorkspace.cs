@@ -34,36 +34,30 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     public IReadOnlyList<WizardDraft> Drafts => _snapshot.Drafts;
 
-    /// <summary>The household's applications in the shared store (submitted or reviewed), newest first.</summary>
+    /// <summary>This account's applications in the shared store (submitted or reviewed), newest first.</summary>
     public IReadOnlyList<LocalApplication> Submitted =>
     [
         .. workflow.State.Applications.Values
-            .Where(a => IsHousehold(a.Application.PatientId))
+            .Where(Owned)
             .OrderByDescending(a => a.Application.LastUpdated)
             .Select(a => a.AsLocal()),
     ];
 
-    /// <summary>
-    /// This browser's notifications and the shared ones about this family's patients (M3.2). A
-    /// shared notification names its patient; an older one without a patient is shown only when it
-    /// links to one of this family's applications.
-    /// </summary>
+    /// <summary>This account's own notifications and the shared ones it owns (M3.5; records without an owner show to no family).</summary>
     public IReadOnlyList<PortalNotification> Notifications =>
-        [.. _snapshot.Notifications, .. workflow.State.Notifications.Where(IsForThisFamily)];
+        [.. _snapshot.Notifications, .. workflow.State.Notifications.Where(n => _owner is not null && n.OwnerId == _owner)];
 
-    private bool IsForThisFamily(PortalNotification n)
-    {
-        if (n.PatientId is { } patientId) return IsHousehold(patientId);
-        const string prefix = "/patient/applications/";
-        return n.Href is { } href && href.StartsWith(prefix, StringComparison.Ordinal)
-            && CurrentApplication(href[prefix.Length..]) is not null;
-    }
+    /// <summary>The signed-in patient account (M3.5): null until loaded, or for a non-patient account.</summary>
+    private string? _owner;
+    private string _ownerName = "";
+
+    private bool Owned(SharedApplication a) => _owner is not null && a.OwnerId == _owner;
 
     /// <summary>Uploads to drafts (this browser) and to the household's submitted applications (shared).</summary>
     public IReadOnlyList<DocumentUpload> Uploads =>
     [
         .. LocalUploads,
-        .. workflow.State.Uploads.Where(u => workflow.Find(u.ApplicationReference) is { } a && IsHousehold(a.Application.PatientId)),
+        .. workflow.State.Uploads.Where(u => workflow.Find(u.ApplicationReference) is { } a && Owned(a)),
     ];
 
     /// <summary>Uploads kept only in this browser (to drafts).</summary>
@@ -78,6 +72,9 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     private async Task LoadAsync()
     {
+        var actor = await currentActor.GetAsync();
+        _owner = actor.Is(Data.Roles.Patient) ? actor.UserId : null;
+        _ownerName = actor.Name;
         _snapshot = await storage.LoadAsync() ?? WorkspaceSnapshot.Empty;
         IsLoaded = true;
         workflow.Changed += OnSharedChanged;
@@ -92,19 +89,28 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     // ---- Patient profiles and authorization requests (D4) ----
 
     /// <summary>
-    /// The account holder's household: the seeded patients (with this user's edits) followed by the
-    /// patients they added. Every patient-side scope check uses this list.
+    /// The account's household (M3.5): for the demo account that owns the seeded data, the seeded
+    /// patients; for any other patient account, its own "You" profile. Then the patients it added,
+    /// with its edits. Empty until loaded. Every patient-side scope check uses this list.
     /// </summary>
     public IReadOnlyList<PatientProfile> Household
     {
         get
         {
+            if (_owner is null) return [];
             var local = LocalProfiles.ToDictionary(p => p.Id);
-            var seeded = store.Household.Select(p => local.GetValueOrDefault(p.Id) ?? p).ToList();
-            var added = LocalProfiles.Where(p => !store.Household.Any(s => s.Id == p.Id)).OrderBy(p => p.CreatedAt);
+            IReadOnlyList<PatientProfile> start = _owner == store.SeedOwnerId
+                ? store.Household
+                : [new PatientProfile(SelfIdFor(_owner), _ownerName, ProfileRules.SelfRelationship, AuthorizationStatus.Self)];
+            var seeded = start.Select(p => local.GetValueOrDefault(p.Id) ?? p).ToList();
+            var added = LocalProfiles.Where(p => start.All(s => s.Id != p.Id)).OrderBy(p => p.CreatedAt);
             return [.. seeded.Concat(added).Select(WithAuthorization)];
         }
     }
+
+    /// <summary>A stable patient id for an account's own "You" profile.</summary>
+    private static Guid SelfIdFor(string ownerId) =>
+        new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes("mediassist-self:" + ownerId)));
 
     /// <summary>A family member's authorization follows their latest request in the shared store (D9b).</summary>
     private PatientProfile WithAuthorization(PatientProfile profile) =>
@@ -114,9 +120,9 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     public bool IsHousehold(Guid patientId) => Household.Any(p => p.Id == patientId);
 
-    /// <summary>A patient's authorization requests (seeded and shared), newest first.</summary>
+    /// <summary>A patient's authorization requests (seeded and shared) that this account owns, newest first.</summary>
     public IReadOnlyList<AuthorizationRequest> RequestsFor(Guid patientId) =>
-        [.. workflow.AuthorizationsFor(patientId).Select(a => a.Request)];
+        [.. workflow.AuthorizationsFor(patientId).Where(a => _owner is not null && a.OwnerId == _owner).Select(a => a.Request)];
 
     /// <summary>
     /// Add a patient (id null) or edit one. Validates at this boundary; the account holder stays
@@ -339,7 +345,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
 
     /// <summary>Cancel one of this account's requests while it is still waiting for a runner. False if not allowed or not saved.</summary>
     public async Task<bool> CancelRunnerRequestAsync(string id) =>
-        await workflow.CancelRunnerRequestAsync(await currentActor.GetAsync(), id, reference => CurrentApplication(reference) is not null);
+        await workflow.CancelRunnerRequestAsync(await currentActor.GetAsync(), id);
 
     /// <summary>
     /// History entries for runner requests on an application: this account's requests and
@@ -465,7 +471,7 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     public async Task<UploadResult> UploadAsync(string reference, string documentName, SampleFile? file)
     {
         if (!IsDraftReference(reference))
-            return await workflow.UploadAsync(await currentActor.GetAsync(), reference, documentName, file, IsHousehold);
+            return await workflow.UploadAsync(await currentActor.GetAsync(), reference, documentName, file);
 
         if (SimulatedFiles.Validate(file) is string invalid)
             return UploadResult.Invalid(invalid);
@@ -522,16 +528,16 @@ public sealed class ApplicationWorkspace(IWorkspaceStorage storage, MockPortalSt
     private AssistanceApplication? CurrentApplication(string reference)
     {
         if (workflow.State.Applications.TryGetValue(reference, out var shared))
-            return IsHousehold(shared.Application.PatientId) ? shared.Application : null;
+            return Owned(shared) ? shared.Application : null;
         if (FindDraftByKey(reference) is { } draft) return DraftAsApplication(draft);
-        return workflow.Find(reference) is { } seeded && IsHousehold(seeded.Application.PatientId) ? seeded.Application : null;
+        return workflow.Find(reference) is { } seeded && Owned(seeded) ? seeded.Application : null;
     }
 
     /// <summary>The checklist behind a reference, before uploads.</summary>
     private ApplicationChecklist? BaseChecklist(string reference)
     {
         if (workflow.State.Applications.TryGetValue(reference, out var shared))
-            return IsHousehold(shared.Application.PatientId) ? shared.Checklist : null;
+            return Owned(shared) ? shared.Checklist : null;
         if (FindDraftByKey(reference) is { } draft) return DraftChecklistBase(draft);
         return CurrentApplication(reference) is null ? null : store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, reference));
     }

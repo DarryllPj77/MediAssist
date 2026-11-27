@@ -16,7 +16,7 @@ public sealed class StaffDecisionTests : IDisposable
     private async Task<WorkflowService> StartAsync()
     {
         var clock = new TestClock(Now);
-        var service = new WorkflowService(_db, new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
+        var service = new WorkflowService(_db, new MockPortalStore(clock) { SeedOwnerId = TestActors.Patient.UserId }, clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }
@@ -116,8 +116,8 @@ public sealed class StaffDecisionTests : IDisposable
         Assert.True(workflow.IsFamilyRunnerRequest("rr-family"));
         Assert.False(workflow.IsFamilyRunnerRequest("rr-31"));
 
-        Assert.False(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-31", _ => true)); // seeded, not the family's
-        Assert.True(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-family", _ => true));
+        Assert.False(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-31")); // seeded, not the family's
+        Assert.True(await workflow.CancelRunnerRequestAsync(TestActors.Patient, "rr-family"));
         Assert.Equal(RunnerTaskStatus.Cancelled, workflow.FindRunnerRequest("rr-family")!.Request.Status);
     }
 

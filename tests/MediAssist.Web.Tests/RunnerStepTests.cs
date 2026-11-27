@@ -15,7 +15,7 @@ public sealed class RunnerStepTests : IDisposable
     private async Task<WorkflowService> StartAsync()
     {
         var clock = new TestClock(Now);
-        var service = new WorkflowService(_db, new MockPortalStore(clock), clock, NullLogger<WorkflowService>.Instance);
+        var service = new WorkflowService(_db, new MockPortalStore(clock) { SeedOwnerId = TestActors.Patient.UserId }, clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }

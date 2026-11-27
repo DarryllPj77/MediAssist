@@ -13,7 +13,8 @@ public sealed record SharedApplication(
     AssistanceApplication Application,
     ApplicationChecklist Checklist,
     IReadOnlyList<ApplicationEvent> Events,
-    int Version)
+    int Version,
+    string? OwnerId = null)
 {
     public string Reference => Application.ReferenceNumber;
 
@@ -181,13 +182,14 @@ public sealed record SharedAuthorization(
     string PatientHref,
     int Version,
     string? DecidedById = null,
-    string? DecidedByName = null)
+    string? DecidedByName = null,
+    string? OwnerId = null)
 {
     public string Id => Request.Id;
 }
 
 /// <summary>A runner request as the shared store holds it (a seeded one nobody changed is version 0).</summary>
-public sealed record SharedRunnerRequest(RunnerRequestItem Request, int Version)
+public sealed record SharedRunnerRequest(RunnerRequestItem Request, int Version, string? OwnerId = null)
 {
     public string Id => Request.Id;
 }

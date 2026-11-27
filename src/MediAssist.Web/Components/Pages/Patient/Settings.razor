@@ -67,29 +67,28 @@
     </Panel>
 
     <Panel LabelledBy="data-title">
-        <h2 id="data-title" class="settings__title" tabindex="-1" @ref="_dataTitle">Data saved in this browser</h2>
+        <h2 id="data-title" class="settings__title" tabindex="-1" @ref="_dataTitle">Your saved work</h2>
         <p class="settings__intro">
-            Your drafts and their uploads, added patients, authorization and runner requests, notification choices and
-            account changes are kept only in this browser. Applications you send are kept in MediAssist’s shared records
-            so a reviewer can check them, and clearing this browser doesn’t remove them. Patients you added who have
-            applications or requests are kept too, so you can still follow them.
+            Your drafts and their uploads, the patients you added and your notification choices are saved to your account,
+            so they follow you to any browser. Resetting removes drafts and the patients you added who have no applications
+            or requests yet. Applications and requests you sent stay, so a reviewer can check them.
         </p>
         <p class="settings__held">@HeldSummary</p>
 
         @if (!_confirming)
         {
             <AppButton Variant="AppButton.ButtonVariant.Secondary" IconStart="x-circle" Class="settings__clear"
-                       Disabled="@(!Workspace.IsLoaded)" OnClick="AskToClearAsync">Clear my saved data</AppButton>
+                       Disabled="@(!Workspace.IsLoaded)" OnClick="AskToClearAsync">Reset my drafts and added patients</AppButton>
         }
         else
         {
             <div class="settings__confirm" role="group" aria-labelledby="clear-question">
                 <p id="clear-question" class="settings__confirm-text" tabindex="-1" @ref="_question">
                     <Icon Name="alert-triangle" Size="20" />
-                    <span>Clear everything saved in this browser? This can’t be undone. Applications you sent and the sample applications stay.</span>
+                    <span>Remove your drafts and the patients you added without applications or requests? This can’t be undone. Applications and requests you sent stay.</span>
                 </p>
                 <div class="settings__confirm-actions">
-                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Class="settings__clear" IconStart="x-circle" OnClick="ClearAsync">Yes, clear my data</AppButton>
+                    <AppButton Variant="AppButton.ButtonVariant.Secondary" Class="settings__clear" IconStart="x-circle" OnClick="ClearAsync">Yes, reset</AppButton>
                     <AppButton Variant="AppButton.ButtonVariant.Quiet" OnClick="CancelClearAsync">Keep my data</AppButton>
                 </div>
             </div>
@@ -119,14 +118,14 @@
     {
         get
         {
-            if (!Workspace.IsLoaded) return "Checking what this browser holds…";
+            if (!Workspace.IsLoaded) return "Checking your saved work…";
             var parts = new[]
             {
                 Count(Workspace.Drafts.Count, "draft"),
                 Count(Workspace.LocalUploadCount, "upload to a draft", "uploads to drafts"),
                 Count(Workspace.Household.Count(p => p.CreatedAt is not null), "added patient"),
             };
-            return $"Now in this browser: {string.Join(", ", parts)}.";
+            return $"Saved to your account: {string.Join(", ", parts)}.";
         }
     }
 
@@ -205,7 +204,7 @@
             _accountStatus = null;
             await LoadAsync();
         }
-        _dataStatus = cleared ? "Your saved data was cleared from this browser." : "We couldn’t clear your data in this browser. Try again.";
+        _dataStatus = cleared ? "Your drafts and added patients were reset." : "We couldn’t reset them. Try again.";
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

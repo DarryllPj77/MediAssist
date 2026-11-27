@@ -15,7 +15,7 @@ public sealed class WorkflowServiceTests : IDisposable
 
     private async Task<WorkflowService> StartAsync()
     {
-        var service = new WorkflowService(_db, new MockPortalStore(_clock), _clock, NullLogger<WorkflowService>.Instance);
+        var service = new WorkflowService(_db, new MockPortalStore(_clock) { SeedOwnerId = TestActors.Patient.UserId }, _clock, NullLogger<WorkflowService>.Instance);
         await service.InitializeAsync();
         return service;
     }
@@ -78,9 +78,9 @@ public sealed class WorkflowServiceTests : IDisposable
         Assert.Contains(workflow.State.Notifications, n => n.Title == "Correction requested");
 
         // One new copy is not enough; the second returns the application to review.
-        var first = await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("rx-signed.pdf"), _ => true);
+        var first = await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("rx-signed.pdf"));
         Assert.False(first.CorrectionSent);
-        var second = await workflow.UploadAsync(TestActors.Patient, reference, "Valid ID", File("id.pdf"), _ => true);
+        var second = await workflow.UploadAsync(TestActors.Patient, reference, "Valid ID", File("id.pdf"));
         Assert.True(second.CorrectionSent);
         Assert.Equal(ApplicationStatus.UnderReview, workflow.Find(reference)!.Application.Status);
         Assert.Equal(2, workflow.LatestUpload(reference, "Prescription")!.Version);
@@ -118,8 +118,8 @@ public sealed class WorkflowServiceTests : IDisposable
         await workflow.StartReviewAsync(TestActors.Admin, reference, workflow.Find(reference)!.Version);
         await workflow.DecideDocumentAsync(TestActors.Admin, reference, workflow.Find(reference)!.Version, "Prescription", true, null);
 
-        Assert.False((await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("again.pdf"), _ => true)).Succeeded);
-        Assert.False((await workflow.UploadAsync(TestActors.Patient, reference, "Valid ID", File("id.pdf"), _ => false)).Succeeded);
+        Assert.False((await workflow.UploadAsync(TestActors.Patient, reference, "Prescription", File("again.pdf"))).Succeeded);
+        Assert.False((await workflow.UploadAsync(TestActors.OtherPatient, reference, "Valid ID", File("id.pdf"))).Succeeded); // another account
     }
 
     [Fact]

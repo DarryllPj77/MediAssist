@@ -10,10 +10,14 @@ namespace MediAssist.Web.Data;
 /// </summary>
 public static class IdentitySeeder
 {
-    /// <summary>The demo accounts: the patient who owns today's household, the administrator, and the four runners.</summary>
+    /// <summary>The demo patient who owns the seeded household and its records (M3.5).</summary>
+    public const string SeedOwnerEmail = "maria.santos@example.com";
+
+    /// <summary>The demo accounts: the patient who owns the seeded household, a second patient with none (M3.5), the administrator, and the four runners.</summary>
     public static IReadOnlyList<(string Email, string FirstName, string LastName, string Role)> Accounts { get; } =
     [
-        ("maria.santos@example.com", "Maria", "Santos", Roles.Patient),
+        (SeedOwnerEmail, "Maria", "Santos", Roles.Patient),
+        ("jun.delacruz@example.com", "Jun", "Dela Cruz", Roles.Patient),
         ("ana.reyes@example.com", "Ana", "Reyes", Roles.Administrator),
         .. StaffDecisionRules.Runners.Select(r =>
         {

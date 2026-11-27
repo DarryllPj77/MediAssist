@@ -22,7 +22,7 @@ public sealed class FamilyScopeTests : IDisposable
 
     private async Task<WorkflowService> WorkflowAsync()
     {
-        _store ??= new MockPortalStore(_clock);
+        _store ??= new MockPortalStore(_clock) { SeedOwnerId = TestActors.Patient.UserId };
         if (_workflow is null)
         {
             _workflow = new WorkflowService(_db, _store, _clock, NullLogger<WorkflowService>.Instance);
@@ -31,10 +31,10 @@ public sealed class FamilyScopeTests : IDisposable
         return _workflow;
     }
 
-    private async Task<ApplicationWorkspace> BrowserAsync()
+    private async Task<ApplicationWorkspace> BrowserAsync(Actor? account = null)
     {
         var workflow = await WorkflowAsync();
-        var workspace = new ApplicationWorkspace(new MemoryBrowserStorage(), _store!, workflow, _clock, new FixedActor(TestActors.Patient));
+        var workspace = new ApplicationWorkspace(new MemoryBrowserStorage(), _store!, workflow, _clock, new FixedActor(account ?? TestActors.Patient));
         await workspace.EnsureLoadedAsync();
         return workspace;
     }
@@ -54,7 +54,7 @@ public sealed class FamilyScopeTests : IDisposable
     public async Task F1_a_family_sees_only_notifications_about_its_own_patients()
     {
         var browserA = await BrowserAsync();
-        var browserB = await BrowserAsync();
+        var browserB = await BrowserAsync(TestActors.OtherPatient); // another family's account (M3.5)
         var ana = await AddChildWithRequestAsync(browserB, "Ana Reyes");
 
         Assert.Contains(browserB.Notifications, n => n.Message.Contains("Ana Reyes"));

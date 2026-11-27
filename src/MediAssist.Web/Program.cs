@@ -32,7 +32,8 @@ builder.Services.AddSingleton<WorkflowService>();
 var identityDb = Path.Combine(builder.Environment.ContentRootPath,
     builder.Configuration["Identity:DatabasePath"] ?? Path.Combine("App_Data", "mediassist-identity.db"));
 Directory.CreateDirectory(Path.GetDirectoryName(identityDb)!);
-builder.Services.AddDbContext<MediAssistIdentityDbContext>(o => o.UseSqlite($"Data Source={identityDb}"));
+// A factory (also gives the scoped context Identity uses), so the per-account workspace store can open its own short-lived contexts (M3.5).
+builder.Services.AddDbContextFactory<MediAssistIdentityDbContext>(o => o.UseSqlite($"Data Source={identityDb}"));
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthentication(o =>
     {
@@ -64,8 +65,8 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.SlidingExpiration = true;
 });
 builder.Services.AddAuthorization();
-// Each user's own drafts, profiles and preferences: per circuit, kept in that user's browser storage.
-builder.Services.AddScoped<IWorkspaceStorage, ProtectedLocalWorkspaceStorage>();
+// Each patient account's own drafts, profiles and read states: per circuit, saved to that account's row (M3.5).
+builder.Services.AddScoped<IWorkspaceStorage, ServerWorkspaceStorage>();
 builder.Services.AddScoped<ApplicationWorkspace>();
 builder.Services.AddScoped<IPatientPortalDataService, MockPatientPortalDataService>();
 builder.Services.AddScoped<IStaffPortalDataService, MockStaffPortalDataService>();
@@ -89,6 +90,9 @@ using (var scope = app.Services.CreateScope())
             scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(),
             scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>(),
             demoPassword);
+    // The demo patient owns the seeded household and its records (M3.5).
+    var owner = await scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByEmailAsync(IdentitySeeder.SeedOwnerEmail);
+    app.Services.GetRequiredService<MockPortalStore>().SeedOwnerId = owner?.Id;
 }
 
 if (!app.Environment.IsDevelopment())

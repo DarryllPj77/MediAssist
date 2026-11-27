@@ -1,11 +1,11 @@
-using System.Security.Cryptography;
+using System.Text.Json;
+using MediAssist.Web.Data;
 using MediAssist.Web.Models;
-using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
-using Microsoft.JSInterop;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediAssist.Web.Services;
 
-/// <summary>Where one user's <see cref="WorkspaceSnapshot"/> is kept between visits.</summary>
+/// <summary>Where one account's <see cref="WorkspaceSnapshot"/> is kept between visits.</summary>
 public interface IWorkspaceStorage
 {
     /// <summary>The saved snapshot (upgraded to the current version), or null when there is none or it cannot be read.</summary>
@@ -16,50 +16,49 @@ public interface IWorkspaceStorage
 }
 
 /// <summary>
-/// The user's own browser (localStorage), encrypted and tamper-proofed by ASP.NET Core Data
-/// Protection. Nothing is held on the server between requests, so no state is shared across users.
-/// Only callable once the page is interactive (after the first render).
+/// The signed-in account's own row in the account database (M3.5), replacing the browser's
+/// protected localStorage: drafts, profiles and read states follow the account to any browser, and
+/// no other account can read them. Display preferences stay in the browser (see UiPreferences).
 /// </summary>
-public sealed class ProtectedLocalWorkspaceStorage(ProtectedLocalStorage storage, ILogger<ProtectedLocalWorkspaceStorage> logger)
-    : IWorkspaceStorage
+public sealed class ServerWorkspaceStorage(
+    IDbContextFactory<MediAssistIdentityDbContext> factory, ICurrentActor currentActor, TimeProvider clock,
+    ILogger<ServerWorkspaceStorage> logger) : IWorkspaceStorage
 {
-    private const string Key = "mediassist.workspace";
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public async Task<WorkspaceSnapshot?> LoadAsync()
     {
+        var actor = await currentActor.GetAsync();
+        if (!actor.Is(Roles.Patient)) return null;
         try
         {
-            var result = await storage.GetAsync<WorkspaceSnapshot>(Key);
-            // Older snapshots (D2, version 1) are upgraded so drafts and submissions survive.
-            return result.Success ? result.Value?.Upgrade() : null;
+            await using var db = await factory.CreateDbContextAsync();
+            var row = await db.UserWorkspaces.AsNoTracking().FirstOrDefaultAsync(w => w.UserId == actor.UserId);
+            return row is null ? null : JsonSerializer.Deserialize<WorkspaceSnapshot>(row.Json, Json)?.Upgrade();
         }
-        catch (CryptographicException ex)
+        catch (JsonException ex)
         {
-            // Saved with other keys (for example after the server's keys changed): start fresh.
-            logger.LogInformation(ex, "Stored workspace could not be decrypted; starting a new one.");
-            return null;
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
-            logger.LogInformation(ex, "Stored workspace is in an unknown format; starting a new one.");
-            return null;
-        }
-        catch (JSDisconnectedException)
-        {
+            logger.LogWarning(ex, "A saved workspace could not be read; starting a new one.");
             return null;
         }
     }
 
     public async Task<bool> SaveAsync(WorkspaceSnapshot snapshot)
     {
+        var actor = await currentActor.GetAsync();
+        if (!actor.Is(Roles.Patient)) return false;
         try
         {
-            await storage.SetAsync(Key, snapshot);
+            await using var db = await factory.CreateDbContextAsync();
+            var row = await db.UserWorkspaces.FindAsync(actor.UserId);
+            if (row is null) db.UserWorkspaces.Add(row = new UserWorkspace { UserId = actor.UserId });
+            row.Json = JsonSerializer.Serialize(snapshot, Json);
+            row.UpdatedAt = clock.GetUtcNow();
+            await db.SaveChangesAsync();
             return true;
         }
-        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or InvalidOperationException)
         {
-            // Storage full or blocked, the tab closed, or the page is not interactive yet.
             logger.LogWarning(ex, "Workspace could not be saved.");
             return false;
         }

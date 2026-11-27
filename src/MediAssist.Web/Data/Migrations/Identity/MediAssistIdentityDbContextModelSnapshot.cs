@@ -91,6 +91,23 @@ namespace MediAssist.Web.Data.Migrations.Identity
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("MediAssist.Web.Data.UserWorkspace", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserWorkspaces");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -217,6 +234,15 @@ namespace MediAssist.Web.Data.Migrations.Identity
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("MediAssist.Web.Data.UserWorkspace", b =>
+                {
+                    b.HasOne("MediAssist.Web.Data.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("MediAssist.Web.Data.UserWorkspace", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

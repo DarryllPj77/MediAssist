@@ -69,7 +69,7 @@ public sealed class WorkflowService(
         if (seed is null) return null;
         var checklist = store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, reference)) ?? GeneratedChecklist(seed);
         var events = store.Events().Where(e => Same(e.ApplicationReference, reference)).OrderBy(e => e.At).ToList();
-        return new SharedApplication(seed, checklist, events, 0);
+        return new SharedApplication(seed, checklist, events, 0, store.SeedOwnerOf(seed.PatientId));
     }
 
     /// <summary>Every application (seeded and submitted, all accounts), shared copies replacing seeds.</summary>
@@ -146,6 +146,7 @@ public sealed class WorkflowService(
             {
                 if (state.Applications.TryGetValue(fixedReference, out existing) && existing.Application.Status != ApplicationStatus.Draft)
                     return null;
+                if (Find(fixedReference) is { OwnerId: var owner } && owner != actor.UserId) return null; // another account's draft
                 reference = fixedReference;
             }
             else
@@ -157,11 +158,12 @@ public sealed class WorkflowService(
             var submission = build(reference);
             var application = submission.Application with
             {
+                OwnerId = actor.UserId, // the submitting account owns it (M3.5)
                 Version = (existing?.Version ?? 0) + 1,
                 // The family's own entries record which account made them (M3.4b).
                 Events = [.. submission.Application.Events.Select(e => e.Actor == "You" && e.ActorId is null ? Stamp(e, actor) : e)],
             };
-            saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification]));
+            saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification with { OwnerId = actor.UserId }]));
         }
         finally
         {
@@ -176,7 +178,7 @@ public sealed class WorkflowService(
     /// sent-back document takes a copy; a copy still waiting for review can be replaced; an accepted
     /// one can't. When every sent-back document has a new copy, the application returns to review.
     /// </summary>
-    public async Task<UploadResult> UploadAsync(Actor actor, string reference, string documentName, SampleFile? file, Func<Guid, bool> inScope)
+    public async Task<UploadResult> UploadAsync(Actor actor, string reference, string documentName, SampleFile? file)
     {
         if (actor.Problem(Data.Roles.Patient) is string notAllowed) return UploadResult.Invalid(notAllowed);
         if (SimulatedFiles.Validate(file) is string invalid) return UploadResult.Invalid(invalid);
@@ -190,7 +192,7 @@ public sealed class WorkflowService(
             var current = Find(reference);
             var item = current?.Checklist.Items.FirstOrDefault(i => i.Name == documentName);
             var previous = Latest(state.Uploads, reference, documentName);
-            var allowed = current is not null && inScope(current.Application.PatientId) && item is not null
+            var allowed = current is not null && current.OwnerId == actor.UserId && item is not null
                 && current.Application.Status is not (ApplicationStatus.Draft or ApplicationStatus.Completed or ApplicationStatus.Cancelled)
                 && (DocumentStatusDisplay.NeedsAction(item.Status)
                     || (item.Status == DocumentStatus.PendingReview && previous?.ReviewState == UploadReviewState.Pending));
@@ -221,7 +223,7 @@ public sealed class WorkflowService(
                 events = [.. events, Stamp(new(current.Reference, now, ApplicationEventKind.CorrectionSent, "Correction sent for review", "You",
                     "Every document the reviewer asked for has a new copy, so the application is back in review.",
                     ApplicationStatus.UnderReview), actor)];
-                notifications.Add(Notice(current.Application.PatientId, current.Reference, "corrected", "Correction sent",
+                notifications.Add(Notice(current, "corrected", "Correction sent",
                     $"{current.Reference} is back in review with your corrected document.", now));
             }
             else if (application.Status is ApplicationStatus.Submitted or ApplicationStatus.UnderReview)
@@ -234,7 +236,8 @@ public sealed class WorkflowService(
                 };
             }
 
-            var updated = new SharedApplication(application, current.Checklist, events, current.Version + 1);
+            // A copy keeps the owner (and anything added later); only these fields change.
+            var updated = current with { Application = application, Events = events, Version = current.Version + 1 };
             result = await CommitAsync(state, new Writes([updated], [upload], notifications))
                 ? UploadResult.Saved(upload, corrected)
                 : UploadResult.Invalid("We couldn’t save that upload. Try again.");
@@ -263,7 +266,7 @@ public sealed class WorkflowService(
                 Application = application,
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReviewStarted, "Review started", Reviewer,
                     Status: ApplicationStatus.UnderReview)],
-            }, notification: Notice(current.Application.PatientId, current.Reference, "review", "Review started", $"{current.Reference} is now under review.", now));
+            }, notification: Notice(current, "review", "Review started", $"{current.Reference} is now under review.", now));
         });
 
     /// <summary>Accept a document, or send it back (or ask for a missing one) with a reason the family will see.</summary>
@@ -309,7 +312,7 @@ public sealed class WorkflowService(
                 Application = current.Application with { Status = ApplicationStatus.NeedsCorrection, LastUpdated = now, NextStep = next },
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.CorrectionRequested, "Correction requested",
                     Reviewer, detail, ApplicationStatus.NeedsCorrection)],
-            }, notification: Notice(current.Application.PatientId, current.Reference, "correction", "Correction requested",
+            }, notification: Notice(current, "correction", "Correction requested",
                 flagged.Count == 1 ? $"{current.Reference} needs a new copy of the {Lower(flagged[0].Name)}."
                     : $"{current.Reference} needs new copies of {flagged.Count} documents.", now));
         });
@@ -327,7 +330,7 @@ public sealed class WorkflowService(
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.ReadyForProcessing, "Review finished",
                     Reviewer, "All documents were accepted. The program office will process the application.",
                     ApplicationStatus.ReadyForProcessing)],
-            }, notification: Notice(current.Application.PatientId, current.Reference, "ready", "Review finished",
+            }, notification: Notice(current, "ready", "Review finished",
                 $"{current.Reference} passed review and is with the program office.", now));
         });
 
@@ -345,7 +348,7 @@ public sealed class WorkflowService(
                 Events = [.. current.Events, new(current.Reference, now, ApplicationEventKind.Completed, "Application completed", "MediAssist",
                     "Internal processing is finished. The program office decides on any assistance and contacts the family.",
                     ApplicationStatus.Completed)],
-            }, notification: Notice(current.Application.PatientId, current.Reference, "completed", "Application completed",
+            }, notification: Notice(current, "completed", "Application completed",
                 $"Internal processing for {current.Reference} is finished.", now));
         });
 
@@ -378,8 +381,8 @@ public sealed class WorkflowService(
                 Version = current.Version + 1,
                 Events = [.. current.Events, .. change.Updated.Events.Skip(current.Events.Count).Select(e => Stamp(e, actor))],
             };
-            var notify = change.Notification is not null && ForAccount(current.Application.PatientId);
-            result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification!] : []))
+            var notify = change.Notification is not null && current.OwnerId is not null;
+            result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification! with { OwnerId = current.OwnerId }] : []))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -417,7 +420,8 @@ public sealed class WorkflowService(
         var patient = store.Household.FirstOrDefault(p => p.Id == request.PatientId);
         return new SharedAuthorization(request, patient?.FullName ?? "Patient", patient?.Relationship ?? "",
             patient?.DateOfBirth,
-            patient is null ? "/patient/patients" : $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, store.Household)}", 0);
+            patient is null ? "/patient/patients" : $"/patient/patients/{Navigation.ApplicationsHref.PatientKey(patient, store.Household)}", 0,
+            OwnerId: store.SeedOwnerOf(request.PatientId));
     }
 
     /// <summary>
@@ -431,9 +435,11 @@ public sealed class WorkflowService(
         await _gate.WaitAsync();
         try
         {
-            if (LatestAuthorization(authorization.Request.PatientId)?.Request.Status is AuthorizationRequestStatus.Pending or AuthorizationRequestStatus.Approved)
-                return false;
-            saved = await CommitAsync(State, new Writes(Notifications: [notification], Authorizations: [authorization with { Version = 1 }]));
+            var latest = LatestAuthorization(authorization.Request.PatientId);
+            if (latest?.Request.Status is AuthorizationRequestStatus.Pending or AuthorizationRequestStatus.Approved) return false;
+            if (latest is { OwnerId: var owner } && owner != actor.UserId) return false; // another account's patient
+            saved = await CommitAsync(State, new Writes(Notifications: [notification with { OwnerId = actor.UserId }],
+                Authorizations: [authorization with { Version = 1, OwnerId = actor.UserId }]));
         }
         finally
         {
@@ -478,8 +484,8 @@ public sealed class WorkflowService(
                 approve ? "Authorization approved" : "Authorization not approved",
                 approve ? $"You can now apply and follow applications for {current.PatientName}."
                         : $"Your request to act for {current.PatientName} wasn't approved. See the reviewer's note.",
-                now, false, current.PatientHref, current.Request.PatientId);
-            result = await CommitAsync(State, new Writes(Notifications: [notice], Authorizations: [decided]))
+                now, false, current.PatientHref, current.Request.PatientId, current.OwnerId);
+            result = await CommitAsync(State, new Writes(Notifications: current.OwnerId is null ? [] : [notice], Authorizations: [decided]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -497,13 +503,15 @@ public sealed class WorkflowService(
     public IReadOnlyList<SharedRunnerRequest> AllRunnerRequests()
     {
         var state = State;
-        var seeded = store.RunnerRequests().Where(r => !state.RunnerRequests.ContainsKey(r.Id)).Select(r => new SharedRunnerRequest(r, 0));
+        var seeded = store.RunnerRequests().Where(r => !state.RunnerRequests.ContainsKey(r.Id)).Select(SeededRunnerRequest);
         return [.. state.RunnerRequests.Values, .. seeded];
     }
 
     public SharedRunnerRequest? FindRunnerRequest(string id) =>
         State.RunnerRequests.TryGetValue(id, out var shared) ? shared
-        : store.RunnerRequests().FirstOrDefault(r => r.Id == id) is { } seed ? new SharedRunnerRequest(seed, 0) : null;
+        : store.RunnerRequests().FirstOrDefault(r => r.Id == id) is { } seed ? SeededRunnerRequest(seed) : null;
+
+    private SharedRunnerRequest SeededRunnerRequest(RunnerRequestItem r) => new(r, 0, Find(r.ApplicationReference)?.OwnerId);
 
     /// <summary>True for a request a family made in the portal (not seeded data).</summary>
     public bool IsFamilyRunnerRequest(string id) =>
@@ -520,9 +528,10 @@ public sealed class WorkflowService(
             if (AllRunnerRequests().Any(r => Same(r.Request.ApplicationReference, request.ApplicationReference) && RunnerRules.IsOpen(r.Request.Status)))
                 return false;
             // No runner help for a patient whose authorization wasn't approved (M3.2).
-            if (Find(request.ApplicationReference) is { } application && Authorization(application.Application.PatientId) == AuthorizationStanding.Rejected)
-                return false;
-            saved = await CommitAsync(State, new Writes(Notifications: [notification], RunnerRequests: [new SharedRunnerRequest(request, 1)]));
+            if (Find(request.ApplicationReference) is not { } application || application.OwnerId != actor.UserId) return false;
+            if (Authorization(application.Application.PatientId) == AuthorizationStanding.Rejected) return false;
+            saved = await CommitAsync(State, new Writes(Notifications: [notification with { OwnerId = actor.UserId }],
+                RunnerRequests: [new SharedRunnerRequest(request, 1, actor.UserId)]));
         }
         finally
         {
@@ -533,7 +542,7 @@ public sealed class WorkflowService(
     }
 
     /// <summary>The family cancels its own request while it still waits for a runner.</summary>
-    public async Task<bool> CancelRunnerRequestAsync(Actor actor, string id, Func<string, bool> inScope)
+    public async Task<bool> CancelRunnerRequestAsync(Actor actor, string id)
     {
         if (actor.Problem(Data.Roles.Patient) is not null) return false;
         bool saved;
@@ -541,11 +550,14 @@ public sealed class WorkflowService(
         try
         {
             var current = FindRunnerRequest(id);
-            if (current is null || !IsFamilyRunnerRequest(id) || !inScope(current.Request.ApplicationReference)
+            if (current is null || !IsFamilyRunnerRequest(id) || current.OwnerId != actor.UserId
                 || current.Request.Status != RunnerTaskStatus.PendingAssignment)
                 return false;
-            var cancelled = new SharedRunnerRequest(current.Request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() },
-                current.Version + 1);
+            var cancelled = current with
+            {
+                Request = current.Request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() },
+                Version = current.Version + 1,
+            };
             saved = await CommitAsync(State, new Writes(RunnerRequests: [cancelled]));
         }
         finally
@@ -575,18 +587,22 @@ public sealed class WorkflowService(
 
             var now = clock.GetLocalNow();
             var reassigned = current.Request.Status == RunnerTaskStatus.Assigned;
-            var assigned = new SharedRunnerRequest(current.Request with
+            var assigned = current with
             {
-                Status = RunnerTaskStatus.Assigned, RunnerName = runner, AssignedAt = now,
-                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, RunnerStepKind.Assigned, runner!, null, actor.UserId, actor.Name)],
-            }, current.Version + 1);
+                Request = current.Request with
+                {
+                    Status = RunnerTaskStatus.Assigned, RunnerName = runner, AssignedAt = now,
+                    Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, RunnerStepKind.Assigned, runner!, null, actor.UserId, actor.Name)],
+                },
+                Version = current.Version + 1,
+            };
             var notice = new PortalNotification($"n-{id}-assigned-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}",
                 reassigned ? "Runner changed" : "Runner assigned",
                 $"{runner} will help with “{current.Request.Errand}” for {current.Request.ApplicationReference}.",
                 now, false, "/patient/runner");
-            var patientId = Find(current.Request.ApplicationReference)?.Application.PatientId;
-            var forAccount = patientId is { } pid && ForAccount(pid);
-            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice with { PatientId = patientId }] : [], RunnerRequests: [assigned]))
+            var target = Find(current.Request.ApplicationReference);
+            var notices = target?.OwnerId is { } owner ? [notice with { PatientId = target.Application.PatientId, OwnerId = owner }] : Array.Empty<PortalNotification>();
+            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [assigned]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -643,12 +659,16 @@ public sealed class WorkflowService(
             var now = clock.GetLocalNow();
             var text = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
             var status = RunnerRules.StatusAfter(kind);
-            var updated = new SharedRunnerRequest(current.Request with
+            var updated = current with
             {
-                Status = status,
-                ClosedAt = status == RunnerTaskStatus.Completed ? now : current.Request.ClosedAt,
-                Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, kind, runner, text, actor.UserId, actor.Name)],
-            }, current.Version + 1);
+                Request = current.Request with
+                {
+                    Status = status,
+                    ClosedAt = status == RunnerTaskStatus.Completed ? now : current.Request.ClosedAt,
+                    Steps = [.. current.Request.Steps ?? [], new RunnerStep(now, kind, runner, text, actor.UserId, actor.Name)],
+                },
+                Version = current.Version + 1,
+            };
 
             var errand = current.Request.Errand;
             var reference = current.Request.ApplicationReference;
@@ -663,9 +683,10 @@ public sealed class WorkflowService(
                     $"Your runner can't do “{errand}”. The office will assign another.", now, false, "/patient/runner"),
                 _ => null
             };
-            var patientId = Find(reference)?.Application.PatientId;
-            var forAccount = notice is not null && patientId is { } pid && ForAccount(pid);
-            result = await CommitAsync(State, new Writes(Notifications: forAccount ? [notice! with { PatientId = patientId }] : [], RunnerRequests: [updated]))
+            var application = Find(reference);
+            var notices = notice is not null && application?.OwnerId is { } owner
+                ? [notice with { PatientId = application.Application.PatientId, OwnerId = owner }] : Array.Empty<PortalNotification>();
+            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [updated]))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -753,13 +774,6 @@ public sealed class WorkflowService(
     /// <summary>Record which account made a history entry (M3.4b).</summary>
     private static ApplicationEvent Stamp(ApplicationEvent e, Actor actor) => e with { ActorId = actor.UserId, ActorName = actor.Name };
 
-    /// <summary>
-    /// True for patients of the prototype's one account (seeded household, or anyone a family added
-    /// in a browser). Seeded patients of other accounts (Ramon) get no notifications in this account.
-    /// </summary>
-    private bool ForAccount(Guid patientId) =>
-        store.Household.Any(p => p.Id == patientId) || store.Applications().All(a => a.PatientId != patientId);
-
     /// <summary>A seeded application without a written checklist: its program's documents, the first ones ready.</summary>
     private ApplicationChecklist GeneratedChecklist(AssistanceApplication application)
     {
@@ -774,9 +788,9 @@ public sealed class WorkflowService(
         uploads.Where(u => Same(u.ApplicationReference, reference) && u.DocumentName == documentName).MaxBy(u => u.Version);
 
     /// <summary>A notification about one patient's application, unique per change (repeated rounds don't collide).</summary>
-    private static PortalNotification Notice(Guid patientId, string reference, string kind, string title, string message, DateTimeOffset now) =>
-        new($"n-{reference}-{kind}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", title, message, now, false,
-            $"/patient/applications/{reference}", patientId);
+    private static PortalNotification Notice(SharedApplication application, string kind, string title, string message, DateTimeOffset now) =>
+        new($"n-{application.Reference}-{kind}-{now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}", title, message, now, false,
+            $"/patient/applications/{application.Reference}", application.Application.PatientId, application.OwnerId);
 
     public static string AddMissing(int count) =>
         count == 1 ? "Add the missing document" : $"Add the {count} missing documents";

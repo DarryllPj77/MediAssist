@@ -20,7 +20,7 @@ public sealed class ActorTests
         Assert.False((await w.DecideAuthorizationAsync(TestActors.Patient, "auth-lia", 0, true, null)).Succeeded);
         Assert.False((await w.AssignRunnerAsync(TestActors.Runner("Ramil Ocampo"), "rr-31", 0, "Ramil Ocampo")).Succeeded);
         Assert.False((await w.RunnerStepAsync(TestActors.Admin, "rr-29", 0, RunnerStepKind.Started, null)).Succeeded);
-        Assert.False(await w.CancelRunnerRequestAsync(TestActors.Admin, "rr-31", _ => true));
+        Assert.False(await w.CancelRunnerRequestAsync(TestActors.Admin, "rr-31"));
         Assert.Null(await w.SubmitAsync(TestActors.Admin, null, _ => throw new InvalidOperationException("must not build")));
 
         // Nothing changed.

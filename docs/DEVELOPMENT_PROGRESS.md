@@ -8,14 +8,14 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 |---|---|
 | Reviewed | 26 November 2026, Asia/Manila (M3.4a implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `043efc7` — fix(auth): let the sign-in demo note wrap on narrow screens (pushed; `origin/design/premium-civic-imagery` in sync; CI green) |
-| Latest application commit | `043efc7bdbdf9fc1586732b401d126967f9ffd07` — M3.4a CI fix |
-| Latest implementation | M3.4b — Who did what, service role checks, account name (**implemented, uncommitted**) |
-| Application changes awaiting commit | M3.4b — see “M3.4b” below |
-| Documentation awaiting commit | The M3.4a fix/CI record and this M3.4b update |
+| Branch HEAD | `3eaf5fd` — feat(auth): check roles in the shared service and record who did what (pushed; in sync; CI green) |
+| Latest application commit | `3eaf5fd69afee05dfc72ca480046b1315528da71` — M3.4b |
+| Latest implementation | M3.5 — Data ownership (**implemented, uncommitted**) |
+| Application changes awaiting commit | M3.5 — see “M3.5 Data Ownership” below |
+| Documentation awaiting commit | The M3.4b hash/CI record and this M3.5 update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.3 and M3.4a committed and pushed |
-| Next development task | Commit M3.4b once approved; then M3.5 — data ownership (plan first) |
+| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.4 committed and pushed; M3.5 implemented, awaiting commit approval |
+| Next development task | Commit M3.5 once approved; then M3.6 — database readiness (migrations for the workflow store, concurrency token, tolerant loading) |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -75,7 +75,8 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | M3.2 — Workflow fixes (F1–F3) | Completed | **Committed** | `3d834c1`; notifications scoped to the family; review and runner help blocked after a rejected authorization; clearing keeps added patients with shared records |
 | M3.3 — Wider automated tests and CI | Completed | **Committed** | `6f7841d`; workspace, failure, concurrency and validation tests; Playwright page checks; GitHub Actions CI |
 | M3.4a — Sign-in and roles | Completed | **Committed** | `4aa960d`; Identity in its own SQLite file with migrations; demo accounts (Development); every portal requires its role; layout and runner from the signed-in account |
-| M3.4b — Who did what, service role checks, account name | Implemented and verified | **Uncommitted** | Shared actions record the account; the service refuses the wrong role; patient name on the account |
+| M3.4b — Who did what, service role checks, account name | Completed | **Committed** | `3eaf5fd`; shared actions record the account; the service refuses the wrong role; patient name on the account |
+| M3.5 — Data ownership | Implemented and verified | **Uncommitted** | Patient data saved per account on the server; per-account household; owner on every shared record |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -109,6 +110,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-25 | `6f7841d` | test: add workspace and validation tests, browser page checks and CI |
 | 2026-11-27 | `4aa960d` | feat(auth): add sign-in, demo accounts and role-based portal access |
 | 2026-11-27 | `043efc7` | fix(auth): let the sign-in demo note wrap on narrow screens |
+| 2026-11-27 | `3eaf5fd` | feat(auth): check roles in the shared service and record who did what |
 
 ## Completed features and workflows
 
@@ -357,13 +359,26 @@ Committed on 27 November 2026 as `4aa960d26261ddadf3f24a669e8b50310b3bc6af` with
 
 **Flow checks performed (browser, 26 November 2026):** signed out, `/` and `/admin` redirected to sign-in with the address kept, and an unknown page still answered 404 in the plain frame; signed in as Ana from `/admin/reviews` and returned there, with her name in the header; `/patient/applications` (direct) and `/runner/tasks` (in-app link) both showed access denied; signing out from there returned to sign-in (“You're signed out.”) and `/admin` redirected again; Paolo landed on `/runner` with only his two errands and no picker in settings; Liza's account locked on the 5th wrong password and refused even the right one while locked.
 
-#### M3.4b Who Did What, Service Role Checks, Account Name (uncommitted)
+#### M3.4b Who Did What, Service Role Checks, Account Name
+
+Committed as `3eaf5fd69afee05dfc72ca480046b1315528da71` (`043efc7..3eaf5fd`); CI run 45913045830 passed: 64/64 unit, 17/17 browser.
 
 - **Role checks in the shared service:** every `WorkflowService` change takes an `Actor` (id, name, role) from the signed-in account (`ICurrentActor` / `ClaimsCurrentActor`) and refuses the wrong role — family actions need Patient, reviews/authorizations/assignment need Administrator, runner steps need Runner and act only as that runner. Pages pass it (`StaffWorkflowPage.Me`; the patient workspace).
 - **Who did what:** new history entries store `ActorId`/`ActorName` (families still see “Reviewer”; the staff review page shows “Ana Reyes (Reviewer)”), authorization decisions store `DecidedById/ByName` (shown on the decided list), runner steps store `ById/ByName` (assignments record the administrator).
 - **Account name:** the patient's first and last name live on the Identity account (`IAccountService` / `IdentityAccountService`), edited in Settings; the sign-in email is shown read-only. The “You” profile follows the account (also in a fresh browser and after clearing saved data). The D8 browser-stored account is no longer used.
 - **Tests:** `ActorTests` (3: wrong roles refused with nothing saved, who-did-what recorded and kept after restart, a runner acts only as themselves); all existing tests pass the actor; the account test now checks the “You” profile follows the account. **64 of 64** unit tests; browser suite **17 of 17**; build 0 errors, 0 warnings.
 - **Checked by hand:** Maria renamed herself in Settings → header and “You” profile changed, and stayed after clearing the browser; Ana started a review → history shows “Ana Reyes (Reviewer)”.
+
+### M3.5 Data Ownership (uncommitted)
+
+Approved 27 November 2026 (“Approve M3.5”, recommended choices), built in prototype mode.
+
+- **Per-account storage:** each patient account's drafts, uploads to drafts, profiles and read states are saved to its own row (`UserWorkspaces`, migration `AddUserWorkspaces` in the account database) by `ServerWorkspaceStorage`, replacing the browser's protected localStorage. They follow the account to any browser; no other account can read them. Display preferences stay in the browser. Older browser-saved patient data is not imported (prototype data).
+- **Per-account household:** the seeded household (Maria, Jose, Lia) belongs to the demo account `maria.santos@example.com` (`MockPortalStore.SeedOwnerId`, set at start-up); any other patient account starts with only its own “You” profile. A second fictional patient, `jun.delacruz@example.com`, is seeded in Development.
+- **Owner on shared records:** applications, authorization requests, runner requests and notifications store `OwnerId` (the submitting account; seeded ones belong to Maria's account; Ramon's sample to no one). Patient views and notifications filter by owner, and the service refuses uploads, runner requests, cancellations and continuing a seeded draft for records the account doesn't own. The household guess (`ForAccount`) was removed. Records without an owner (from earlier development databases) are visible to staff only.
+- **Settings:** “Data saved in this browser” is now “Your saved work” with “Reset my drafts and added patients”.
+- **Fixed during tests:** updates to an application or runner request rebuilt the record and dropped its owner, so the owner's next action was refused; updates now copy the record.
+- **Verification:** build 0 errors, 0 warnings; **67 of 67** unit tests (new `OwnershipTests`: a second account starts with only itself; two families never see each other's records and can't act on them; per-account server storage; F1 test now uses two accounts); browser suite **18 of 18** (new: Jun sees none of Maria's records).
 
 ## Current architecture
 
@@ -420,10 +435,10 @@ The following findings are source-verified unless explicitly described as build 
 | Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
 | ~~Runner identity is a demo choice (D10)~~ — **fixed in M3.4a (`4aa960d`)** | The runner is the signed-in Runner account | None |
 | Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema made with `EnsureCreated` plus create-if-missing for tables added later (no migrations); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
-| ~~No authentication or authorization~~ — **sign-in and roles in M3.4a (`4aa960d`); actor recording and service role checks in M3.4b (uncommitted)** | Every portal needs its role, the shared service checks it again, and shared actions record the account | None |
+| ~~No authentication or authorization~~ — **sign-in and roles in M3.4a (`4aa960d`); actor recording and service role checks in M3.4b (`3eaf5fd`)** | Every portal needs its role, the shared service checks it again, and shared actions record the account | None |
 | ~~Shared notifications shown to every browser~~ — **fixed in M3.2 (`3d834c1`)** | Notifications now carry their patient and are shown only to that family | None |
 | ~~Review could start after a rejected authorization~~ — **fixed in M3.2 (`3d834c1`)** | Review start, runner assignment and family runner requests are refused while rejected | None |
-| Added patients live only in the browser | Since M3.2 clearing keeps those with shared records, but another browser or wiped storage still hides their applications from the family | M3.5 |
+| ~~Added patients live only in the browser~~ — **fixed in M3.5 (uncommitted)** | Profiles and drafts are saved per account on the server | None |
 | Demo password in the repository (M3.4a) | `Seed:DemoPassword` in `appsettings.Development.json` seeds the fictional accounts in Development only; nothing is seeded elsewhere | Set real accounts and secrets before any non-development deployment |
 | No registration or password reset (M3.4a) | Accounts are seeded; there is no sign-up, email confirmation or reset because the prototype sends no email | Later milestone |
 
@@ -491,4 +506,6 @@ After each phase:
 | 2026-11-26 | M3.4 plan approved; M3.4a implemented and verified: Identity accounts and roles, sign-in/out, Development seed accounts, route protection, layout and runner from the account, tests | `6f7841d` + working tree | Committed as `4aa960d` |
 | 2026-11-27 | Committed M3.4a and progress documentation (exact message: `feat(auth): add sign-in, demo accounts and role-based portal access`), then pushed (`6f7841d..4aa960d`). The CI run (GitHub Actions run 45909596777) passed the build and 61 of 61 unit tests but **failed 1 of 17 browser tests**: the signed-out sign-in page overflowed by 2 px at 320 px on Linux Chromium (the unbreakable file name in the demo-accounts note; Linux monospace is wider than Windows). The fix — letting that file name wrap — was committed as `043efc7` (`4aa960d..043efc7`); its CI run 45910549673 passed: 61 of 61 unit tests and 17 of 17 browser tests. | `4aa960d26261ddadf3f24a669e8b50310b3bc6af` | M3.4a committed and pushed; this actual-hash update is uncommitted |
 | 2026-11-27 | Committed and pushed the M3.4a CI fix (exact message: `fix(auth): let the sign-in demo note wrap on narrow screens`, `4aa960d..043efc7`); CI run 45910549673 passed (61/61 unit, 17/17 browser). Owner set **prototype development mode** (implement directly, targeted checks, brief docs) | `043efc7bdbdf9fc1586732b401d126967f9ffd07` | Committed and pushed; this record is uncommitted |
-| 2026-11-27 | M3.4b implemented and verified (prototype mode): actor role checks and who-did-what in the shared service, patient name on the account | `043efc7` + working tree | Uncommitted, awaiting approval |
+| 2026-11-27 | M3.4b implemented and verified (prototype mode): actor role checks and who-did-what in the shared service, patient name on the account | `043efc7` + working tree | Committed as `3eaf5fd` |
+| 2026-11-27 | Committed and pushed M3.4b (`feat(auth): check roles in the shared service and record who did what`, `043efc7..3eaf5fd`); CI run 45913045830 passed | `3eaf5fd69afee05dfc72ca480046b1315528da71` | This record is uncommitted |
+| 2026-11-27 | M3.5 implemented and verified (prototype mode): per-account server storage, per-account household, owners on shared records, second demo patient | `3eaf5fd` + working tree | Uncommitted, awaiting approval |
