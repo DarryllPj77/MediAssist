@@ -16,6 +16,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     public DbSet<StoredNotification> Notifications => Set<StoredNotification>();
     public DbSet<StoredRecord> Authorizations => Set<StoredRecord>("Authorizations");
     public DbSet<StoredRecord> RunnerRequests => Set<StoredRecord>("RunnerRequests");
+    public DbSet<StoredAuditEntry> AuditEntries => Set<StoredAuditEntry>();
 
     /// <summary>
     /// Tables a D9a-era database (made by <c>EnsureCreated</c> before D9b) lacks; created before such a
@@ -45,6 +46,11 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         {
             e.HasKey(n => n.Id);
             e.Property(n => n.Id).HasMaxLength(80);
+        });
+        model.Entity<StoredAuditEntry>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.AtUtc);
         });
         // One record type, two tables (shared-type entities): authorization and runner requests.
         foreach (var table in new[] { "Authorizations", "RunnerRequests" })
@@ -88,4 +94,19 @@ public sealed class StoredNotification
 {
     public string Id { get; set; } = "";
     public string Json { get; set; } = "";
+}
+
+/// <summary>
+/// One saved change in the audit log (M3.7): who did what to which record, written in the same
+/// transaction as the change. Kept for <c>Retention:AuditDays</c>.
+/// </summary>
+public sealed class StoredAuditEntry
+{
+    public long Id { get; set; }
+    public DateTime AtUtc { get; set; }
+    public string ActorId { get; set; } = "";
+    public string ActorName { get; set; } = "";
+    public string Role { get; set; } = "";
+    public string Action { get; set; } = "";
+    public string Target { get; set; } = "";
 }

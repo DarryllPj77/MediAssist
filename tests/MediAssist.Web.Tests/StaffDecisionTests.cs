@@ -127,7 +127,7 @@ public sealed class StaffDecisionTests : IDisposable
         await StartAsync();
         // A D9a-era file: made by EnsureCreated (no migration history) before these two tables existed.
         await using (var db = _db.CreateDbContext())
-            await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\"; DROP TABLE \"__EFMigrationsHistory\";");
+            await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\"; DROP TABLE \"__EFMigrationsHistory\"; DROP TABLE \"AuditEntries\";");
 
         var workflow = await StartAsync();
         Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-31", 0, "Ramil Ocampo")).Succeeded);

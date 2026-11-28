@@ -61,7 +61,7 @@ public sealed class AppFixture : IAsyncLifetime
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        foreach (var arg in new[] { AppDll(repo), "--urls", BaseUrl, $"--Workflow:DatabasePath={_database}", $"--Identity:DatabasePath={_identityDatabase}" })
+        foreach (var arg in new[] { AppDll(repo), "--urls", BaseUrl, $"--Workflow:DatabasePath={_database}", $"--Identity:DatabasePath={_identityDatabase}", "--RateLimiting:SignInPerMinute=1000" })
             start.ArgumentList.Add(arg);
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
         _app = Process.Start(start) ?? throw new InvalidOperationException("Could not start the app.");

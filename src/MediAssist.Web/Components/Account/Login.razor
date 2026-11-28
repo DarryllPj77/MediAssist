@@ -8,6 +8,7 @@
 @inject UserManager<ApplicationUser> Users
 @inject NavigationManager Nav
 @inject IWebHostEnvironment Environment
+@inject ILogger<Login> Log
 
 @*
     Sign in (M3.4). A plain page (no live connection) so the sign-in cookie can be set. Email and
@@ -104,10 +105,13 @@
         {
             var user = await Users.FindByEmailAsync(Input.Email.Trim());
             var roles = user is null ? [] : await Users.GetRolesAsync(user);
+            Log.LogInformation("Sign-in succeeded for account {UserId}.", user?.Id);
             var home = roles.Contains(Roles.Administrator) ? "/admin" : roles.Contains(Roles.Runner) ? "/runner" : "/patient";
             Nav.NavigateTo(SafeReturnUrl ?? home);
             return;
         }
+        // Audit (M3.7): failed attempts and lockouts are logged without the password.
+        Log.LogWarning("Sign-in failed ({Outcome}) for {Email}.", result.IsLockedOut ? "locked out" : "wrong details", Input.Email.Trim());
         _error = result.IsLockedOut
             ? "Too many tries. This account is locked for 5 minutes."
             : "The email or password isn't right. Check them and try again.";

@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using MediAssist.Web.Components;
 using MediAssist.Web.Data;
 using MediAssist.Web.Services;
@@ -30,6 +31,28 @@ var workflowDb = Path.Combine(builder.Environment.ContentRootPath,
 Directory.CreateDirectory(Path.GetDirectoryName(workflowDb)!);
 builder.Services.AddDbContextFactory<WorkflowDbContext>(o => o.UseSqlite($"Data Source={workflowDb}"));
 builder.Services.AddSingleton<WorkflowService>();
+// Retention (M3.7): old notifications and audit entries are removed at start-up.
+builder.Services.AddSingleton(new WorkflowOptions(
+    builder.Configuration.GetValue("Retention:NotificationDays", 180),
+    builder.Configuration.GetValue("Retention:AuditDays", 365)));
+
+// Sign-in attempts per client address per minute (M3.7), on top of the account lockout.
+// `RateLimiting:SignInPerMinute` (default 10); the browser tests raise it.
+var signInPerMinute = builder.Configuration.GetValue("RateLimiting:SignInPerMinute", 10);
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("Too many sign-in attempts. Wait a minute and try again.", token);
+    };
+    o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
+        HttpMethods.IsPost(http.Request.Method) && http.Request.Path.StartsWithSegments("/account/login")
+            ? RateLimitPartition.GetFixedWindowLimiter(http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = signInPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })
+            : RateLimitPartition.GetNoLimiter("other"));
+});
 
 // Sign-in and roles (M3.4): ASP.NET Core Identity with cookie sign-in, accounts in their own SQLite
 // file managed by EF Core migrations (`Identity:DatabasePath`, default App_Data/mediassist-identity.db).
@@ -105,8 +128,21 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+// Security headers (M3.7): no framing, no MIME sniffing, a strict referrer and no device features.
+// The CSP is limited to directives that don't affect Blazor's scripts and styles.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+    headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+    await next();
+});
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

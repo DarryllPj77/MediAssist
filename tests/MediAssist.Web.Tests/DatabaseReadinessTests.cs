@@ -18,7 +18,7 @@ public sealed class DatabaseReadinessTests
         await using (var db = h.Database.CreateDbContext())
         {
             await db.Database.ExecuteSqlRawAsync(
-                "DROP TABLE \"__EFMigrationsHistory\"; ALTER TABLE \"Authorizations\" DROP COLUMN \"Version\"; ALTER TABLE \"RunnerRequests\" DROP COLUMN \"Version\";");
+                "DROP TABLE \"__EFMigrationsHistory\"; ALTER TABLE \"Authorizations\" DROP COLUMN \"Version\"; ALTER TABLE \"RunnerRequests\" DROP COLUMN \"Version\"; DROP TABLE \"AuditEntries\";");
         }
 
         var restarted = await h.RestartAsync();

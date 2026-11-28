@@ -21,13 +21,16 @@ public sealed class WorkflowService(
     IDbContextFactory<WorkflowDbContext> factory,
     MockPortalStore store,
     TimeProvider clock,
-    ILogger<WorkflowService> logger)
+    ILogger<WorkflowService> logger,
+    WorkflowOptions? options = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const string Reviewer = "Reviewer";
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private WorkflowState _state = WorkflowState.Empty;
+    private readonly WorkflowOptions _options = options ?? new();
+    private Views? _views;
 
     /// <summary>Raised after a saved change, on the thread that made it. Handlers marshal to their renderer.</summary>
     public event Action? Changed;
@@ -40,7 +43,34 @@ public sealed class WorkflowService(
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await BringUnderMigrationsAsync(db, cancellationToken);
         await db.Database.MigrateAsync(cancellationToken);
+        await ApplyRetentionAsync(db, cancellationToken);
         await LoadStateAsync(db, cancellationToken);
+    }
+
+    /// <summary>
+    /// Retention (M3.7), applied at start-up: notifications older than <see cref="WorkflowOptions.NotificationDays"/>
+    /// and audit entries older than <see cref="WorkflowOptions.AuditDays"/> are deleted. Applications,
+    /// uploads and requests are records and are kept.
+    /// </summary>
+    private async Task ApplyRetentionAsync(WorkflowDbContext db, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+        var auditCutoff = now.UtcDateTime.AddDays(-_options.AuditDays);
+        var audits = await db.AuditEntries.Where(e => e.AtUtc < auditCutoff).ExecuteDeleteAsync(cancellationToken);
+
+        var noticeCutoff = now.AddDays(-_options.NotificationDays);
+        var old = new List<string>();
+        foreach (var row in await db.Notifications.AsNoTracking().ToListAsync(cancellationToken))
+        {
+            try
+            {
+                if (JsonSerializer.Deserialize<PortalNotification>(row.Json, Json) is { } n && n.CreatedAt < noticeCutoff) old.Add(row.Id);
+            }
+            catch (JsonException) { } // left for the tolerant loader to report
+        }
+        var notices = old.Count == 0 ? 0 : await db.Notifications.Where(n => old.Contains(n.Id)).ExecuteDeleteAsync(cancellationToken);
+        if (audits + notices > 0)
+            logger.LogInformation("Retention removed {Notifications} notifications and {AuditEntries} audit entries.", notices, audits);
     }
 
     /// <summary>
@@ -95,20 +125,59 @@ public sealed class WorkflowService(
     /// <summary>The application behind a reference: the shared copy, else the seeded one (version 0).</summary>
     public SharedApplication? Find(string reference)
     {
-        if (State.Applications.TryGetValue(reference, out var shared)) return shared;
-        var seed = store.Applications().FirstOrDefault(a => Same(a.ReferenceNumber, reference));
-        if (seed is null) return null;
-        var checklist = store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, reference)) ?? GeneratedChecklist(seed);
-        var events = store.Events().Where(e => Same(e.ApplicationReference, reference)).OrderBy(e => e.At).ToList();
-        return new SharedApplication(seed, checklist, events, 0, store.SeedOwnerOf(seed.PatientId));
+        var views = Current;
+        return views.State.Applications.TryGetValue(reference, out var shared) ? shared : views.Seeds.GetValueOrDefault(reference);
     }
 
     /// <summary>Every application (seeded and submitted, all accounts), shared copies replacing seeds.</summary>
-    public IReadOnlyList<SharedApplication> All()
+    public IReadOnlyList<SharedApplication> All() => Current.All;
+
+    /// <summary>
+    /// Lists derived from one read model (M3.7): seeded copies, every application, authorization and
+    /// runner request, and each patient's latest authorization. Built once per read model (and per
+    /// day, since seeds have day-relative dates) instead of on every call; pages ask for them often.
+    /// </summary>
+    private sealed record Views(
+        WorkflowState State, DateTimeOffset Day, string? SeedOwner,
+        IReadOnlyDictionary<string, SharedApplication> Seeds, IReadOnlyList<SharedApplication> All,
+        IReadOnlyList<SharedAuthorization> Authorizations, IReadOnlyDictionary<Guid, SharedAuthorization> Latest,
+        IReadOnlyList<SharedRunnerRequest> RunnerRequests);
+
+    private Views Current
     {
-        var state = State;
-        var seeded = store.Applications().Where(a => !state.Applications.ContainsKey(a.ReferenceNumber)).Select(a => Find(a.ReferenceNumber)!);
-        return [.. state.Applications.Values, .. seeded];
+        get
+        {
+            var state = State;
+            var day = store.Today;
+            var owner = store.SeedOwnerId;
+            var views = Volatile.Read(ref _views);
+            if (views is not null && ReferenceEquals(views.State, state) && views.Day == day && views.SeedOwner == owner) return views;
+            views = BuildViews(state, day, owner);
+            Volatile.Write(ref _views, views);
+            return views;
+        }
+    }
+
+    private Views BuildViews(WorkflowState state, DateTimeOffset day, string? owner)
+    {
+        var events = store.Events().ToLookup(e => e.ApplicationReference, StringComparer.OrdinalIgnoreCase);
+        var seeds = new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in store.Applications().Where(a => !state.Applications.ContainsKey(a.ReferenceNumber)))
+            seeds[a.ReferenceNumber] = new SharedApplication(a,
+                store.Checklists.FirstOrDefault(c => Same(c.ApplicationReference, a.ReferenceNumber)) ?? GeneratedChecklist(a),
+                [.. events[a.ReferenceNumber].OrderBy(e => e.At)], 0, store.SeedOwnerOf(a.PatientId));
+        SharedApplication? find(string r) => state.Applications.TryGetValue(r, out var s) ? s : seeds.GetValueOrDefault(r);
+
+        var authorizations = state.Authorizations.Values
+            .Concat(store.AuthorizationRequests().Where(r => !state.Authorizations.ContainsKey(r.Id)).Select(SeededAuthorization))
+            .OrderByDescending(a => a.Request.RequestedAt).ToList();
+        var latest = new Dictionary<Guid, SharedAuthorization>();
+        foreach (var a in authorizations) latest.TryAdd(a.Request.PatientId, a);
+        var runners = state.RunnerRequests.Values
+            .Concat(store.RunnerRequests().Where(r => !state.RunnerRequests.ContainsKey(r.Id))
+                .Select(r => new SharedRunnerRequest(r, 0, find(r.ApplicationReference)?.OwnerId)))
+            .ToList();
+        return new Views(state, day, owner, seeds, [.. state.Applications.Values, .. seeds.Values], authorizations, latest, runners);
     }
 
     /// <summary>The checklist with undecided uploads shown as "being reviewed".</summary>
@@ -194,7 +263,8 @@ public sealed class WorkflowService(
                 // The family's own entries record which account made them (M3.4b).
                 Events = [.. submission.Application.Events.Select(e => e.Actor == "You" && e.ActorId is null ? Stamp(e, actor) : e)],
             };
-            saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification with { OwnerId = actor.UserId }]));
+            saved = await CommitAsync(state, new Writes([application], submission.Uploads, [submission.Notification with { OwnerId = actor.UserId }],
+                Audit: new(actor, "Submitted application", reference)));
         }
         finally
         {
@@ -269,7 +339,7 @@ public sealed class WorkflowService(
 
             // A copy keeps the owner (and anything added later); only these fields change.
             var updated = current with { Application = application, Events = events, Version = current.Version + 1 };
-            result = await CommitAsync(state, new Writes([updated], [upload], notifications))
+            result = await CommitAsync(state, new Writes([updated], [upload], notifications, Audit: new(actor, $"Uploaded {documentName}", reference)))
                 ? UploadResult.Saved(upload, corrected)
                 : UploadResult.Invalid("We couldn’t save that upload. Try again.");
         }
@@ -403,7 +473,8 @@ public sealed class WorkflowService(
             if (current is null) return ReviewResult.Refused("That application doesn't exist.");
             if (current.Version != expectedVersion) return ReviewResult.Stale;
 
-            var change = decide(current, Effective(current), clock.GetLocalNow());
+            var now = clock.GetLocalNow();
+            var change = decide(current, Effective(current), now);
             if (change.Error is not null) return ReviewResult.Refused(change.Error);
 
             // The reviewer's new history entries record who made them (staff see the name; families see "Reviewer").
@@ -413,7 +484,13 @@ public sealed class WorkflowService(
                 Events = [.. current.Events, .. change.Updated.Events.Skip(current.Events.Count).Select(e => Stamp(e, actor))],
             };
             var notify = change.Notification is not null && current.OwnerId is not null;
-            result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification! with { OwnerId = current.OwnerId }] : []))
+            // When the application ends, its open runner requests end with it (M3.7): no errand outlives it.
+            SharedRunnerRequest[] closed = updated.Application.Status is ApplicationStatus.Completed or ApplicationStatus.Cancelled
+                ? [.. AllRunnerRequests().Where(r => Same(r.Request.ApplicationReference, reference) && RunnerRules.IsOpen(r.Request.Status))
+                    .Select(r => r with { Request = r.Request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = now }, Version = r.Version + 1 })]
+                : [];
+            result = await CommitAsync(State, new Writes([updated], change.Uploads, notify ? [change.Notification! with { OwnerId = current.OwnerId }] : [],
+                    RunnerRequests: closed, Audit: new(actor, updated.Events[^1].Title, reference)))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -428,12 +505,7 @@ public sealed class WorkflowService(
     // ---- Authorization requests (D9b) ----
 
     /// <summary>Every authorization request (seeded and shared, all accounts), shared copies replacing seeds, newest first.</summary>
-    public IReadOnlyList<SharedAuthorization> AllAuthorizations()
-    {
-        var state = State;
-        var seeded = store.AuthorizationRequests().Where(r => !state.Authorizations.ContainsKey(r.Id)).Select(SeededAuthorization);
-        return [.. state.Authorizations.Values.Concat(seeded).OrderByDescending(a => a.Request.RequestedAt)];
-    }
+    public IReadOnlyList<SharedAuthorization> AllAuthorizations() => Current.Authorizations;
 
     public SharedAuthorization? FindAuthorization(string id) =>
         State.Authorizations.TryGetValue(id, out var shared) ? shared
@@ -444,7 +516,7 @@ public sealed class WorkflowService(
         [.. AllAuthorizations().Where(a => a.Request.PatientId == patientId)];
 
     /// <summary>The patient's most recent request, which decides what their profile shows.</summary>
-    public SharedAuthorization? LatestAuthorization(Guid patientId) => AuthorizationsFor(patientId).FirstOrDefault();
+    public SharedAuthorization? LatestAuthorization(Guid patientId) => Current.Latest.GetValueOrDefault(patientId);
 
     private SharedAuthorization SeededAuthorization(AuthorizationRequest request)
     {
@@ -470,7 +542,7 @@ public sealed class WorkflowService(
             if (latest?.Request.Status is AuthorizationRequestStatus.Pending or AuthorizationRequestStatus.Approved) return false;
             if (latest is { OwnerId: var owner } && owner != actor.UserId) return false; // another account's patient
             saved = await CommitAsync(State, new Writes(Notifications: [notification with { OwnerId = actor.UserId }],
-                Authorizations: [authorization with { Version = 1, OwnerId = actor.UserId }]));
+                Audit: new(actor, "Requested authorization", authorization.Id), Authorizations: [authorization with { Version = 1, OwnerId = actor.UserId }]));
         }
         finally
         {
@@ -516,7 +588,8 @@ public sealed class WorkflowService(
                 approve ? $"You can now apply and follow applications for {current.PatientName}."
                         : $"Your request to act for {current.PatientName} wasn't approved. See the reviewer's note.",
                 now, false, current.PatientHref, current.Request.PatientId, current.OwnerId);
-            result = await CommitAsync(State, new Writes(Notifications: current.OwnerId is null ? [] : [notice], Authorizations: [decided]))
+            result = await CommitAsync(State, new Writes(Notifications: current.OwnerId is null ? [] : [notice], Authorizations: [decided],
+                Audit: new(actor, approve ? "Approved authorization" : "Rejected authorization", id)))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -531,12 +604,7 @@ public sealed class WorkflowService(
     // ---- Runner requests (D9b) ----
 
     /// <summary>Every runner request (seeded and shared, all accounts), shared copies replacing seeds.</summary>
-    public IReadOnlyList<SharedRunnerRequest> AllRunnerRequests()
-    {
-        var state = State;
-        var seeded = store.RunnerRequests().Where(r => !state.RunnerRequests.ContainsKey(r.Id)).Select(SeededRunnerRequest);
-        return [.. state.RunnerRequests.Values, .. seeded];
-    }
+    public IReadOnlyList<SharedRunnerRequest> AllRunnerRequests() => Current.RunnerRequests;
 
     public SharedRunnerRequest? FindRunnerRequest(string id) =>
         State.RunnerRequests.TryGetValue(id, out var shared) ? shared
@@ -560,9 +628,11 @@ public sealed class WorkflowService(
                 return false;
             // No runner help for a patient whose authorization wasn't approved (M3.2).
             if (Find(request.ApplicationReference) is not { } application || application.OwnerId != actor.UserId) return false;
+            // No errand for an application that has ended (M3.7).
+            if (application.Application.Status is ApplicationStatus.Completed or ApplicationStatus.Cancelled) return false;
             if (Authorization(application.Application.PatientId) == AuthorizationStanding.Rejected) return false;
             saved = await CommitAsync(State, new Writes(Notifications: [notification with { OwnerId = actor.UserId }],
-                RunnerRequests: [new SharedRunnerRequest(request, 1, actor.UserId)]));
+                RunnerRequests: [new SharedRunnerRequest(request, 1, actor.UserId)], Audit: new(actor, "Requested runner help", request.Id)));
         }
         finally
         {
@@ -589,7 +659,7 @@ public sealed class WorkflowService(
                 Request = current.Request with { Status = RunnerTaskStatus.Cancelled, ClosedAt = clock.GetLocalNow() },
                 Version = current.Version + 1,
             };
-            saved = await CommitAsync(State, new Writes(RunnerRequests: [cancelled]));
+            saved = await CommitAsync(State, new Writes(RunnerRequests: [cancelled], Audit: new(actor, "Cancelled runner request", id)));
         }
         finally
         {
@@ -633,7 +703,8 @@ public sealed class WorkflowService(
                 now, false, "/patient/runner");
             var target = Find(current.Request.ApplicationReference);
             var notices = target?.OwnerId is { } owner ? [notice with { PatientId = target.Application.PatientId, OwnerId = owner }] : Array.Empty<PortalNotification>();
-            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [assigned]))
+            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [assigned],
+                    Audit: new(actor, reassigned ? $"Changed runner to {runner}" : $"Assigned {runner}", id)))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -717,7 +788,7 @@ public sealed class WorkflowService(
             var application = Find(reference);
             var notices = notice is not null && application?.OwnerId is { } owner
                 ? [notice with { PatientId = application.Application.PatientId, OwnerId = owner }] : Array.Empty<PortalNotification>();
-            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [updated]))
+            result = await CommitAsync(State, new Writes(Notifications: notices, RunnerRequests: [updated], Audit: new(actor, $"Runner step: {kind}", id)))
                 ? ReviewResult.Done
                 : ReviewResult.SaveFailed;
         }
@@ -736,7 +807,11 @@ public sealed class WorkflowService(
         IReadOnlyList<DocumentUpload>? Uploads = null,
         IReadOnlyList<PortalNotification>? Notifications = null,
         IReadOnlyList<SharedAuthorization>? Authorizations = null,
-        IReadOnlyList<SharedRunnerRequest>? RunnerRequests = null);
+        IReadOnlyList<SharedRunnerRequest>? RunnerRequests = null,
+        AuditNote? Audit = null);
+
+    /// <summary>Who made a change and what it was, for the audit log (M3.7).</summary>
+    private sealed record AuditNote(Actor Actor, string Action, string Target);
 
     /// <summary>Write the changes in one transaction; on success swap in the new read model. Call under the gate.</summary>
     private async Task<bool> CommitAsync(WorkflowState state, Writes writes)
@@ -771,6 +846,12 @@ public sealed class WorkflowService(
                 db.Notifications.Add(new StoredNotification { Id = n.Id, Json = JsonSerializer.Serialize(n, Json) });
             foreach (var a in authorizations) await UpsertAsync(db, db.Authorizations, a.Id, a.Version, JsonSerializer.Serialize(a, Json));
             foreach (var r in runnerRequests) await UpsertAsync(db, db.RunnerRequests, r.Id, r.Version, JsonSerializer.Serialize(r, Json));
+            if (writes.Audit is { } audit)
+                db.AuditEntries.Add(new StoredAuditEntry
+                {
+                    AtUtc = clock.GetUtcNow().UtcDateTime, ActorId = audit.Actor.UserId, ActorName = audit.Actor.Name,
+                    Role = audit.Actor.Role, Action = audit.Action, Target = audit.Target,
+                });
             await db.SaveChangesAsync();
         }
         catch (DbUpdateConcurrencyException ex)
@@ -847,3 +928,6 @@ public sealed class WorkflowService(
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }
+
+/// <summary>Retention for the shared store (M3.7), from <c>Retention:NotificationDays</c> and <c>Retention:AuditDays</c>.</summary>
+public sealed record WorkflowOptions(int NotificationDays = 180, int AuditDays = 365);
