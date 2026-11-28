@@ -17,7 +17,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<MockPortalStore>();
 // A fixed application name keeps browser data readable when the app moves to another folder
 // (D9a; changing it reset earlier prototype data once).
-builder.Services.AddDataProtection().SetApplicationName("MediAssist");
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("MediAssist");
+// Where the keys live (M3.6): `DataProtection:KeysPath` (relative to the content root) for a hosted
+// server; unset keeps the default per-user location. Moving them signs everyone out once.
+if (builder.Configuration["DataProtection:KeysPath"] is { Length: > 0 } keysPath)
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, keysPath)));
 // The shared workflow store (D9a): submitted applications, uploads, reviews and their notifications.
 // Path from configuration (`Workflow:DatabasePath`, M3.3) so tests can use a throwaway file;
 // relative paths are under the content root. Default: App_Data/mediassist.db.

@@ -38,23 +38,54 @@ public sealed class WorkflowService(
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        await db.Database.EnsureCreatedAsync(cancellationToken);
+        await BringUnderMigrationsAsync(db, cancellationToken);
+        await db.Database.MigrateAsync(cancellationToken);
+        await LoadStateAsync(db, cancellationToken);
+    }
+
+    /// <summary>
+    /// A database made before M3.6 (by <c>EnsureCreated</c>, so with tables but no migration history)
+    /// is marked as already at the first migration, after adding any tables a D9a-era file lacks;
+    /// later migrations then apply normally. New or migrated databases are left alone.
+    /// </summary>
+    private static async Task BringUnderMigrationsAsync(WorkflowDbContext db, CancellationToken cancellationToken)
+    {
+        async Task<bool> TableExistsAsync(string name) =>
+            await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS \"Value\" FROM sqlite_master WHERE type = 'table' AND name = {name}")
+                .SingleAsync(cancellationToken) > 0;
+
+        if (!await TableExistsAsync("Applications") || await TableExistsAsync("__EFMigrationsHistory")) return;
+
+        var baseline = db.Database.GetMigrations().First();
         await db.Database.ExecuteSqlRawAsync(WorkflowDbContext.AddLaterTables, cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE TABLE \"__EFMigrationsHistory\" (\"MigrationId\" TEXT NOT NULL CONSTRAINT \"PK___EFMigrationsHistory\" PRIMARY KEY, \"ProductVersion\" TEXT NOT NULL);",
+            cancellationToken);
+        await db.Database.ExecuteSqlAsync($"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ({baseline}, '10.0.15');",
+            cancellationToken);
+    }
 
-        var applications = new Dictionary<string, SharedApplication>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in await db.Applications.AsNoTracking().ToListAsync(cancellationToken))
-            if (JsonSerializer.Deserialize<SharedApplication>(row.Json, Json) is { } a) applications[a.Reference] = a;
+    /// <summary>Read every row into a new read model. A row that can't be read is logged and skipped, so one bad row can't stop the app (M3.6).</summary>
+    private async Task LoadStateAsync(WorkflowDbContext db, CancellationToken cancellationToken = default)
+    {
+        IEnumerable<T> Read<T>(IEnumerable<(string Key, string Json)> rows, string table) => rows.Select(r =>
+        {
+            try { return JsonSerializer.Deserialize<T>(r.Json, Json); }
+            catch (JsonException ex) { logger.LogWarning(ex, "Skipped unreadable row {Key} in {Table}.", r.Key, table); return default; }
+        }).OfType<T>();
 
-        var uploads = (await db.Uploads.AsNoTracking().ToListAsync(cancellationToken))
-            .Select(u => JsonSerializer.Deserialize<DocumentUpload>(u.Json, Json)!).ToList();
-        var notifications = (await db.Notifications.AsNoTracking().ToListAsync(cancellationToken))
-            .Select(n => JsonSerializer.Deserialize<PortalNotification>(n.Json, Json)!)
+        var applications = Read<SharedApplication>(
+                (await db.Applications.AsNoTracking().ToListAsync(cancellationToken)).Select(r => (r.Reference, r.Json)), "Applications")
+            .ToDictionary(a => a.Reference, StringComparer.OrdinalIgnoreCase);
+        var uploads = Read<DocumentUpload>(
+            (await db.Uploads.AsNoTracking().ToListAsync(cancellationToken)).Select(r => (r.Id, r.Json)), "Uploads").ToList();
+        var notifications = Read<PortalNotification>(
+                (await db.Notifications.AsNoTracking().ToListAsync(cancellationToken)).Select(r => (r.Id, r.Json)), "Notifications")
             .OrderByDescending(n => n.CreatedAt).ToList();
-
-        var authorizations = (await db.Authorizations.AsNoTracking().ToListAsync(cancellationToken))
-            .Select(a => JsonSerializer.Deserialize<SharedAuthorization>(a.Json, Json)!).ToDictionary(a => a.Id);
-        var runnerRequests = (await db.RunnerRequests.AsNoTracking().ToListAsync(cancellationToken))
-            .Select(a => JsonSerializer.Deserialize<SharedRunnerRequest>(a.Json, Json)!).ToDictionary(a => a.Id);
+        var authorizations = Read<SharedAuthorization>(
+            (await db.Authorizations.AsNoTracking().ToListAsync(cancellationToken)).Select(r => (r.Id, r.Json)), "Authorizations").ToDictionary(a => a.Id);
+        var runnerRequests = Read<SharedRunnerRequest>(
+            (await db.RunnerRequests.AsNoTracking().ToListAsync(cancellationToken)).Select(r => (r.Id, r.Json)), "RunnerRequests").ToDictionary(a => a.Id);
 
         Volatile.Write(ref _state, new WorkflowState(applications, uploads, notifications, authorizations, runnerRequests));
     }
@@ -722,6 +753,8 @@ public sealed class WorkflowService(
             {
                 var row = await db.Applications.FindAsync(a.Reference);
                 if (row is null) db.Applications.Add(row = new StoredApplication { Reference = a.Reference });
+                // Only update the row from the version this change started from (M3.6).
+                else db.Entry(row).Property(r => r.Version).OriginalValue = a.Version - 1;
                 row.PatientId = a.Application.PatientId;
                 row.Status = (int)a.Application.Status;
                 row.Version = a.Version;
@@ -736,9 +769,17 @@ public sealed class WorkflowService(
             }
             foreach (var n in notifications)
                 db.Notifications.Add(new StoredNotification { Id = n.Id, Json = JsonSerializer.Serialize(n, Json) });
-            foreach (var a in authorizations) await UpsertAsync(db.Authorizations, a.Id, JsonSerializer.Serialize(a, Json));
-            foreach (var r in runnerRequests) await UpsertAsync(db.RunnerRequests, r.Id, JsonSerializer.Serialize(r, Json));
+            foreach (var a in authorizations) await UpsertAsync(db, db.Authorizations, a.Id, a.Version, JsonSerializer.Serialize(a, Json));
+            foreach (var r in runnerRequests) await UpsertAsync(db, db.RunnerRequests, r.Id, r.Version, JsonSerializer.Serialize(r, Json));
             await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // The database moved on (another server process, M3.6): nothing is written; reload what it holds.
+            logger.LogWarning(ex, "A shared record changed in the database since it was read; reloading.");
+            await using var fresh = await factory.CreateDbContextAsync();
+            await LoadStateAsync(fresh);
+            return false;
         }
         catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or IOException or InvalidOperationException)
         {
@@ -762,11 +803,18 @@ public sealed class WorkflowService(
         return true;
     }
 
-    private static async Task UpsertAsync(DbSet<StoredRecord> set, string id, string json)
+    private static async Task UpsertAsync(WorkflowDbContext db, DbSet<StoredRecord> set, string id, int version, string json)
     {
         var row = await set.FindAsync(id);
-        if (row is null) set.Add(new StoredRecord { Id = id, Json = json });
-        else row.Json = json;
+        if (row is null)
+        {
+            set.Add(new StoredRecord { Id = id, Version = version, Json = json });
+            return;
+        }
+        // Only update the row from the version this change started from (M3.6).
+        db.Entry(row).Property(r => r.Version).OriginalValue = version - 1;
+        row.Version = version;
+        row.Json = json;
     }
 
     // ---- Helpers ----

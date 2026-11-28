@@ -5,7 +5,9 @@ namespace MediAssist.Web.Data;
 /// <summary>
 /// The shared workflow store (D9a): SQLite through EF Core. Each row keeps its record as JSON with
 /// the fields staff filter on alongside, which suits a prototype whose records still change shape.
-/// The schema is created on first run (<c>EnsureCreated</c>); there are no migrations yet.
+/// Since M3.6 the schema is managed by EF Core migrations (<c>Data/Migrations/Workflow</c>); databases
+/// made earlier with <c>EnsureCreated</c> are recognised and brought under migrations on start-up.
+/// <c>Version</c> columns are concurrency tokens: a write based on an out-of-date row is refused.
 /// </summary>
 public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> options) : DbContext(options)
 {
@@ -16,8 +18,8 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
     public DbSet<StoredRecord> RunnerRequests => Set<StoredRecord>("RunnerRequests");
 
     /// <summary>
-    /// Tables added after a database was first created (D9b). <c>EnsureCreated</c> does nothing to an
-    /// existing file, so these are created if missing until the project adopts migrations.
+    /// Tables a D9a-era database (made by <c>EnsureCreated</c> before D9b) lacks; created before such a
+    /// database is brought under migrations (M3.6). Not used for new databases.
     /// </summary>
     public const string AddLaterTables = """
         CREATE TABLE IF NOT EXISTS "Authorizations" ("Id" TEXT NOT NULL CONSTRAINT "PK_Authorizations" PRIMARY KEY, "Json" TEXT NOT NULL);
@@ -30,6 +32,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
         {
             e.HasKey(a => a.Reference);
             e.Property(a => a.Reference).HasMaxLength(32);
+            e.Property(a => a.Version).IsConcurrencyToken();
             e.HasIndex(a => a.Status);
         });
         model.Entity<StoredUpload>(e =>
@@ -49,6 +52,7 @@ public sealed class WorkflowDbContext(DbContextOptions<WorkflowDbContext> option
             {
                 e.ToTable(table);
                 e.HasKey(r => r.Id);
+                e.Property(r => r.Version).IsConcurrencyToken();
             });
     }
 }
@@ -75,6 +79,7 @@ public sealed class StoredUpload
 public sealed class StoredRecord
 {
     public string Id { get; set; } = "";
+    public int Version { get; set; }
     public string Json { get; set; } = "";
 }
 

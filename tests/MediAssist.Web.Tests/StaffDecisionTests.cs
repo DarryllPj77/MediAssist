@@ -125,8 +125,9 @@ public sealed class StaffDecisionTests : IDisposable
     public async Task A_database_from_D9a_gets_the_new_tables_on_start()
     {
         await StartAsync();
+        // A D9a-era file: made by EnsureCreated (no migration history) before these two tables existed.
         await using (var db = _db.CreateDbContext())
-            await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\";");
+            await db.Database.ExecuteSqlRawAsync("DROP TABLE \"Authorizations\"; DROP TABLE \"RunnerRequests\"; DROP TABLE \"__EFMigrationsHistory\";");
 
         var workflow = await StartAsync();
         Assert.True((await workflow.AssignRunnerAsync(TestActors.Admin, "rr-31", 0, "Ramil Ocampo")).Succeeded);

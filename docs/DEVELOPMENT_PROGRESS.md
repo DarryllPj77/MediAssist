@@ -8,14 +8,14 @@ MediAssist is a C# and Blazor prototype for preparing and tracking medical assis
 |---|---|
 | Reviewed | 26 November 2026, Asia/Manila (M3.4a implementation review) |
 | Branch | `design/premium-civic-imagery` |
-| Branch HEAD | `3eaf5fd` — feat(auth): check roles in the shared service and record who did what (pushed; in sync; CI green) |
-| Latest application commit | `3eaf5fd69afee05dfc72ca480046b1315528da71` — M3.4b |
-| Latest implementation | M3.5 — Data ownership (**implemented, uncommitted**) |
-| Application changes awaiting commit | M3.5 — see “M3.5 Data Ownership” below |
-| Documentation awaiting commit | The M3.4b hash/CI record and this M3.5 update |
+| Branch HEAD | `d0adc19` — feat(data): save patient work per account and scope shared records by owner (pushed; in sync; CI green) |
+| Latest application commit | `d0adc191fbfbdd1119e33c74d79bdc05986f9467` — M3.5 |
+| Latest implementation | M3.6 — Database readiness (**implemented, uncommitted**) |
+| Application changes awaiting commit | M3.6 — see “M3.6 Database Readiness” below |
+| Documentation awaiting commit | The M3.5 hash/CI record and this M3.6 update |
 | Existing untracked paths | `.agents/`, `.claude/`, `skills-lock.json`; excluded from progress claims and preserved |
-| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.4 committed and pushed; M3.5 implemented, awaiting commit approval |
-| Next development task | Commit M3.5 once approved; then M3.6 — database readiness (migrations for the workflow store, concurrency token, tolerant loading) |
+| Overall status | Milestone 2 committed. Milestone 3: M3.1–M3.5 committed and pushed; M3.6 implemented, awaiting commit approval |
+| Next development task | Commit M3.6 once approved; then M3.7 — hardening (security headers, rate limiting, audit log, retention, closing runner requests with their application, read-model performance) |
 
 **Evidence standard:** “Completed” below means implemented in the inspected source and present in the listed commit. It does not imply production readiness or complete browser testing. D3 and its pre-commit documentation were committed as `8c0554e`; this subsequent hash/status entry is uncommitted because a commit cannot contain its own hash. Remote synchronization was not checked; no push or merge was performed.
 
@@ -76,7 +76,8 @@ dotnet build src/MediAssist.Web/MediAssist.Web.csproj --nologo --artifacts-path 
 | M3.3 — Wider automated tests and CI | Completed | **Committed** | `6f7841d`; workspace, failure, concurrency and validation tests; Playwright page checks; GitHub Actions CI |
 | M3.4a — Sign-in and roles | Completed | **Committed** | `4aa960d`; Identity in its own SQLite file with migrations; demo accounts (Development); every portal requires its role; layout and runner from the signed-in account |
 | M3.4b — Who did what, service role checks, account name | Completed | **Committed** | `3eaf5fd`; shared actions record the account; the service refuses the wrong role; patient name on the account |
-| M3.5 — Data ownership | Implemented and verified | **Uncommitted** | Patient data saved per account on the server; per-account household; owner on every shared record |
+| M3.5 — Data ownership | Completed | **Committed** | `d0adc19`; patient data saved per account on the server; per-account household; owner on every shared record |
+| M3.6 — Database readiness | Implemented and verified | **Uncommitted** | Workflow store under EF Core migrations; version columns as concurrency tokens; tolerant loading; configurable key location |
 | Database, authentication and production deployment | Pending | Concept/planned | No EF Core persistence or authentication implementation in the current project |
 
 “In Progress” describes the overall milestone, not uncommitted feature code. Phase A–C descriptions summarize verified diffs; they are not a reconstructed original subtask specification.
@@ -111,6 +112,7 @@ All hashes below are reachable from the inspected branch HEAD.
 | 2026-11-27 | `4aa960d` | feat(auth): add sign-in, demo accounts and role-based portal access |
 | 2026-11-27 | `043efc7` | fix(auth): let the sign-in demo note wrap on narrow screens |
 | 2026-11-27 | `3eaf5fd` | feat(auth): check roles in the shared service and record who did what |
+| 2026-11-27 | `d0adc19` | feat(data): save patient work per account and scope shared records by owner |
 
 ## Completed features and workflows
 
@@ -369,7 +371,9 @@ Committed as `3eaf5fd69afee05dfc72ca480046b1315528da71` (`043efc7..3eaf5fd`); CI
 - **Tests:** `ActorTests` (3: wrong roles refused with nothing saved, who-did-what recorded and kept after restart, a runner acts only as themselves); all existing tests pass the actor; the account test now checks the “You” profile follows the account. **64 of 64** unit tests; browser suite **17 of 17**; build 0 errors, 0 warnings.
 - **Checked by hand:** Maria renamed herself in Settings → header and “You” profile changed, and stayed after clearing the browser; Ana started a review → history shows “Ana Reyes (Reviewer)”.
 
-### M3.5 Data Ownership (uncommitted)
+### M3.5 Data Ownership
+
+Committed as `d0adc191fbfbdd1119e33c74d79bdc05986f9467` (`3eaf5fd..d0adc19`); CI run 45917205454 passed: 67/67 unit, 18/18 browser.
 
 Approved 27 November 2026 (“Approve M3.5”, recommended choices), built in prototype mode.
 
@@ -379,6 +383,16 @@ Approved 27 November 2026 (“Approve M3.5”, recommended choices), built in pr
 - **Settings:** “Data saved in this browser” is now “Your saved work” with “Reset my drafts and added patients”.
 - **Fixed during tests:** updates to an application or runner request rebuilt the record and dropped its owner, so the owner's next action was refused; updates now copy the record.
 - **Verification:** build 0 errors, 0 warnings; **67 of 67** unit tests (new `OwnershipTests`: a second account starts with only itself; two families never see each other's records and can't act on them; per-account server storage; F1 test now uses two accounts); browser suite **18 of 18** (new: Jun sees none of Maria's records).
+
+### M3.6 Database Readiness (uncommitted)
+
+Built in prototype mode (approved roadmap).
+
+- **Migrations for the workflow store:** `Data/Migrations/Workflow` — `InitialWorkflow` (the schema as it was) and `AddRecordVersions`. Start-up runs `MigrateAsync` instead of `EnsureCreated` and the create-if-missing SQL. A database made before M3.6 (tables but no migration history) is recognised: any D9a-era missing tables are added, it is marked as at `InitialWorkflow`, and later migrations apply.
+- **Database-level concurrency:** `Version` on applications, authorization requests and runner requests is a concurrency token; an update is written only from the version it started from. If another server process moved a row on, nothing is written, the read model reloads from the database, and the action reports it couldn't be saved. One process remains the supported setup; this is the safety net.
+- **Tolerant loading:** a stored row that can't be read is logged and skipped instead of stopping start-up.
+- **Keys:** `DataProtection:KeysPath` (relative to the content root) sets where sign-in keys are kept on a hosted server; unset keeps today's default, so nobody is signed out.
+- **Verification:** build 0 errors, 0 warnings; **70 of 70** unit tests (new `DatabaseReadinessTests`: a pre-M3.6 database is brought under migrations and keeps its data; one unreadable row doesn't stop start-up; a second server's stale write is refused and reloaded; the D9a-database test now goes through the migration path); the real app started on a fresh database with both migrations applied. The browser suite runs in CI after the push.
 
 ## Current architecture
 
@@ -434,11 +448,11 @@ The following findings are source-verified unless explicitly described as build 
 | Authorization is not identity verification | Administrators approve from fictional sample files (D9b); nothing verifies a real relationship or identity | Real verification needs authentication and real documents (outside the prototype) |
 | Hospital directory is fictional and static | Six seeded hospitals with invented hours; no administrator editing, geolocation or live availability | Staff-managed directory with shared persistence (later milestone) |
 | ~~Runner identity is a demo choice (D10)~~ — **fixed in M3.4a (`4aa960d`)** | The runner is the signed-in Runner account | None |
-| Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema made with `EnsureCreated` plus create-if-missing for tables added later (no migrations); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
+| Shared store limits (D9a) | No sign-in, so every browser is the same fictional account and sees the same submissions; one server process owns the SQLite file (the write gate is in-process); schema under EF Core migrations since M3.6 (uncommitted); “Clear my saved data” doesn't remove submitted applications | Authentication, migrations and a server database before any shared deployment |
 | ~~No authentication or authorization~~ — **sign-in and roles in M3.4a (`4aa960d`); actor recording and service role checks in M3.4b (`3eaf5fd`)** | Every portal needs its role, the shared service checks it again, and shared actions record the account | None |
 | ~~Shared notifications shown to every browser~~ — **fixed in M3.2 (`3d834c1`)** | Notifications now carry their patient and are shown only to that family | None |
 | ~~Review could start after a rejected authorization~~ — **fixed in M3.2 (`3d834c1`)** | Review start, runner assignment and family runner requests are refused while rejected | None |
-| ~~Added patients live only in the browser~~ — **fixed in M3.5 (uncommitted)** | Profiles and drafts are saved per account on the server | None |
+| ~~Added patients live only in the browser~~ — **fixed in M3.5 (`d0adc19`)** | Profiles and drafts are saved per account on the server | None |
 | Demo password in the repository (M3.4a) | `Seed:DemoPassword` in `appsettings.Development.json` seeds the fictional accounts in Development only; nothing is seeded elsewhere | Set real accounts and secrets before any non-development deployment |
 | No registration or password reset (M3.4a) | Accounts are seeded; there is no sign-up, email confirmation or reset because the prototype sends no email | Later milestone |
 
@@ -508,4 +522,6 @@ After each phase:
 | 2026-11-27 | Committed and pushed the M3.4a CI fix (exact message: `fix(auth): let the sign-in demo note wrap on narrow screens`, `4aa960d..043efc7`); CI run 45910549673 passed (61/61 unit, 17/17 browser). Owner set **prototype development mode** (implement directly, targeted checks, brief docs) | `043efc7bdbdf9fc1586732b401d126967f9ffd07` | Committed and pushed; this record is uncommitted |
 | 2026-11-27 | M3.4b implemented and verified (prototype mode): actor role checks and who-did-what in the shared service, patient name on the account | `043efc7` + working tree | Committed as `3eaf5fd` |
 | 2026-11-27 | Committed and pushed M3.4b (`feat(auth): check roles in the shared service and record who did what`, `043efc7..3eaf5fd`); CI run 45913045830 passed | `3eaf5fd69afee05dfc72ca480046b1315528da71` | This record is uncommitted |
-| 2026-11-27 | M3.5 implemented and verified (prototype mode): per-account server storage, per-account household, owners on shared records, second demo patient | `3eaf5fd` + working tree | Uncommitted, awaiting approval |
+| 2026-11-27 | M3.5 implemented and verified (prototype mode): per-account server storage, per-account household, owners on shared records, second demo patient | `3eaf5fd` + working tree | Committed as `d0adc19` |
+| 2026-11-27 | Committed and pushed M3.5 (`feat(data): save patient work per account and scope shared records by owner`, `3eaf5fd..d0adc19`); CI run 45917205454 passed | `d0adc191fbfbdd1119e33c74d79bdc05986f9467` | This record is uncommitted |
+| 2026-11-28 | M3.6 implemented and verified (prototype mode): workflow store migrations with baseline for older databases, concurrency tokens, tolerant loading, configurable key location | `d0adc19` + working tree | Uncommitted, awaiting approval |
